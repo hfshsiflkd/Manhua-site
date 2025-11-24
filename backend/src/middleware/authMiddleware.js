@@ -2,29 +2,46 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 exports.protect = async (req, res, next) => {
-  const auth = req.headers.authorization;
+  let token;
 
-  if (!auth || !auth.startsWith("Bearer"))
-    return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай" });
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      token = req.headers.authorization.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  const token = auth.split(" ")[1];
+      req.user = await User.findById(decoded.id).select("-password");
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!req.user || !req.user.isActive) {
+        return res.status(401).json({ message: "Хэрэглэгч идэвхгүй байна" });
+      }
 
-    const user = await User.findById(decoded.id);
-    if (!user) return res.status(401).json({ message: "Хэрэглэгч олдсонгүй" });
-
-    // 🔥 ШАЛГАХ: DB sessionToken === JWT sessionToken
-    if (user.sessionToken !== decoded.sessionToken) {
-      return res.status(401).json({
-        message: "Таны аккаунт өөр төхөөрөмж дээр ашиглагдсан. Дахин нэвтэрнэ үү.",
-      });
+      next();
+    } catch (error) {
+      console.error(error);
+      return res.status(401).json({ message: "Token алдаатай" });
     }
+  }
 
-    req.user = user;
-    next();
-  } catch (err) {
-    res.status(401).json({ message: "Токен хүчингүй байна" });
+  if (!token) {
+    return res.status(401).json({ message: "Token олдсонгүй" });
   }
 };
+
+exports.requireRole =
+  (...allowedRoles) =>
+  (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай" });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res
+        .status(403)
+        .json({ message: "Энэ үйлдэлд эрх хүрэхгүй байна" });
+    }
+
+    next();
+  };

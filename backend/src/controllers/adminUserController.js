@@ -1,64 +1,90 @@
 const User = require("../models/User");
+const logAction = require("../utils/logAction");
 
-// GET /api/admin/users
-exports.listUsers = async (req, res, next) => {
+// Admin: шинэ хэрэглэгч үүсгэх
+exports.createUserByAdmin = async (req, res) => {
   try {
-    const users = await User.find({})
-      .select("_id username email role isVIP vipExpiresAt createdAt")
-      .sort({ createdAt: -1 })
-      .lean();
+    const { username, email, password, role } = req.body;
 
-    res.json(users);
+    const exists = await User.findOne({ email });
+    if (exists) {
+      return res.status(400).json({ message: "Ийм email-тэй хэрэглэгч байна" });
+    }
+
+    const user = await User.create({
+      username,
+      email,
+      password,
+      role: role || "user",
+    });
+
+    await logAction({
+      userId: req.user._id,
+      action: "CREATE_USER",
+      targetType: "User",
+      targetId: user._id,
+      description: `Admin ${req.user.username} created user ${user.username} (${user.role})`,
+      meta: { createdUser: user._id },
+    });
+
+    res.status(201).json(user);
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({ message: "Серверийн алдаа" });
   }
 };
 
-// PATCH /api/admin/users/:id/vip  -> VIP хугацаа сунгах
-// body: { months: 1 | 3 | 6 | 12 }
-exports.setVIP = async (req, res, next) => {
+// Admin: хэрэглэгчийн мэдээлэл/role өөрчлөх
+exports.updateUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { months } = req.body;
-
-    const allowed = [1, 3, 6, 12];
-    if (!allowed.includes(months)) {
-      return res
-        .status(400)
-        .json({ message: "VIP хугацаа 1, 3, 6, 12 сарын нэг байх ёстой" });
-    }
+    const { username, email, role, isActive } = req.body;
 
     const user = await User.findById(id);
-    if (!user)
-      return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
+    if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
-    const now = Date.now();
-    const monthMs = 30 * 24 * 60 * 60 * 1000; // 30 хоног
-
-    let baseTime;
-    // Хугацаа дуусаагүй бол үлдсэн дээр нэмнэ
-    if (user.vipExpiresAt && user.vipExpiresAt.getTime() > now) {
-      baseTime = user.vipExpiresAt.getTime();
-    } else {
-      // Дууссан / тооцоогүй бол шинээр эхлүүлнэ
-      baseTime = now;
-    }
-
-    const newExpire = new Date(baseTime + monthMs * months);
-    user.vipExpiresAt = newExpire;
-    user.isVIP = true;
+    if (username !== undefined) user.username = username;
+    if (email !== undefined) user.email = email;
+    if (role !== undefined) user.role = role;
+    if (isActive !== undefined) user.isActive = isActive;
 
     await user.save();
 
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      isVIP: user.isVIP,
-      vipExpiresAt: user.vipExpiresAt,
+    await logAction({
+      userId: req.user._id,
+      action: "UPDATE_USER",
+      targetType: "User",
+      targetId: user._id,
+      description: `Admin ${req.user.username} updated user ${user.username}`,
+      meta: { body: req.body },
     });
+
+    res.json(user);
   } catch (err) {
-    next(err);
+    console.error(err);
+    res.status(500).json({ message: "Серверийн алдаа" });
+  }
+};
+
+// Admin: бүх хэрэглэгчийн жагсаалт
+exports.listUsers = async (req, res) => {
+  try {
+    const { role, q } = req.query;
+    const filter = {};
+
+    if (role) filter.role = role;
+    if (q) {
+      filter.$or = [
+        { username: new RegExp(q, "i") },
+        { email: new RegExp(q, "i") },
+      ];
+    }
+
+    const users = await User.find(filter).sort({ createdAt: -1 });
+
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Серверийн алдаа" });
   }
 };

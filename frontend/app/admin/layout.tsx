@@ -1,5 +1,6 @@
-// app/admin/layout.tsx
+// src/app/admin/layout.tsx
 import "../globals.css";
+import Header from "../components/Header";
 
 export default function AdminLayout({
   children,
@@ -7,8 +8,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-5xl p-5">{children}</div>
+    <div className="fixed inset-0 z-50 bg-slate-950">
+      <Header/>{children}
     </div>
   );
 }

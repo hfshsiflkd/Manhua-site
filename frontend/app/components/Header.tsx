@@ -13,6 +13,10 @@ export default function Header() {
   const isActive = (href: string) =>
     pathname === href ? "text-cyan-400" : "text-slate-300 hover:text-cyan-300";
 
+  const role = (user as { role?: string } | null | undefined)?.role;
+  const isAdmin = role === "admin";
+  const isEditor = role === "translator"; // editor role чинь "translator" гэж type-д байсан
+
   return (
     <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-3 py-2 sm:px-6 sm:py-3 lg:px-16">
@@ -44,6 +48,29 @@ export default function Header() {
           >
             <span className={isActive("/profile")}>Профайл</span>
           </Link>
+
+          {/* ✨ Role-based shortcut-ууд */}
+          {user && (
+            <>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="hidden rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-3 py-1 text-[11px] font-semibold text-slate-950 shadow-sm shadow-amber-500/50 hover:brightness-110 sm:inline"
+                >
+                  Admin
+                </Link>
+              )}
+
+              {isEditor && (
+                <Link
+                  href="/editor/manhuas"
+                  className="hidden rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-3 py-1 text-[11px] font-semibold text-slate-950 shadow-sm shadow-emerald-500/50 hover:brightness-110 sm:inline"
+                >
+                  Editor
+                </Link>
+              )}
+            </>
+          )}
 
           {user ? (
             <>
