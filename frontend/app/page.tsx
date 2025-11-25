@@ -137,7 +137,7 @@ export default function HomePage() {
                 <div className="aspect-[3/4] w-full overflow-hidden rounded-2xl">
                   <img
                     src={
-                      m.coverImageUrl || "https://via.placeholder.com/300x400"
+                      m.coverImage || "https://via.placeholder.com/300x400"
                     }
                     alt={m.title}
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105 group-hover:brightness-110"
@@ -194,7 +194,7 @@ export default function HomePage() {
                 <div className="aspect-[3/4] w-full overflow-hidden">
                   <img
                     src={
-                      m.coverImageUrl || "https://via.placeholder.com/300x400"
+                      m.coverImage || "https://via.placeholder.com/300x400"
                     }
                     alt={m.title}
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"

@@ -16,6 +16,7 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const chapterRoutes = require("./routes/chapterRoutes");
 const editorRoutes = require("./routes/editorRoutes");
 
+
 const app = express();
 
 // DB
@@ -41,6 +42,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/chapters", chapterRoutes);
 app.use("/api/editor", editorRoutes);
+app.use("/api/admin", adminRoutes);
 
 // 404 + error handler
 app.use(notFound);

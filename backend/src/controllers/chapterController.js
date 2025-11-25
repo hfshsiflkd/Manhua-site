@@ -1,12 +1,31 @@
+// src/controllers/chapterController.js
 const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
 
-// =====================================
-// PUBLIC: GET /api/manhuas/:slug/chapters
-// =====================================
+// 🔹 Helper – slug ИЛҮҮД ID-ээр хайдаг болгочихъё
+async function findManhuaBySlugOrId(slugOrId) {
+  // 24 урттай hex бол _id байх магадлалтай
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(slugOrId);
+
+  if (isObjectId) {
+    const byId = await Manhua.findById(slugOrId);
+    if (byId) return byId;
+  }
+
+  // slug-р хайна
+  return Manhua.findOne({ slug: slugOrId });
+}
+
+/* ---------------------- PUBLIC ROUTES ---------------------- */
+/**
+ * GET /api/manhuas/:slug/chapters
+ * – Уншигч тал: зөвхөн published + mn language
+ */
 exports.getChaptersOfManhua = async (req, res, next) => {
   try {
-    const manhua = await Manhua.findOne({ slug: req.params.slug });
+    const { slug } = req.params;
+
+    const manhua = await Manhua.findOne({ slug });
     if (!manhua) {
       return res.status(404).json({ message: "Manhua not found" });
     }
@@ -14,6 +33,7 @@ exports.getChaptersOfManhua = async (req, res, next) => {
     const chapters = await Chapter.find({
       manhua: manhua._id,
       status: "published",
+      language: "mn",
     })
       .sort({ chapterNumber: 1 })
       .lean();
@@ -24,9 +44,10 @@ exports.getChaptersOfManhua = async (req, res, next) => {
   }
 };
 
-// =====================================
-// PUBLIC: GET /api/manhuas/:slug/chapters/:chapterNumber
-// =====================================
+/**
+ * GET /api/manhuas/:slug/chapters/:chapterNumber
+ * – Нэг chapter унших (уншигч тал)
+ */
 exports.getChapter = async (req, res, next) => {
   try {
     const { slug, chapterNumber } = req.params;
@@ -48,15 +69,13 @@ exports.getChapter = async (req, res, next) => {
     }
 
     // view counter (async)
-    Chapter.updateOne(
-      { _id: chapter._id },
-      { $inc: { views: 1 } }
-    ).catch(() => {});
+    Chapter.updateOne({ _id: chapter._id }, { $inc: { views: 1 } }).catch(
+      () => {}
+    );
 
-    Manhua.updateOne(
-      { _id: manhua._id },
-      { $inc: { views: 1 } }
-    ).catch(() => {});
+    Manhua.updateOne({ _id: manhua._id }, { $inc: { views: 1 } }).catch(
+      () => {}
+    );
 
     res.json(chapter);
   } catch (err) {
@@ -64,16 +83,40 @@ exports.getChapter = async (req, res, next) => {
   }
 };
 
-// =====================================
-// ADMIN: POST /api/manhuas/:slug/chapters
-// (multi-page create)
-// =====================================
+/* ---------------------- ADMIN ROUTES ---------------------- */
+/**
+ * GET /api/admin/manhuas/:slug/chapters
+ * – Admin panel: бүх chapter (status, хэл үл хамаарна)
+ */
+exports.adminListChaptersOfManhua = async (req, res, next) => {
+  try {
+    const { slug } = req.params; // энд slug || id байж болно
+
+    const manhua = await findManhuaBySlugOrId(slug);
+    if (!manhua) {
+      return res.status(404).json({ message: "Manhua not found" });
+    }
+
+    const chapters = await Chapter.find({ manhua: manhua._id })
+      .sort({ chapterNumber: 1 })
+      .lean();
+
+    res.json(chapters);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/admin/manhuas/:slug/chapters
+ * – Шинэ chapter (олон page) үүсгэх
+ */
 exports.createChapter = async (req, res, next) => {
   try {
     const { slug } = req.params;
     const { chapterNumber, title, pages, language, status } = req.body;
 
-    const manhua = await Manhua.findOne({ slug });
+    const manhua = await findManhuaBySlugOrId(slug);
     if (!manhua) {
       return res.status(404).json({ message: "Манхуа олдсонгүй" });
     }
@@ -103,13 +146,14 @@ exports.createChapter = async (req, res, next) => {
   }
 };
 
-// =====================================
-// ADMIN: GET /api/chapters/:id
-// =====================================
+/**
+ * GET /api/admin/chapters/:id
+ * – Admin: нэг chapter-ийг ID-гаар нь авах
+ */
 exports.getChapterById = async (req, res, next) => {
   try {
     const chapter = await Chapter.findById(req.params.id)
-      .populate("manhua", "title slug coverImageUrl")
+      .populate("manhua", "title slug coverImage coverImageUrl")
       .lean();
 
     if (!chapter) {
@@ -122,9 +166,10 @@ exports.getChapterById = async (req, res, next) => {
   }
 };
 
-// =====================================
-// ADMIN: PUT /api/chapters/:id
-// =====================================
+/**
+ * PUT /api/admin/chapters/:id
+ * – Admin: chapter update (гарчиг, номер, статус, pages)
+ */
 exports.updateChapter = async (req, res, next) => {
   try {
     const { chapterNumber, title, status, pages } = req.body;
@@ -137,10 +182,7 @@ exports.updateChapter = async (req, res, next) => {
     if (chapterNumber !== undefined) chapter.chapterNumber = chapterNumber;
     if (title !== undefined) chapter.title = title;
     if (status !== undefined) chapter.status = status;
-
-    if (Array.isArray(pages)) {
-      chapter.pages = pages;
-    }
+    if (Array.isArray(pages)) chapter.pages = pages;
 
     await chapter.save();
     res.json(chapter);

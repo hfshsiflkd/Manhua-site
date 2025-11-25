@@ -3,7 +3,7 @@ export interface Manhua {
   title: string;
   slug: string;
   description?: string;
-  coverImageUrl?: string;
+  coverImage?: string;
   status: "ongoing" | "completed" | "hiatus";
   genres?: string[];
   author?: string;

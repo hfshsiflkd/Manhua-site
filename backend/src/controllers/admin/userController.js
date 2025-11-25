@@ -1,7 +1,29 @@
-const User = require("../models/User");
-const logAction = require("../utils/logAction");
+// src/controllers/admin/userController.js
+const User = require("../../models/User");
+const logAction = require("../../utils/logAction");
 
-// Admin: шинэ хэрэглэгч үүсгэх
+exports.listUsers = async (req, res) => {
+  try {
+    const { role, q } = req.query;
+    const filter = {};
+
+    if (role) filter.role = role;
+    if (q) {
+      filter.$or = [
+        { username: new RegExp(q, "i") },
+        { email: new RegExp(q, "i") },
+      ];
+    }
+
+    const users = await User.find(filter).sort({ createdAt: -1 });
+
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Серверийн алдаа" });
+  }
+};
+
 exports.createUserByAdmin = async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
@@ -23,8 +45,7 @@ exports.createUserByAdmin = async (req, res) => {
       action: "CREATE_USER",
       targetType: "User",
       targetId: user._id,
-      description: `Admin ${req.user.username} created user ${user.username} (${user.role})`,
-      meta: { createdUser: user._id },
+      description: `Admin created user ${user.username}`,
     });
 
     res.status(201).json(user);
@@ -34,7 +55,6 @@ exports.createUserByAdmin = async (req, res) => {
   }
 };
 
-// Admin: хэрэглэгчийн мэдээлэл/role өөрчлөх
 exports.updateUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
@@ -55,34 +75,11 @@ exports.updateUserByAdmin = async (req, res) => {
       action: "UPDATE_USER",
       targetType: "User",
       targetId: user._id,
-      description: `Admin ${req.user.username} updated user ${user.username}`,
+      description: `Admin updated user ${user.username}`,
       meta: { body: req.body },
     });
 
     res.json(user);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Серверийн алдаа" });
-  }
-};
-
-// Admin: бүх хэрэглэгчийн жагсаалт
-exports.listUsers = async (req, res) => {
-  try {
-    const { role, q } = req.query;
-    const filter = {};
-
-    if (role) filter.role = role;
-    if (q) {
-      filter.$or = [
-        { username: new RegExp(q, "i") },
-        { email: new RegExp(q, "i") },
-      ];
-    }
-
-    const users = await User.find(filter).sort({ createdAt: -1 });
-
-    res.json(users);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Серверийн алдаа" });

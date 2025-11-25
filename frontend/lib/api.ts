@@ -3,7 +3,7 @@
 import axios from "axios";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -118,9 +118,12 @@ export async function adminGetLogs(params?: {
   return res.data;
 }
 
-// ✨ ШИНЭ: Admin – бүх manhua + эзэнтэй нь
-export async function adminGetManhuas() {
-  const res = await api.get<Manhua[]>("/admin/manhuas");
+// ✨ Admin – бүх manhua + эзэнтэй нь
+export async function adminGetManhuas(limit?: number) {
+  const params: Record<string, any> = {};
+  if (limit) params.limit = limit;
+
+  const res = await api.get<Manhua[]>("/admin/manhuas", { params });
   return res.data;
 }
 
@@ -142,7 +145,7 @@ export async function editorUpdateManhua(id: string, payload: Partial<Manhua>) {
   return res.data;
 }
 
-// ✨ ШИНЭ: Editor – зөвхөн өөрийн нэмсэн manhua
+// ✨ Editor – зөвхөн өөрийн нэмсэн manhua
 export async function editorGetMyManhuas() {
   const res = await api.get<Manhua[]>("/editor/manhuas/mine");
   return res.data;
@@ -167,12 +170,8 @@ export async function getManhuas(params?: { page?: number; limit?: number }) {
   return [] as Manhua[];
 }
 
-
 // 🔥 Admin – manhua update
-export async function adminUpdateManhua(
-  id: string,
-  payload: Partial<Manhua>
-) {
+export async function adminUpdateManhua(id: string, payload: Partial<Manhua>) {
   const res = await api.patch<Manhua>(`/admin/manhuas/${id}`, payload);
   return res.data;
 }
@@ -186,5 +185,46 @@ export async function adminGetManhua(id: string) {
 // 🔥 Admin – manhua delete
 export async function adminDeleteManhua(id: string) {
   const res = await api.delete<{ message: string }>(`/admin/manhuas/${id}`);
+  return res.data;
+}
+
+export async function uploadImage(file: File) {
+  const formData = new FormData();
+
+  formData.append("file", file);
+
+  const res = await api.post<{ url: string }>("/upload", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return res.data; // { url }
+}
+
+
+// ---- Chapter types ----
+export interface ChapterPage {
+  pageNumber: number;
+  imageUrl: string;
+}
+
+export interface Chapter {
+  _id: string;
+  chapterNumber: number;
+  title?: string;
+  pages: ChapterPage[];
+  views?: number;
+  status?: string;
+}
+
+// ✅ USER – Public chapters
+export async function getPublicChapters(slug: string) {
+  const res = await api.get<Chapter[]>(`/manhuas/${slug}/chapters`);
+  return res.data;
+}
+
+export async function adminGetChapters(slug: string) {
+  const res = await api.get<Chapter[]>(`/admin/manhuas/${slug}/chapters`);
   return res.data;
 }

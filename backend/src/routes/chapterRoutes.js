@@ -1,18 +1,14 @@
+// src/routes/chapterRoutes.js
 const express = require("express");
 const router = express.Router();
 
 const {
-  getChapterById,
-  updateChapter,
+  getChaptersOfManhua,
+  getChapter,
 } = require("../controllers/chapterController");
 
-const { protect } = require("../middleware/authMiddleware");
-const adminOnly = require("../middleware/adminOnly");
-
-// ADMIN: GET /api/chapters/:id
-router.get("/:id", protect, adminOnly, getChapterById);
-
-// ADMIN: PUT /api/chapters/:id
-router.put("/:id", protect, adminOnly, updateChapter);
+// PUBLIC
+router.get("/manhuas/:slug/chapters", getChaptersOfManhua);
+router.get("/manhuas/:slug/chapters/:chapterNumber", getChapter);
 
 module.exports = router;
