@@ -23,7 +23,15 @@ exports.getMyManhuas = async (req, res, next) => {
  */
 exports.createManhua = async (req, res, next) => {
   try {
-    const { title, description, coverImage, status, genres } = req.body;
+    const {
+      title,
+      description,
+      coverImage,
+      coverImageUrl,
+      slug,
+      status,
+      genres,
+    } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
@@ -32,14 +40,24 @@ exports.createManhua = async (req, res, next) => {
     const doc = await Manhua.create({
       title,
       description,
-      coverImage,
+      slug,
       status: status || "ongoing",
+      coverImage: coverImage || coverImageUrl,
+      coverImageUrl: coverImageUrl || coverImage,
       genres: Array.isArray(genres) ? genres : [],
-      createdBy: req.user._id, // ✨ чухал
+      createdBy: req.user._id,
     });
 
     res.status(201).json(doc);
   } catch (err) {
+    // ⬇️ slug давхцсан үед илүү ойлгомжтой мессеж
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.slug) {
+      return res
+        .status(400)
+        .json({
+          message: "Энэ slug аль хэдийн ашиглагдсан байна. Өөр slug оруул.",
+        });
+    }
     next(err);
   }
 };

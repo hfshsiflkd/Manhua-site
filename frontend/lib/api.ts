@@ -54,18 +54,19 @@ export interface ActionLog {
 export interface Manhua {
   _id: string;
   title: string;
+  slug?: string;
   description?: string;
   coverImage?: string;
   coverImageUrl?: string;
   status?: string;
-  slug?: string;
   genres?: string[];
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   createdBy?: {
     _id: string;
     username: string;
-    email: string;
-    role: UserRole | string;
+    email?: string;
+    role?: string;
   };
 }
 
@@ -127,27 +128,42 @@ export async function adminGetManhuas(limit?: number) {
   return res.data;
 }
 
-// Editor + public Manhua API
+
+
+// ✅ Editor – өөрийн манхуа лист
+export async function editorGetMyManhuas() {
+  const res = await api.get<Manhua[]>("/editor/manhuas/mine");
+  return res.data;
+}
+
+// ✅ Editor – шинэ манхуа үүсгэх
 export async function editorCreateManhua(payload: {
   title: string;
   description?: string;
+  slug?: string;
+  status?: string;
   coverImage?: string;
   coverImageUrl?: string;
-  status?: string;
   genres?: string[];
 }) {
   const res = await api.post<Manhua>("/editor/manhuas", payload);
   return res.data;
 }
 
-export async function editorUpdateManhua(id: string, payload: Partial<Manhua>) {
+// ✅ Editor – өөрийн манхуа update
+export async function editorUpdateManhua(
+  id: string,
+  payload: Partial<{
+    title: string;
+    description: string;
+    slug: string;
+    status: string;
+    coverImage: string;
+    coverImageUrl: string;
+    genres: string[];
+  }>
+) {
   const res = await api.patch<Manhua>(`/editor/manhuas/${id}`, payload);
-  return res.data;
-}
-
-// ✨ Editor – зөвхөн өөрийн нэмсэн manhua
-export async function editorGetMyManhuas() {
-  const res = await api.get<Manhua[]>("/editor/manhuas/mine");
   return res.data;
 }
 
@@ -213,10 +229,12 @@ export interface Chapter {
   _id: string;
   chapterNumber: number;
   title?: string;
-  pages: ChapterPage[];
-  views?: number;
+  pages: { pageNumber: number; imageUrl: string }[];
+  language?: string;
   status?: string;
+  views?: number;
 }
+
 
 // ✅ USER – Public chapters
 export async function getPublicChapters(slug: string) {
@@ -226,5 +244,26 @@ export async function getPublicChapters(slug: string) {
 
 export async function adminGetChapters(slug: string) {
   const res = await api.get<Chapter[]>(`/admin/manhuas/${slug}/chapters`);
+  return res.data;
+}
+
+// EDITOR – list chapters for my manhua
+export async function editorGetChapters(slug: string) {
+  const res = await api.get<Chapter[]>(`/editor/manhuas/${slug}/chapters`);
+  return res.data;
+}
+
+// EDITOR – get chapter by id
+export async function editorGetChapterById(id: string) {
+  const res = await api.get<Chapter>(`/editor/chapters/${id}`);
+  return res.data;
+}
+
+// EDITOR – update chapter
+export async function editorUpdateChapter(
+  id: string,
+  payload: Partial<Chapter>
+) {
+  const res = await api.put<Chapter>(`/editor/chapters/${id}`, payload);
   return res.data;
 }

@@ -9,6 +9,12 @@ const {
   updateManhua,
 } = require("../controllers/editorController");
 
+const {
+  editorListChaptersOfManhua,
+  editorGetChapterById,
+  editorUpdateChapter,
+} = require("../controllers/chapterController");
+
 // бүх editor route-ууд auth шаардлагатай
 router.use(protect);
 
@@ -20,5 +26,12 @@ router.post("/manhuas", createManhua);
 
 // манхуа update хийх
 router.patch("/manhuas/:id", updateManhua);
+
+// ✅ EDITOR: өөрийн manhua-ны chapter-ууд
+router.get("/manhuas/:slug/chapters", editorListChaptersOfManhua);
+
+// ✅ EDITOR: chapter one by id
+router.get("/chapters/:id", editorGetChapterById);
+router.put("/chapters/:id", editorUpdateChapter);
 
 module.exports = router;

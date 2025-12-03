@@ -182,7 +182,7 @@ export default function ManhuasPage() {
                     <div className="aspect-[3/4] w-full overflow-hidden">
                       <img
                         src={
-                          m.coverImageUrl ||
+                          m.coverImage ||
                           "https://via.placeholder.com/300x400"
                         }
                         alt={m.title}

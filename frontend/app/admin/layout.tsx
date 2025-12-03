@@ -18,7 +18,7 @@ export default function AdminLayout({
       {/* ДООД ТАЛ – ADMIN CONTENT */}
       <main className="flex-1 overflow-y-auto">
         {/* Хэрэв padding бага байлгамаар байвал эндээс тохируул */}
-        <div className="w-full px-4 py-4 md:px-6 lg:px-8">{children}</div>
+        <div className="w-full ">{children}</div>
       </main>
     </div>
   );

@@ -190,3 +190,99 @@ exports.updateChapter = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.editorListChaptersOfManhua = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+
+    const manhua = await Manhua.findOne({ slug }).lean();
+    if (!manhua) {
+      return res.status(404).json({ message: "Manhua not found" });
+    }
+
+    // admin биш бол зөвхөн өөрийнхөө manhua дээр ажиллах
+    if (
+      req.user.role !== "admin" &&
+      String(manhua.createdBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ message: "No permission for this manhua" });
+    }
+
+    const chapters = await Chapter.find({ manhua: manhua._id })
+      .sort({ chapterNumber: 1 })
+      .lean();
+
+    res.json(chapters);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * EDITOR: GET /api/editor/chapters/:id
+ * - Chapter-ийн мэдээлэл (зөвхөн owner эсвэл admin)
+ */
+exports.editorGetChapterById = async (req, res, next) => {
+  try {
+    const chapter = await Chapter.findById(req.params.id)
+      .populate("manhua", "title slug createdBy")
+      .lean();
+
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    const manhua = chapter.manhua;
+
+    // admin биш бол зөвхөн өөрийн manhua
+    if (
+      req.user.role !== "admin" &&
+      String(manhua.createdBy) !== String(req.user._id)
+    ) {
+      return res
+        .status(403)
+        .json({ message: "No permission for this chapter" });
+    }
+
+    res.json(chapter);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * EDITOR: PUT /api/editor/chapters/:id
+ * - Page, title, status зэргийг шинэчлэх (owner + admin)
+ */
+exports.editorUpdateChapter = async (req, res, next) => {
+  try {
+    const chapter = await Chapter.findById(req.params.id).populate(
+      "manhua",
+      "createdBy"
+    );
+
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    // admin биш бол зөвхөн өөрийнхөө manhua-ны chapter
+    if (
+      req.user.role !== "admin" &&
+      String(chapter.manhua.createdBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ message: "No permission" });
+    }
+
+    const { chapterNumber, title, status, pages } = req.body;
+
+    if (chapterNumber !== undefined) chapter.chapterNumber = chapterNumber;
+    if (title !== undefined) chapter.title = title;
+    if (status !== undefined) chapter.status = status;
+    if (Array.isArray(pages)) chapter.pages = pages;
+
+    await chapter.save();
+    res.json(chapter);
+  } catch (err) {
+    next(err);
+  }
+};

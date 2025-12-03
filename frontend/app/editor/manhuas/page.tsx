@@ -3,34 +3,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  editorGetMyManhuas,
-  editorCreateManhua,
-  editorUpdateManhua,
-  Manhua,
-} from "@/lib/api";
+import Link from "next/link";
+import { editorGetMyManhuas, editorUpdateManhua, Manhua } from "@/lib/api";
+import EditorShell from "./components/EditorShell";
 
 export default function EditorManhuasPage() {
   const [manhuas, setManhuas] = useState<Manhua[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    coverImage: "",
-    status: "ongoing",
-    genres: "",
-  });
   const [error, setError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   async function loadManhuas() {
     try {
       setLoading(true);
       const data = await editorGetMyManhuas();
-      setManhuas(data);
+      setManhuas(Array.isArray(data) ? data : []);
       setError(null);
     } catch (e: any) {
-      setError(e?.response?.data?.message || "Failed to load manhuas");
+      console.error("[EditorManhuas] load error:", e);
+      setError(e?.response?.data?.message || "Manhuas ачаалж чадсангүй");
+      setManhuas([]);
     } finally {
       setLoading(false);
     }
@@ -40,36 +32,6 @@ export default function EditorManhuasPage() {
     loadManhuas();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const genresArray = form.genres
-        .split(",")
-        .map((g) => g.trim())
-        .filter(Boolean);
-
-      await editorCreateManhua({
-        title: form.title,
-        description: form.description || undefined,
-        coverImage: form.coverImage || undefined,
-        status: form.status,
-        genres: genresArray.length ? genresArray : undefined,
-      });
-
-      setForm({
-        title: "",
-        description: "",
-        coverImage: "",
-        status: "ongoing",
-        genres: "",
-      });
-      setCreating(false);
-      await loadManhuas();
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Failed to create manhua");
-    }
-  };
-
   const handleToggleStatus = async (m: Manhua) => {
     const newStatus =
       m.status === "completed"
@@ -77,15 +39,20 @@ export default function EditorManhuasPage() {
         : m.status === "ongoing"
         ? "hiatus"
         : "completed";
+
     try {
+      setTogglingId(m._id);
       await editorUpdateManhua(m._id, { status: newStatus });
       await loadManhuas();
     } catch (e: any) {
-      setError(e?.response?.data?.message || "Failed to update manhua");
+      console.error("[EditorManhuas] toggle status error:", e);
+      setError(e?.response?.data?.message || "Status солих үед алдаа гарлаа");
+    } finally {
+      setTogglingId(null);
     }
   };
 
-  function prettyStatus(status?: string) {
+  const prettyStatus = (status?: string) => {
     switch (status) {
       case "ongoing":
         return "Ongoing";
@@ -96,246 +63,196 @@ export default function EditorManhuasPage() {
       default:
         return "Unknown";
     }
-  }
+  };
 
-  function statusClasses(status?: string) {
+  const statusClasses = (status?: string) => {
     switch (status) {
       case "ongoing":
-        return "bg-emerald-500/15 text-emerald-200 border-emerald-500/40";
+        return "bg-emerald-500/12 text-emerald-200 border border-emerald-500/40";
       case "completed":
-        return "bg-sky-500/15 text-sky-200 border-sky-500/40";
+        return "bg-sky-500/12 text-sky-200 border border-sky-500/40";
       case "hiatus":
-        return "bg-amber-500/15 text-amber-200 border-amber-500/40";
+        return "bg-amber-500/12 text-amber-200 border border-amber-500/40";
       default:
-        return "bg-slate-700 text-slate-200 border-slate-600";
+        return "bg-slate-700/70 text-slate-200 border border-slate-600/70";
     }
-  }
+  };
 
   return (
-    <div className="space-y-6 py-4">
-      {/* Header – зөвхөн editor-д зориулсан */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-50">
-            Editor Panel – My Manhuas
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Өөрийн нэмсэн series дээрээ нэмэлт, засвар хийх хэсэг.
+    <EditorShell
+      title="My Manhuas"
+      subtitle="Өөрийн нэмсэн манхуа-гаа жагсааж, статус, chapters болон public page-ээ удирдана."
+    >
+      <div className="space-y-4">
+        {/* Top actions / info */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[11px] text-slate-400">
+            Энд зөвхөн{" "}
+            <span className="font-medium text-slate-200">чиний нэмсэн</span>{" "}
+            манхуа-ууд харагдана.
           </p>
+          <Link
+            href="/editor/manhuas/new"
+            className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 transition"
+          >
+            + New manhua
+          </Link>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="inline-flex items-center rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 transition"
-        >
-          + New manhua
-        </button>
-      </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-          {error}
-        </div>
-      )}
-
-      {/* Manhua grid */}
-      {loading ? (
-        <div className="text-sm text-slate-400">Loading manhuas...</div>
-      ) : manhuas.length === 0 ? (
-        <div className="text-sm text-slate-500">
-          Одоогоор чи манхуа нэмээгүй байна. Эхнийхээ нэмээрэй!
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {manhuas.map((m) => {
-            const coverUrl =
-              m.coverImageUrl ||
-              m.coverImage ||
-              "https://via.placeholder.com/400x250?text=No+Cover";
-
-            const created = m.createdAt
-              ? new Date(m.createdAt).toLocaleDateString()
-              : "-";
-
-            return (
-              <div
-                key={m._id}
-                className="group rounded-2xl border border-slate-800 bg-slate-900/80 backdrop-blur shadow shadow-black/40 overflow-hidden flex flex-col hover:border-cyan-500/50 hover:bg-slate-900 transition"
-              >
-                {/* Cover */}
-                <div className="relative h-44 bg-slate-950 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={coverUrl}
-                    alt={m.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/30 to-transparent" />
-
-                  {/* Status pill */}
-                  <div className="absolute top-3 left-3 flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${statusClasses(
-                        m.status
-                      )}`}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5" />
-                      {prettyStatus(m.status)}
-                    </span>
-                  </div>
-
-                  {/* Title + genres */}
-                  <div className="absolute bottom-3 left-3 right-3 space-y-1">
-                    <h3 className="text-sm font-semibold text-slate-50 line-clamp-2">
-                      {m.title}
-                    </h3>
-                    {m.genres && m.genres.length > 0 && (
-                      <p className="text-[11px] text-slate-300 line-clamp-1">
-                        {m.genres.join(" • ")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Meta + actions */}
-                <div className="p-3 flex flex-col gap-2 text-[11px]">
-                  <p className="line-clamp-3 text-slate-300 min-h-[2.8em]">
-                    {m.description || (
-                      <span className="text-slate-500">
-                        No description yet.
-                      </span>
-                    )}
-                  </p>
-
-                  <div className="flex items-center justify-between text-slate-500">
-                    <span>Created: {created}</span>
-                    {m.slug && (
-                      <span className="text-[10px] text-slate-500">
-                        /manhua/{m.slug}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => handleToggleStatus(m)}
-                      className="rounded-full border border-cyan-400/60 bg-cyan-500/10 px-3 py-1 text-[10px] text-cyan-100 hover:bg-cyan-500/20 transition"
-                    >
-                      Cycle status
-                    </button>
-                    <span className="text-[10px] text-slate-500">
-                      ID: {m._id.slice(0, 6)}…
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Create manhua modal */}
-      {creating && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl shadow-black/60">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold">Create new manhua</h2>
-              <button
-                onClick={() => setCreating(false)}
-                className="text-slate-400 hover:text-slate-100 text-sm"
-              >
-                ✕
-              </button>
-            </div>
-            <form className="space-y-4" onSubmit={handleCreate}>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400">
-                  Title<span className="text-red-400">*</span>
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, title: e.target.value }))
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400">Description</label>
-                <textarea
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
-                  }
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400">
-                  Cover Image URL
-                </label>
-                <input
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  value={form.coverImage}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, coverImage: e.target.value }))
-                  }
-                  placeholder="https://example.com/cover.jpg"
-                />
-                <p className="text-[10px] text-slate-500">
-                  Бүрэн URL оруулаарай (CDN / storage линк).
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400">Status</label>
-                  <select
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value }))
-                    }
-                  >
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    <option value="hiatus">Hiatus</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-400">
-                    Genres (comma separated)
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-                    value={form.genres}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, genres: e.target.value }))
-                    }
-                    placeholder="Romance, Comedy, Fantasy..."
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setCreating(false)}
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow shadow-emerald-500/40"
-                >
-                  Create
-                </button>
-              </div>
-            </form>
+        {error && (
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+            {error}
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {/* Table / list */}
+        {loading ? (
+          <div className="text-sm text-slate-400">Manhuas ачаалж байна...</div>
+        ) : manhuas.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-6 text-center text-sm text-slate-400">
+            Одоогоор чи манхуа нэмээгүй байна.{" "}
+            <Link
+              href="/editor/manhuas/new"
+              className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
+            >
+              Эхнийхээ нэмээрэй.
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-slate-950/60">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead className="bg-slate-950/80 border-b border-slate-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
+                      Title
+                    </th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
+                      Updated
+                    </th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
+                      Genres
+                    </th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-400">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {manhuas.map((m) => {
+                    const updated =
+                      (m as any).updatedAt || (m as any).createdAt;
+                    const updatedStr = updated
+                      ? new Date(updated).toLocaleDateString()
+                      : "-";
+
+                    const publicUrl = `/manhua/${m.slug ?? m._id}`;
+                    const editorChaptersUrl = m.slug
+                      ? `/editor/manhuas/${m.slug}/chapters`
+                      : undefined; // slug байхгүй бол chapters button disable
+
+                    return (
+                      <tr
+                        key={m._id}
+                        className="border-t border-slate-800/70 hover:bg-slate-900/80"
+                      >
+                        {/* TITLE */}
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-medium text-slate-100 line-clamp-1">
+                              {m.title}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              {m.slug ? (
+                                <>
+                                  /manhua/
+                                  <span className="font-mono">{m.slug}</span>
+                                </>
+                              ) : (
+                                <span className="font-mono">
+                                  ID: {m._id.slice(0, 8)}…
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* STATUS */}
+                        <td className="px-4 py-3 align-top">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] ${statusClasses(
+                              m.status
+                            )}`}
+                          >
+                            <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current" />
+                            {prettyStatus(m.status)}
+                          </span>
+                        </td>
+
+                        {/* UPDATED */}
+                        <td className="px-4 py-3 align-top text-[11px] text-slate-400">
+                          {updatedStr}
+                        </td>
+
+                        {/* GENRES */}
+                        <td className="px-4 py-3 align-top text-[11px] text-slate-400">
+                          {m.genres && m.genres.length > 0
+                            ? m.genres.join(", ")
+                            : "-"}
+                        </td>
+
+                        {/* ACTIONS */}
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            {/* Public view */}
+                            <Link
+                              href={publicUrl}
+                              className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] text-slate-200 hover:bg-slate-800"
+                            >
+                              View
+                            </Link>
+
+                            {/* Chapters (admin/editor manage) */}
+                            {editorChaptersUrl ? (
+                              <Link
+                                href={editorChaptersUrl}
+                                className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] text-slate-200 hover:bg-slate-800"
+                              >
+                                Chapters
+                              </Link>
+                            ) : (
+                              <button
+                                disabled
+                                className="rounded-full border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[10px] text-slate-500"
+                              >
+                                No slug
+                              </button>
+                            )}
+
+                            {/* Status toggle */}
+                            <button
+                              onClick={() => handleToggleStatus(m)}
+                              disabled={togglingId === m._id}
+                              className="rounded-full border border-cyan-400/60 bg-cyan-500/10 px-2.5 py-1 text-[10px] text-cyan-100 hover:bg-cyan-500/20 disabled:opacity-60"
+                            >
+                              {togglingId === m._id
+                                ? "Changing..."
+                                : "Cycle status"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </EditorShell>
   );
 }
