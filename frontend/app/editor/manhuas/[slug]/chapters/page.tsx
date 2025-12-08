@@ -45,6 +45,13 @@ export default function EditorChaptersPage() {
     load();
   }, [slug, router]);
 
+  // ➕ Add Chapter руу үсрэх handler
+  function handleGoToNewChapter() {
+    if (!slug) return;
+    router.push(`/editor/manhuas/${slug}/chapters/new`);
+    // Жишээ: watashi1 бол /editor/manhuas/watashi1/chapters/new
+  }
+
   return (
     <EditorShell
       title={`Chapters – ${slug}`}
@@ -60,7 +67,14 @@ export default function EditorChaptersPage() {
             ← My Manhuas руу
           </button>
 
-          {/* Хожим “шинэ chapter үүсгэх” editor хувилбараар энд нэмнэ */}
+          {/* ➕ Шинэ Chapter үүсгэх хуудас руу үсрэх товч */}
+          <button
+            type="button"
+            onClick={handleGoToNewChapter}
+            className="rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-3 py-1.5 text-[11px] text-cyan-200 hover:bg-cyan-500/20"
+          >
+            + Add Chapter
+          </button>
         </div>
 
         {error && (
@@ -76,6 +90,15 @@ export default function EditorChaptersPage() {
         ) : chapters.length === 0 ? (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-6 text-center text-xs text-slate-400">
             Одоогоор chapter нэмэгдээгүй байна.
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={handleGoToNewChapter}
+                className="rounded-lg border border-cyan-500 bg-cyan-600 px-3 py-1.5 text-[11px] text-white hover:bg-cyan-500"
+              >
+                + Эхний Chapter-аа үүсгэх
+              </button>
+            </div>
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
@@ -96,7 +119,7 @@ export default function EditorChaptersPage() {
                   <div className="flex items-center gap-3 text-[11px] text-slate-400">
                     <span>{ch.pages?.length || 0} pages</span>
                     <Link
-                      href={`/editor/chapters/${ch._id}`}
+                      href={`/editor/manhuas/${slug}/chapters/${ch._id}`}
                       className="text-cyan-300 hover:text-cyan-200"
                     >
                       Edit

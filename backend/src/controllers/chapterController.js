@@ -286,3 +286,65 @@ exports.editorUpdateChapter = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.editorCreateChapter = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const { chapterNumber, title, pages, language, status } = req.body;
+
+    // Манхуа олох
+    const manhua = await Manhua.findOne({ slug }).lean();
+    if (!manhua) {
+      return res.status(404).json({ message: "Manhua not found" });
+    }
+
+    // admin биш бол зөвхөн өөрийнхөө манхуа дээр л chapter үүсгэнэ
+    if (
+      req.user.role !== "admin" &&
+      String(manhua.createdBy) !== String(req.user._id)
+    ) {
+      return res
+        .status(403)
+        .json({ message: "No permission to create chapter for this manhua" });
+    }
+
+    // ChapterNumber давхацуулахгүй болгож шалгана (хүсвэл авч болно)
+    if (chapterNumber != null) {
+      const exists = await Chapter.findOne({
+        manhua: manhua._id,
+        chapterNumber,
+        language: language || "mn",
+      });
+
+      if (exists) {
+        return res
+          .status(400)
+          .json({ message: "Энэ дугаартай chapter аль хэдийнэ байна." });
+      }
+    }
+
+    // pages хоосон байж болохоор editor талдаа зөвшөөрөөд үлдээе
+    let formattedPages = [];
+    if (Array.isArray(pages)) {
+      formattedPages = pages.map((p, idx) => ({
+        pageNumber: p.pageNumber ?? idx + 1,
+        imageUrl: p.imageUrl,
+      }));
+    }
+
+    const chapter = await Chapter.create({
+      manhua: manhua._id,
+      chapterNumber,
+      title,
+      pages: formattedPages,
+      language: language || "mn",
+      status: status || "draft", // editor талаас draft болгож эхлүүлбэл зүгээр
+      views: 0,
+      uploadedBy: req.user._id,
+    });
+
+    res.status(201).json(chapter);
+  } catch (err) {
+    next(err);
+  }
+};

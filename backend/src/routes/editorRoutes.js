@@ -13,6 +13,7 @@ const {
   editorListChaptersOfManhua,
   editorGetChapterById,
   editorUpdateChapter,
+  editorCreateChapter,
 } = require("../controllers/chapterController");
 
 // бүх editor route-ууд auth шаардлагатай
@@ -27,8 +28,11 @@ router.post("/manhuas", createManhua);
 // манхуа update хийх
 router.patch("/manhuas/:id", updateManhua);
 
-// ✅ EDITOR: өөрийн manhua-ны chapter-ууд
+// ✅ EDITOR: өөрийн manhua-ны chapter-ууд (LIST)
 router.get("/manhuas/:slug/chapters", editorListChaptersOfManhua);
+
+// ✅ EDITOR: шинэ chapter үүсгэх (CREATE)
+router.post("/manhuas/:slug/chapters", editorCreateChapter);
 
 // ✅ EDITOR: chapter one by id
 router.get("/chapters/:id", editorGetChapterById);

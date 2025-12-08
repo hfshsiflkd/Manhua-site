@@ -61,14 +61,13 @@ export default function AdminNewChapterPage() {
         imageUrl: url,
       }));
 
-      // 3) ADMIN chapter create endpoint руу POST
-      await api.post(`/admin/manhuas/${slug}/chapters`, {
-        chapterNumber,
-        title,
-        pages,
-        language: "mn",
-        status, // "published" эсвэл "draft"
-      });
+     await api.post(`/editor/manhuas/${slug}/chapters`, {
+       chapterNumber,
+       title,
+       pages,
+       language: "mn",
+       status, // "published" эсвэл "draft"
+     });
 
       // 4) Амжилттай бол chapter list рүү буцаах
       router.push(`/editor/manhuas/${slug}/chapters`);

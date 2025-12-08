@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -45,8 +46,8 @@ export default function AdminEditChapterPage() {
 
     async function load() {
       try {
-        // ADMIN endpoint
-        const res = await api.get<Chapter>(`/admin/chapters/${chapterId}`);
+
+        const res = await api.get<Chapter>(`/editor/chapters/${chapterId}`);
         const ch = res.data;
         setChapter(ch);
         setPages(
@@ -78,7 +79,7 @@ export default function AdminEditChapterPage() {
 
     try {
       setSavingMeta(true);
-      await api.put(`/admin/chapters/${chapterId}`, {
+      await api.put(`/editor/chapters/${chapterId}`, {
         chapterNumber,
         title,
         status,
@@ -110,7 +111,7 @@ export default function AdminEditChapterPage() {
     if (!chapter) return;
     setSavingPages(true);
     try {
-      await api.put(`/admin/chapters/${chapterId}`, {
+      await api.put(`/editor/chapters/${chapterId}`, {
         chapterNumber,
         title,
         status,
@@ -139,7 +140,6 @@ export default function AdminEditChapterPage() {
       const uploaded = await Promise.all(
         fileArr.map(async (f) => {
           const r = await uploadImage(f); // { url }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return (r as any).url || (r as any).secure_url || r.url;
         })
       );
