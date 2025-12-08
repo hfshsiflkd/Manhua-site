@@ -9,6 +9,9 @@ export interface Manhua {
   author?: string;
   artist?: string;
   views: number;
+  lastChapterNumber?: number | null;
+  lastChapterId?: string | null;
+  lastChapterAt?: string | null;
 }
 
 export interface ChapterPage {

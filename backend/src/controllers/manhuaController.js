@@ -2,6 +2,7 @@ const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
 
 // GET /api/manhuas  (list + search)
+// GET /api/manhuas  (list + search)
 exports.getManhuas = async (req, res, next) => {
   try {
     const q = req.query.q || "";
@@ -18,10 +19,41 @@ exports.getManhuas = async (req, res, next) => {
 
     const total = await Manhua.countDocuments(filter);
 
-    const items = await Manhua.find(filter)
+    const manhuas = await Manhua.find(filter)
       .sort({ updatedAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+
+    // ✨ manhua бүрийн хамгийн сүүлийн chapter-ийг олоод нэмнэ
+    const manhuaIds = manhuas.map((m) => m._id);
+
+    const chapters = await Chapter.aggregate([
+      { $match: { manhua: { $in: manhuaIds }, status: "published" } },
+      { $sort: { chapterNumber: -1 } },
+      {
+        $group: {
+          _id: "$manhua",
+          lastChapterNumber: { $first: "$chapterNumber" },
+          lastChapterId: { $first: "$_id" },
+          lastChapterAt: { $first: "$createdAt" },
+        },
+      },
+    ]);
+
+    const byManhuaId = new Map(
+      chapters.map((c) => [String(c._id), c])
+    );
+
+    const items = manhuas.map((m) => {
+      const extra = byManhuaId.get(String(m._id));
+      return {
+        ...m,
+        lastChapterNumber: extra?.lastChapterNumber || null,
+        lastChapterId: extra?.lastChapterId || null,
+        lastChapterAt: extra?.lastChapterAt || null,
+      };
+    });
 
     res.json({ items, total, page, limit });
   } catch (err) {
