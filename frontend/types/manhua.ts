@@ -1,4 +1,9 @@
 export interface Manhua {
+  chapters: never[];
+  ratingAverage: number;
+  updatedAt: string | number | Date;
+  lastChapter: string | null | undefined;
+  latestChapterAt: string | null | undefined;
   _id: string;
   title: string;
   slug: string;
@@ -20,6 +25,8 @@ export interface ChapterPage {
 }
 
 export interface Chapter {
+  createdAt: string;
+  updatedAt: string;
   _id: string;
   manhua: string;
   chapterNumber: number;
@@ -28,4 +35,5 @@ export interface Chapter {
   pages: ChapterPage[];
   views: number;
   status: "draft" | "published";
+  releaseAt?: string;
 }

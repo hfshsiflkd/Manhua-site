@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   getManhuas,
   getManhuaBySlug,
+  getHomeSections,
 } = require("../controllers/manhuaController");
 
 const {
@@ -18,7 +19,7 @@ const adminOnly = require("../middleware/adminOnly");
 // -----------------------------------------------------
 // PUBLIC ROUTES
 // -----------------------------------------------------
-
+router.get("/home/sections", getHomeSections);
 // 1) GET all manhuas
 router.get("/", getManhuas);
 

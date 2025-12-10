@@ -13,68 +13,15 @@ import {
   Manhua,
 } from "@/lib/api";
 
-// ─────────────────────────────────────
-//  Туслах жижиг components
-// ─────────────────────────────────────
-function PanelShell({
-  title,
-  children,
-  right,
-}: {
-  title: string;
-  children: React.ReactNode;
-  right?: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-800/80 bg-slate-950/85 p-3.5 text-xs text-slate-300 shadow-md shadow-black/40">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-50">{title}</h3>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
-}
+import { ManhuaTopBar } from "./components/ManhuaTopBar";
+import { CoverImagePanel } from "./components/CoverImagePanel";
+import {
+  BasicInfoPanel,
+  type ManhuaFormState,
+} from "./components/BasicInfoPanel";
+import { OwnerPanel } from "./components/OwnerPanel";
+import { SystemInfoPanel } from "./components/SystemInfoPanel";
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-[11px] text-slate-400">{children}</label>;
-}
-
-function TextInput(
-  props: React.InputHTMLAttributes<HTMLInputElement> & { small?: boolean }
-) {
-  const { small, className, ...rest } = props;
-  return (
-    <input
-      {...rest}
-      className={
-        "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 " +
-        (small ? "py-1 text-[11px]" : "py-1.5 text-xs") +
-        " text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 " +
-        (className || "")
-      }
-    />
-  );
-}
-
-function TextArea(
-  props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { rows?: number }
-) {
-  const { className, ...rest } = props;
-  return (
-    <textarea
-      {...rest}
-      className={
-        "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 " +
-        (className || "")
-      }
-    />
-  );
-}
-
-// ─────────────────────────────────────
-//  Үндсэн page component
-// ─────────────────────────────────────
 export default function AdminManhuaDetailPage() {
   const { slug } = useParams() as { slug?: string };
   const manhuaId = slug as string | undefined;
@@ -87,13 +34,14 @@ export default function AdminManhuaDetailPage() {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ManhuaFormState>({
     title: "",
     slug: "",
     description: "",
     coverImage: "",
     status: "ongoing",
     genres: "",
+    rating: "",
   });
 
   // ─── LOAD DATA ─────────────────────
@@ -115,9 +63,10 @@ export default function AdminManhuaDetailPage() {
           title: data.title,
           slug: data.slug || "",
           description: data.description || "",
-          coverImage: data.coverImage || data.coverImageUrl || "",
+          coverImage: data.coverImage || (data as any).coverImageUrl || "",
           status: data.status || "ongoing",
           genres: data.genres?.join(", ") || "",
+          rating: data.rating?.toString() || "0",
         });
       } catch (e: any) {
         console.error("[AdminManhuaDetail] load error:", e);
@@ -154,6 +103,7 @@ export default function AdminManhuaDetailPage() {
         coverImage: form.coverImage || undefined,
         status: form.status,
         genres: genresArray,
+        rating: form.rating ? parseFloat(form.rating) : 0,
       });
 
       setManhua(updated);
@@ -270,7 +220,7 @@ export default function AdminManhuaDetailPage() {
       ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/40"
       : "bg-amber-500/20 text-amber-200 border border-amber-500/40";
 
-  // ─── MAIN UI (cover as background) ─
+  // ─── MAIN UI ──────────────────────
   return (
     <AdminShell
       title="Manhua manage"
@@ -283,283 +233,52 @@ export default function AdminManhuaDetailPage() {
           <img
             src={coverPreview}
             alt={manhua.title}
-            className="h-full w-full object-cover blur-2xl scale-110 opacity-40"
+            className="h-full w-full scale-110 object-cover blur-2xl opacity-40"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/90 via-slate-950/92 to-slate-950/98" />
         </div>
 
         {/* FOREGROUND CONTENT */}
-        <div className="relative z-10 p-4 sm:p-5 space-y-5">
-          {/* TOP BAR */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex gap-3">
-              <div className="relative h-16 w-12 overflow-hidden rounded-md bg-slate-900/80 shadow shadow-black/60">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={coverPreview}
-                  alt={manhua.title}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div className="space-y-1">
-                <h1 className="text-sm font-semibold text-slate-50 sm:text-base">
-                  {manhua.title}
-                </h1>
-                {manhua.slug && (
-                  <p className="text-[11px] text-slate-400">
-                    /manhua/
-                    <span className="font-mono text-slate-200">
-                      {manhua.slug}
-                    </span>
-                  </p>
-                )}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}
-                  >
-                    {manhua.status || "ongoing"}
-                  </span>
-                  {manhua.genres && manhua.genres.length > 0 && (
-                    <span className="line-clamp-1 text-[11px] text-slate-300">
-                      {manhua.genres.join(", ")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+        <div className="relative z-10 space-y-5 p-4 sm:p-5">
+          <ManhuaTopBar
+            manhua={manhua}
+            coverPreview={coverPreview}
+            statusClass={statusClass}
+            createdAt={createdAt}
+            updatedAt={updatedAt}
+            publicUrl={publicUrl}
+            onBack={() => router.push("/admin/manhuas")}
+          />
 
-            <div className="flex flex-col items-start gap-2 text-[11px] text-slate-400 md:items-end">
-              <div className="flex flex-wrap gap-2">
-                {createdAt && (
-                  <span>
-                    Created: <span className="text-slate-100">{createdAt}</span>
-                  </span>
-                )}
-                {updatedAt && (
-                  <span>
-                    Updated: <span className="text-slate-100">{updatedAt}</span>
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => router.push("/admin/manhuas")}
-                  className="rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-slate-900"
-                >
-                  ← Back
-                </button>
-                <a
-                  href={publicUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg bg-cyan-500/90 px-3 py-1.5 text-[11px] font-medium text-slate-950 hover:bg-cyan-400"
-                >
-                  Open public page
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* MAIN GRID */}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr),minmax(0,1.3fr)]">
             {/* LEFT – Cover + form */}
             <div className="space-y-3">
-              {/* Cover change – зөвхөн товч, URL харагдэхгүй */}
-              <PanelShell
-                title="Cover image"
-                right={
-                  <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-slate-800">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleCoverFileChange}
-                    />
-                    {uploadingCover ? "Uploading..." : "Change cover"}
-                  </label>
-                }
-              >
-                <div className="flex gap-3">
-                  <div className="relative aspect-[3/4] w-24 overflow-hidden rounded-lg bg-slate-900">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverPreview}
-                      alt={form.title}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Энэ зургийг манхуагийн нүүр зураг болгон ашиглана.{" "}
-                    <span className="text-slate-200">Change cover</span> дарж
-                    шинэ файл сонгож upload хийнэ.
-                  </p>
-                </div>
-              </PanelShell>
+              <CoverImagePanel
+                coverPreview={coverPreview}
+                title={form.title || manhua.title}
+                uploadingCover={uploadingCover}
+                onChangeCover={handleCoverFileChange}
+              />
 
-              {/* Edit form */}
-              <PanelShell title="Basic info">
-                {error && (
-                  <div className="mb-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[11px] text-red-200">
-                    {error}
-                  </div>
-                )}
-
-                <form onSubmit={handleSave} className="space-y-3">
-                  {/* Title */}
-                  <div className="space-y-1">
-                    <Label>
-                      Title<span className="text-red-400"> *</span>
-                    </Label>
-                    <TextInput
-                      value={form.title}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, title: e.target.value }))
-                      }
-                      required
-                    />
-                  </div>
-
-                  {/* Slug */}
-                  <div className="space-y-1">
-                    <Label>
-                      Slug
-                      <span className="ml-1 text-[10px] text-slate-500">
-                        (/manhua/slug – өөрчлөхдөө болгоомжтой)
-                      </span>
-                    </Label>
-                    <TextInput
-                      value={form.slug}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, slug: e.target.value }))
-                      }
-                      placeholder="my-manhua-slug"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-1">
-                    <Label>Description</Label>
-                    <TextArea
-                      rows={3}
-                      value={form.description}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, description: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  {/* Status + Genres */}
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label>Status</Label>
-                      <select
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                        value={form.status}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, status: e.target.value }))
-                        }
-                      >
-                        <option value="ongoing">Ongoing</option>
-                        <option value="completed">Completed</option>
-                        <option value="hiatus">Hiatus</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Genres (comma separated)</Label>
-                      <TextInput
-                        value={form.genres}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, genres: e.target.value }))
-                        }
-                        placeholder="Romance, Comedy, Fantasy..."
-                      />
-                    </div>
-                  </div>
-
-                  {/* hidden cover url */}
-                  <input type="hidden" value={form.coverImage} readOnly />
-
-                  {/* Buttons */}
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="rounded-lg border border-red-500/60 bg-red-500/10 px-3 py-1.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20 transition disabled:opacity-60"
-                    >
-                      {deleting ? "Устгаж байна..." : "Устгах"}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-[11px] font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:opacity-60"
-                    >
-                      {saving ? "Хадгалж байна..." : "Хадгалах"}
-                    </button>
-                  </div>
-                </form>
-              </PanelShell>
+              <BasicInfoPanel
+                form={form}
+                setForm={setForm}
+                error={error}
+                saving={saving}
+                deleting={deleting}
+                onSave={handleSave}
+                onDelete={handleDelete}
+              />
             </div>
 
             {/* RIGHT – Owner + System */}
             <div className="space-y-3">
-              <PanelShell
-                title="Owner"
-                right={
-                  manhua.createdBy && (
-                    <span className="inline-flex rounded-full bg-slate-800/90 px-2 py-0.5 text-[10px] text-slate-200">
-                      {(manhua.createdBy as any).role ?? "user"}
-                    </span>
-                  )
-                }
-              >
-                {manhua.createdBy ? (
-                  <div className="space-y-1">
-                    <p>
-                      Username:{" "}
-                      <span className="font-medium">
-                        {manhua.createdBy.username}
-                      </span>
-                    </p>
-                    {(manhua.createdBy as any).email && (
-                      <p className="text-slate-400">
-                        {(manhua.createdBy as any).email}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-500">
-                    Owner мэдээлэл байхгүй.
-                  </p>
-                )}
-              </PanelShell>
-
-              <PanelShell title="System info">
-                <div className="space-y-1 font-mono text-[11px] text-slate-300">
-                  <p>
-                    ID: <span className="text-slate-100">{manhua._id}</span>
-                  </p>
-                  {manhua.slug && (
-                    <p>
-                      Slug:{" "}
-                      <span className="text-slate-100">{manhua.slug}</span>
-                    </p>
-                  )}
-                  {createdAt && (
-                    <p>
-                      Created:{" "}
-                      <span className="text-slate-200">{createdAt}</span>
-                    </p>
-                  )}
-                  {updatedAt && (
-                    <p>
-                      Updated:{" "}
-                      <span className="text-slate-200">{updatedAt}</span>
-                    </p>
-                  )}
-                </div>
-              </PanelShell>
+              <OwnerPanel manhua={manhua} />
+              <SystemInfoPanel
+                manhua={manhua}
+                createdAt={createdAt}
+                updatedAt={updatedAt}
+              />
             </div>
           </div>
         </div>

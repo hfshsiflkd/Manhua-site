@@ -68,6 +68,7 @@ export interface Manhua {
     email?: string;
     role?: string;
   };
+  rating: number;
 }
 
 // Auth

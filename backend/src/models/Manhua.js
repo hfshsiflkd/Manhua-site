@@ -3,17 +3,60 @@ const mongoose = require("mongoose");
 
 const manhuaSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true, trim: true },
-    slug: { type: String, unique: true, index: true },
-    description: { type: String },
-    coverImage: { type: String },
-    coverImageUrl: { type: String },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    slug: {
+      type: String,
+      unique: true,
+      index: true,
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+
+    description: {
+      type: String,
+    },
+
+    coverImage: {
+      type: String,
+    },
+
+    coverImageUrl: {
+      type: String,
+    },
+
+    // 📊 Rating талбарууд
+    ratingAverage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    ratingCount: {
+      type: Number,
+      default: 0,
+    },
+
     status: {
       type: String,
       enum: ["ongoing", "completed", "hiatus"],
       default: "ongoing",
     },
-    genres: [{ type: String, trim: true }],
+
+    genres: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -21,7 +64,6 @@ const manhuaSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ❗ typo-гоо засчихвал зүгээр: views
     views: {
       type: Number,
       default: 0,
@@ -34,7 +76,7 @@ const manhuaSchema = new mongoose.Schema(
   }
 );
 
-// 🔗 virtual холбоос: энэ манхуад харьяалагдсан бүх chapter
+// 🔗 Virtual: энэ манхуад харьяалагдсан бүх chapter
 manhuaSchema.virtual("chapters", {
   ref: "Chapter",
   localField: "_id",
@@ -51,5 +93,18 @@ manhuaSchema.pre("save", function (next) {
   }
   next();
 });
+
+// ⛓ Manhua-гаа find хийх болгонд chapters-ийг автоматаар дагуулж populate хийх
+function autoPopulateChapters(next) {
+  this.populate({
+    path: "chapters",
+    options: { sort: { chapterNumber: 1 } },
+    select: "chapterNumber title language status views createdAt updatedAt",
+  });
+  next();
+}
+
+manhuaSchema.pre("find", autoPopulateChapters);
+manhuaSchema.pre("findOne", autoPopulateChapters);
 
 module.exports = mongoose.model("Manhua", manhuaSchema);
