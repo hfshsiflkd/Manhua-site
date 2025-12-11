@@ -67,9 +67,11 @@ export default function ManhuaDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <ManhuaHero manhua={manhua} chapters={chapters} />
-      <ManhuaChapters slug={manhua.slug} chapters={chapters} />
+    <div className="flex justify-center">
+      <div className="w-full max-w-5xl  sm:px-4 space-y-6  sm:pt-10">
+        <ManhuaHero manhua={manhua} chapters={chapters} />
+        <ManhuaChapters slug={manhua.slug} chapters={chapters} />
+      </div>
     </div>
   );
 }

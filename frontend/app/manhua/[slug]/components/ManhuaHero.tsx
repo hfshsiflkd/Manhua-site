@@ -45,7 +45,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   );
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/90 shadow-xl shadow-black/50">
+    <section className="relative overflow-hidden md:rounded-2xl border border-slate-800 bg-slate-950/90 shadow-xl shadow-black/50">
       {/* Background image (cover) */}
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
