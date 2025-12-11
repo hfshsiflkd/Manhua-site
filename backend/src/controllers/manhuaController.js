@@ -178,5 +178,5 @@ function formatTimeAgoSafe(date) {
 
   const weeks = Math.floor(diffDays / 7);
   if (weeks === 1) return "1 week ago";
-  return `${weeks} weeks ago`;
+  return `${weeks} weeks ago`; 
 }

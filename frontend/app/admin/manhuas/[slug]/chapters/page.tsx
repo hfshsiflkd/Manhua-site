@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminShell from "../../../components/AdminShell";
-import { adminGetChapters, Chapter } from "@/lib/api";
+import { adminGetChapters,  } from "@/lib/api";
+import type { Chapter } from "@/types/manhua";
 
 export default function AdminChaptersPage() {
   const params = useParams();

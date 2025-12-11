@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/manhuas/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { Manhua } from "@/types/manhua";
@@ -22,6 +23,15 @@ const GENRES = [
   { value: "comedy", label: "Comedy" },
   { value: "drama", label: "Drama" },
 ];
+
+// 🔹 ЖАГСААЛТЫН LOADING КОМПОНЕНТ
+function ListLoading() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center text-white">
+      <div className="loader scale-125" />
+    </div>
+  );
+}
 
 export default function ManhuasPage() {
   const [items, setItems] = useState<Manhua[]>([]);
@@ -72,7 +82,7 @@ export default function ManhuasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, genre, status, search]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setPage(1);
     setSearch(searchInput);
@@ -160,9 +170,7 @@ export default function ManhuasPage() {
 
       {/* Loading / List */}
       {loading ? (
-        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-400">
-          Жагсаалт ачаалж байна...
-        </div>
+        <ListLoading />
       ) : (
         <>
           {/* List */}
@@ -182,8 +190,7 @@ export default function ManhuasPage() {
                     <div className="aspect-[3/4] w-full overflow-hidden">
                       <img
                         src={
-                          m.coverImage ||
-                          "https://via.placeholder.com/300x400"
+                          m.coverImage || "https://via.placeholder.com/300x400"
                         }
                         alt={m.title}
                         className="h-full w-full object-cover transition group-hover:scale-105"

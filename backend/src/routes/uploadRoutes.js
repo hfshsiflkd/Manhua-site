@@ -1,55 +1,55 @@
+// routes/uploadRoutes.js
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const { v2: cloudinary } = require("cloudinary");
+const { r2Client, PutObjectCommand } = require("../config/r2");
 
-// Cloudinary config
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
-});
-
+// multer: файл memory дээр авна
 const upload = multer({ storage: multer.memoryStorage() });
 
 // POST /api/upload
-router.post("/", upload.single("file"), (req, res) => {
+router.post("/", upload.single("file"), async (req, res) => {
   try {
     if (
-      !process.env.CLOUDINARY_CLOUD ||
-      !process.env.CLOUDINARY_KEY ||
-      !process.env.CLOUDINARY_SECRET
+      !process.env.R2_ACCOUNT_ID ||
+      !process.env.R2_ACCESS_KEY_ID ||
+      !process.env.R2_SECRET_ACCESS_KEY ||
+      !process.env.R2_BUCKET_NAME ||
+      !process.env.R2_PUBLIC_BASE_URL
     ) {
-      console.error("Cloudinary config дутуу байна");
+      console.error("R2 config дутуу байна");
       return res
         .status(500)
-        .json({ message: "Cloudinary тохиргоо (env) дутуу байна." });
+        .json({ message: "R2 тохиргоо (env) дутуу байна." });
     }
 
     if (!req.file) {
       return res.status(400).json({ message: "Файл ирсэнгүй." });
     }
 
-    const stream = cloudinary.uploader.upload_stream(
-      { folder: "manhua_pages" },
-      (error, result) => {
-        if (error) {
-          console.error("Cloudinary upload error:", error);
-          return res
-            .status(500)
-            .json({ message: "Cloudinary upload хийхэд алдаа гарлаа." });
-        }
+    const bucket = process.env.R2_BUCKET_NAME;
+    const folder = "manhua_pages";
 
-        return res.json({ url: result.secure_url });
-      }
-    );
+    const ext = req.file.originalname.split(".").pop();
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
 
-    stream.end(req.file.buffer);
+    const key = `${folder}/${filename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    });
+
+    await r2Client.send(command);
+
+    const publicUrl = `${process.env.R2_PUBLIC_BASE_URL}/${key}`;
+
+    return res.json({ url: publicUrl });
   } catch (err) {
-    console.error("Upload route error:", err);
-    return res
-      .status(500)
-      .json({ message: "Upload route дээр алдаа гарлаа." });
+    console.error("R2 upload error:", err);
+    return res.status(500).json({ message: "R2 upload хийхэд алдаа гарлаа." });
   }
 });
 

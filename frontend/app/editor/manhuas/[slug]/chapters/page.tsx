@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import EditorShell from "../../components/EditorShell";
-import { editorGetChapters, Chapter } from "@/lib/api";
+import { editorGetChapters } from "@/lib/api";
+import type { Chapter } from "@/types/manhua";
 
 export default function EditorChaptersPage() {
   const params = useParams();

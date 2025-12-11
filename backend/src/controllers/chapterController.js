@@ -44,10 +44,6 @@ exports.getChaptersOfManhua = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/manhuas/:slug/chapters/:chapterNumber
- * – Нэг chapter унших (уншигч тал)
- */
 exports.getChapter = async (req, res, next) => {
   try {
     const { slug, chapterNumber } = req.params;
@@ -68,6 +64,36 @@ exports.getChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
+    // 🔹 Өмнөх ба дараагийн chapter-уудыг олно
+    const [prevChapter, nextChapter] = await Promise.all([
+      Chapter.findOne({
+        manhua: manhua._id,
+        language: "mn",
+        status: "published",
+        chapterNumber: { $lt: chapter.chapterNumber },
+      })
+        .sort({ chapterNumber: -1 }) // хамгийн сүүлийн өмнөх
+        .select("chapterNumber")
+        .lean(),
+      Chapter.findOne({
+        manhua: manhua._id,
+        language: "mn",
+        status: "published",
+        chapterNumber: { $gt: chapter.chapterNumber },
+      })
+        .sort({ chapterNumber: 1 }) // дараагийн хамгийн эхний
+        .select("chapterNumber")
+        .lean(),
+    ]);
+
+    const extendedChapter = {
+      ...chapter,
+      hasPrev: !!prevChapter,
+      hasNext: !!nextChapter,
+      prevChapterNumber: prevChapter ? prevChapter.chapterNumber : null,
+      nextChapterNumber: nextChapter ? nextChapter.chapterNumber : null,
+    };
+
     // view counter (async)
     Chapter.updateOne({ _id: chapter._id }, { $inc: { views: 1 } }).catch(
       () => {}
@@ -77,17 +103,12 @@ exports.getChapter = async (req, res, next) => {
       () => {}
     );
 
-    res.json(chapter);
+    // 🔹 Одоо front руу prev/next инфо-той нь явна
+    res.json(extendedChapter);
   } catch (err) {
     next(err);
   }
 };
-
-/* ---------------------- ADMIN ROUTES ---------------------- */
-/**
- * GET /api/admin/manhuas/:slug/chapters
- * – Admin panel: бүх chapter (status, хэл үл хамаарна)
- */
 exports.adminListChaptersOfManhua = async (req, res, next) => {
   try {
     const { slug } = req.params; // энд slug || id байж болно

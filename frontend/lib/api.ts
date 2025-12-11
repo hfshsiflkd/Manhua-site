@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/lib/api.ts
 import axios from "axios";
-
+import type { Chapter } from "@/types/manhua";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
 
@@ -220,21 +220,7 @@ export async function uploadImage(file: File) {
 }
 
 
-// ---- Chapter types ----
-export interface ChapterPage {
-  pageNumber: number;
-  imageUrl: string;
-}
 
-export interface Chapter {
-  _id: string;
-  chapterNumber: number;
-  title?: string;
-  pages: { pageNumber: number; imageUrl: string }[];
-  language?: string;
-  status?: string;
-  views?: number;
-}
 
 
 // ✅ USER – Public chapters

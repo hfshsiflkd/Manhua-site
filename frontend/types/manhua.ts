@@ -1,3 +1,4 @@
+// src/types/manhua.ts
 export interface Manhua {
   chapters: never[];
   ratingAverage: number;
@@ -17,6 +18,7 @@ export interface Manhua {
   lastChapterNumber?: number | null;
   lastChapterId?: string | null;
   lastChapterAt?: string | null;
+  
 }
 
 export interface ChapterPage {
@@ -25,15 +27,17 @@ export interface ChapterPage {
 }
 
 export interface Chapter {
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   _id: string;
-  manhua: string;
+  manhua?: string;
   chapterNumber: number;
   title?: string;
   language: string;
   pages: ChapterPage[];
-  views: number;
+  views?: number;
   status: "draft" | "published";
   releaseAt?: string;
+  hasPrev: boolean;
+  hasNext: boolean;
 }

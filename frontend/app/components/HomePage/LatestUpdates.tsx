@@ -140,7 +140,7 @@ const LatestUpdates = ({ updates }: LatestUpdatesProps) => {
 
   return (
     <section className="w-full text-white">
-      <div className="mx-auto w-full max-w-6xl rounded-2xl bg-slate-900/70 px-3 py-4 md:px-6 md:py-5 shadow-lg">
+      <div className="mx-auto w-full max-w-6xl  bg-slate-900/70 px-3 py-4 md:px-6 md:py-5 shadow-lg">
         {/* HEADER BAR */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -215,13 +215,13 @@ const LatestUpdates = ({ updates }: LatestUpdatesProps) => {
                         key={i}
                         type="button"
                         onClick={handleChapterClick}
-                        className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5
+                        className="flex w-full items-center justify-between gap-2 rounded-md px-2 
                         text-sm md:text-[15px] text-gray-200 transition
                         hover:bg-white/5 hover:text-white"
                       >
                         {/* LEFT: bullet + chapter name + NEW */}
                         <div className="flex min-w-0 items-center gap-2 flex-wrap">
-                          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                           <p className="truncate font-medium">
                             {chapterNumber != null
                               ? baseName
