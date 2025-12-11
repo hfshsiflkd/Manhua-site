@@ -97,7 +97,7 @@ export function HomePageHeader({ slides }: HomePageHeaderProps) {
       <CarouselContent className="ml-0">
         {mappedSlides.map((slide, index) => (
           <CarouselItem key={slide.id ?? index} className="basis-full pl-0">
-            <Card className="border-0 bg-transparent shadow-none">
+            <Card className="border-0 bg-transparent shadow-none p-0">
               <CardContent className="p-0">
                 <div
                   className="

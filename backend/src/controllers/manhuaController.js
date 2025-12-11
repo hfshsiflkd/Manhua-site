@@ -70,7 +70,7 @@ exports.getHomeSections = async (req, res, next) => {
 
     // 🔥 Latest updates
     const latestChapters = await Chapter.find({
-      // isPublished: true, // хэрвээ ийм талбар байвал нээгээд хэрэглэ
+      status: "published", // хэрвээ ийм талбар байвал нээгээд хэрэглэ
     })
       .sort({ publicAt: -1, createdAt: -1 }) // хамгийн сүүлд нийтлэгдсэнээс нь эхлүүлнэ
       .limit(LATEST_UPDATES_LIMIT * 3) // нэг манхуагаас хэд хэдэн chapter авах тул жаахан их аваад байна

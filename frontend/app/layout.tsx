@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Header from "./components/Header";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import Footer from "./components/Footer";
 
 export const metadata: Metadata = {
   title: "Manhua.mn",
@@ -27,6 +28,7 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           {children}
+          <Footer />
         </AuthProvider>
       </body>
     </html>
