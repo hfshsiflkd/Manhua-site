@@ -1,16 +1,24 @@
-// src/controllers/editorController.js
 const Manhua = require("../models/Manhua");
+const cache = require("../utils/cache");
+
+const TTL_MINE = 30_000; // 30s
 
 /**
  * GET /api/editor/manhuas/mine
- * - Тухайн логин хийсэн editor өөрийн нэмсэн манхуагаа харна
  */
 exports.getMyManhuas = async (req, res, next) => {
   try {
-    const manhuas = await Manhua.find({ createdBy: req.user._id }).sort({
-      createdAt: -1,
-    });
+    const userId = String(req.user._id);
+    const cacheKey = `editor:manhuas:mine:${userId}`;
 
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
+    const manhuas = await Manhua.find({ createdBy: req.user._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    cache.set(cacheKey, manhuas, TTL_MINE);
     res.json(manhuas);
   } catch (err) {
     next(err);
@@ -19,7 +27,6 @@ exports.getMyManhuas = async (req, res, next) => {
 
 /**
  * POST /api/editor/manhuas
- * - Манхуа шинээр нэмэх (createdBy = одоо логин хийсэн хэрэглэгч)
  */
 exports.createManhua = async (req, res, next) => {
   try {
@@ -48,15 +55,16 @@ exports.createManhua = async (req, res, next) => {
       createdBy: req.user._id,
     });
 
+    // ✅ cache invalidate (mine list)
+    cache.del(`editor:manhuas:mine:${String(req.user._id)}`);
+    cache.delPrefix("admin:manhuas:list:");
+
     res.status(201).json(doc);
   } catch (err) {
-    // ⬇️ slug давхцсан үед илүү ойлгомжтой мессеж
     if (err.code === 11000 && err.keyPattern && err.keyPattern.slug) {
-      return res
-        .status(400)
-        .json({
-          message: "Энэ slug аль хэдийн ашиглагдсан байна. Өөр slug оруул.",
-        });
+      return res.status(400).json({
+        message: "Энэ slug аль хэдийн ашиглагдсан байна. Өөр slug оруул.",
+      });
     }
     next(err);
   }
@@ -64,29 +72,28 @@ exports.createManhua = async (req, res, next) => {
 
 /**
  * PATCH /api/editor/manhuas/:id
- * - Өөрийнхөө манхуа дээр засвар хийх
- * - Хэрвээ admin бол бүх manhua дээр edit хийх эрхтэй
  */
 exports.updateManhua = async (req, res, next) => {
   try {
     const { id } = req.params;
 
     let query = { _id: id, createdBy: req.user._id };
-
-    // admin бол createdBy-аар хязгаарлахгүй
-    if (req.user.role === "admin") {
-      query = { _id: id };
-    }
+    if (req.user.role === "admin") query = { _id: id };
 
     const doc = await Manhua.findOneAndUpdate(query, req.body, {
       new: true,
-    });
+    }).lean();
 
     if (!doc) {
       return res
         .status(404)
         .json({ message: "Manhua not found or no permission" });
     }
+
+    // ✅ cache invalidate
+    cache.del(`editor:manhuas:mine:${String(req.user._id)}`);
+    cache.del(`admin:manhuas:detail:${id}`);
+    cache.delPrefix("admin:manhuas:list:");
 
     res.json(doc);
   } catch (err) {

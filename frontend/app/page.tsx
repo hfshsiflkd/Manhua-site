@@ -8,6 +8,7 @@ import PopularToday from "./components/HomePage/PopularToday";
 import LatestUpdates from "./components/HomePage/LatestUpdates";
 import { api } from "@/lib/api";
 import {ManhuaDetailLoading} from "@/components/ui/Loading";
+import SnowBackground from "./components/Snow";
 
 type HomeData = {
   hero: any[];
@@ -52,6 +53,8 @@ export default function HomePage() {
   if (error || !data) {
     return (
       <div className="flex min-h-screen w-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-200">
+       
+
         <div className="max-w-md space-y-3">
           <h1 className="text-xl font-semibold">Алдаа гарлаа</h1>
           <p className="text-sm text-slate-400">{error}</p>
@@ -69,6 +72,7 @@ export default function HomePage() {
   // NORMAL UI
   return (
     <div className="m-0 min-h-screen w-screen overflow-x-hidden bg-slate-950 text-white">
+      {/* <SnowBackground /> */}
       <HomePageHeader slides={data.hero} />
       <PopularToday popular={data.popularToday} />
       <LatestUpdates updates={data.latestUpdates} />

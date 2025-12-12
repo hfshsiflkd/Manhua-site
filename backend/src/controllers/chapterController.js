@@ -1,41 +1,149 @@
 // src/controllers/chapterController.js
 const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
+const { trackView } = require("../utils/viewCounter");
 
-// 🔹 Helper – slug ИЛҮҮД ID-ээр хайдаг болгочихъё
-async function findManhuaBySlugOrId(slugOrId) {
-  // 24 урттай hex бол _id байх магадлалтай
-  const isObjectId = /^[0-9a-fA-F]{24}$/.test(slugOrId);
+/* =====================================================
+   🔥 IN-MEMORY CACHE (60 секунд)
+===================================================== */
+const chapterCache = new Map(); // key -> { data, exp }
 
-  if (isObjectId) {
-    const byId = await Manhua.findById(slugOrId);
-    if (byId) return byId;
+function cacheGet(key) {
+  const v = chapterCache.get(key);
+  if (!v) return null;
+  if (Date.now() > v.exp) {
+    chapterCache.delete(key);
+    return null;
   }
-
-  // slug-р хайна
-  return Manhua.findOne({ slug: slugOrId });
+  return v.data;
 }
 
-/* ---------------------- PUBLIC ROUTES ---------------------- */
-/**
- * GET /api/manhuas/:slug/chapters
- * – Уншигч тал: зөвхөн published + mn language
- */
+function cacheSet(key, data, ttlMs = 60_000) {
+  chapterCache.set(key, {
+    data,
+    exp: Date.now() + ttlMs,
+  });
+}
+
+/* =====================================================
+   slug -> manhuaId CACHE
+===================================================== */
+const manhuaIdCache = new Map();
+
+async function getManhuaIdBySlug(slug) {
+  const cached = manhuaIdCache.get(slug);
+  if (cached) return cached;
+
+  const m = await Manhua.findOne({ slug }).select("_id").lean();
+  if (!m) return null;
+
+  manhuaIdCache.set(slug, m._id);
+  return m._id;
+}
+
+/* =====================================================
+   GET /api/manhuas/:slug/chapters/:chapterNumber
+   🔥 CACHE + 1 DB AGGREGATE
+===================================================== */
+exports.getChapter = async (req, res, next) => {
+  try {
+    const { slug, chapterNumber } = req.params;
+    const chNum = Number(chapterNumber);
+
+    if (!Number.isFinite(chNum)) {
+      return res.status(400).json({ message: "Invalid chapterNumber" });
+    }
+
+    const manhuaId = await getManhuaIdBySlug(slug);
+    if (!manhuaId) {
+      return res.status(404).json({ message: "Manhua not found" });
+    }
+
+    // 🔥 CACHE CHECK
+    const cacheKey = `${manhuaId}:${chNum}:mn:published`;
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // 🔥 SINGLE DB CALL
+    const [result] = await Chapter.aggregate([
+      {
+        $match: {
+          manhua: manhuaId,
+          language: "mn",
+          status: "published",
+        },
+      },
+      {
+        $facet: {
+          current: [{ $match: { chapterNumber: chNum } }, { $limit: 1 }],
+          prev: [
+            { $match: { chapterNumber: { $lt: chNum } } },
+            { $sort: { chapterNumber: -1 } },
+            { $limit: 1 },
+            { $project: { chapterNumber: 1 } },
+          ],
+          next: [
+            { $match: { chapterNumber: { $gt: chNum } } },
+            { $sort: { chapterNumber: 1 } },
+            { $limit: 1 },
+            { $project: { chapterNumber: 1 } },
+          ],
+        },
+      },
+    ]);
+
+    const chapter = result?.current?.[0];
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    const prev = result.prev?.[0] || null;
+    const next = result.next?.[0] || null;
+
+    // views (load test үед унтрааж болно)
+    if (process.env.DISABLE_VIEWS !== "1") {
+      trackView({ chapterId: chapter._id, manhuaId });
+    }
+
+    const payload = {
+      ...chapter,
+      hasPrev: !!prev,
+      hasNext: !!next,
+      prevChapterNumber: prev ? prev.chapterNumber : null,
+      nextChapterNumber: next ? next.chapterNumber : null,
+    };
+
+    // 🔥 CACHE SET (60s)
+    cacheSet(cacheKey, payload, 60_000);
+
+    return res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* =====================================================
+   GET /api/manhuas/:slug/chapters
+   (pages БИШ, зөвхөн list)
+===================================================== */
 exports.getChaptersOfManhua = async (req, res, next) => {
   try {
     const { slug } = req.params;
 
-    const manhua = await Manhua.findOne({ slug });
-    if (!manhua) {
+    const manhuaId = await getManhuaIdBySlug(slug);
+    if (!manhuaId) {
       return res.status(404).json({ message: "Manhua not found" });
     }
 
     const chapters = await Chapter.find({
-      manhua: manhua._id,
+      manhua: manhuaId,
       status: "published",
       language: "mn",
     })
       .sort({ chapterNumber: 1 })
+      .select("chapterNumber title createdAt updatedAt")
       .lean();
 
     res.json(chapters);
@@ -44,79 +152,26 @@ exports.getChaptersOfManhua = async (req, res, next) => {
   }
 };
 
-exports.getChapter = async (req, res, next) => {
-  try {
-    const { slug, chapterNumber } = req.params;
-
-    const manhua = await Manhua.findOne({ slug });
-    if (!manhua) {
-      return res.status(404).json({ message: "Manhua not found" });
-    }
-
-    const chapter = await Chapter.findOne({
-      manhua: manhua._id,
-      chapterNumber: Number(chapterNumber),
-      language: "mn",
-      status: "published",
-    }).lean();
-
-    if (!chapter) {
-      return res.status(404).json({ message: "Chapter not found" });
-    }
-
-    // 🔹 Өмнөх ба дараагийн chapter-уудыг олно
-    const [prevChapter, nextChapter] = await Promise.all([
-      Chapter.findOne({
-        manhua: manhua._id,
-        language: "mn",
-        status: "published",
-        chapterNumber: { $lt: chapter.chapterNumber },
-      })
-        .sort({ chapterNumber: -1 }) // хамгийн сүүлийн өмнөх
-        .select("chapterNumber")
-        .lean(),
-      Chapter.findOne({
-        manhua: manhua._id,
-        language: "mn",
-        status: "published",
-        chapterNumber: { $gt: chapter.chapterNumber },
-      })
-        .sort({ chapterNumber: 1 }) // дараагийн хамгийн эхний
-        .select("chapterNumber")
-        .lean(),
-    ]);
-
-    const extendedChapter = {
-      ...chapter,
-      hasPrev: !!prevChapter,
-      hasNext: !!nextChapter,
-      prevChapterNumber: prevChapter ? prevChapter.chapterNumber : null,
-      nextChapterNumber: nextChapter ? nextChapter.chapterNumber : null,
-    };
-
-    // view counter (async)
-    Chapter.updateOne({ _id: chapter._id }, { $inc: { views: 1 } }).catch(
-      () => {}
-    );
-
-    Manhua.updateOne({ _id: manhua._id }, { $inc: { views: 1 } }).catch(
-      () => {}
-    );
-
-    // 🔹 Одоо front руу prev/next инфо-той нь явна
-    res.json(extendedChapter);
-  } catch (err) {
-    next(err);
+/* =====================================================
+   🔹 Helper – slug эсвэл ID
+===================================================== */
+async function findManhuaBySlugOrId(slugOrId) {
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(slugOrId);
+  if (isObjectId) {
+    const byId = await Manhua.findById(slugOrId);
+    if (byId) return byId;
   }
-};
+  return Manhua.findOne({ slug: slugOrId });
+}
+
+/* =====================================================
+   ADMIN / EDITOR (ТАНЫХ ХЭВЭЭР)
+===================================================== */
 exports.adminListChaptersOfManhua = async (req, res, next) => {
   try {
-    const { slug } = req.params; // энд slug || id байж болно
-
+    const { slug } = req.params;
     const manhua = await findManhuaBySlugOrId(slug);
-    if (!manhua) {
-      return res.status(404).json({ message: "Manhua not found" });
-    }
+    if (!manhua) return res.status(404).json({ message: "Manhua not found" });
 
     const chapters = await Chapter.find({ manhua: manhua._id })
       .sort({ chapterNumber: 1 })
@@ -128,10 +183,6 @@ exports.adminListChaptersOfManhua = async (req, res, next) => {
   }
 };
 
-/**
- * POST /api/admin/manhuas/:slug/chapters
- * – Шинэ chapter (олон page) үүсгэх
- */
 exports.createChapter = async (req, res, next) => {
   try {
     const { slug } = req.params;
@@ -160,6 +211,13 @@ exports.createChapter = async (req, res, next) => {
       status: status || "published",
       views: 0,
     });
+
+    // 🔥 cache invalidate (энэ манхуатай холбоотой)
+    for (const key of chapterCache.keys()) {
+      if (key.startsWith(String(manhua._id))) {
+        chapterCache.delete(key);
+      }
+    }
 
     res.status(201).json(chapter);
   } catch (err) {

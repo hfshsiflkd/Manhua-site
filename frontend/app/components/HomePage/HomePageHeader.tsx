@@ -90,7 +90,7 @@ export function HomePageHeader({ slides }: HomePageHeaderProps) {
       plugins={[plugin.current]}
       setApi={setApi}
       opts={{ loop: true }}
-      className="w-full"
+      className="w-full z-0"
       onMouseEnter={plugin.current.stop}
       onMouseLeave={plugin.current.reset}
     >

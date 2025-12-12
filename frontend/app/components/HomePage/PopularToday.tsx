@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import SnowBackground from "../Snow";
 
 type ChapterSummary = {
   _id: string;
@@ -122,6 +123,7 @@ const Middle = ({ popular }: MiddleProps) => {
                       ))}
                     </span>
                     <span className="ml-1 text-[0.7rem] text-white md:text-xs leading-none">
+                      
                       {ratingText}
                     </span>
                   </div>

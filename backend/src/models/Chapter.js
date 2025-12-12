@@ -3,18 +3,10 @@ const mongoose = require("mongoose");
 
 const pageSchema = new mongoose.Schema(
   {
-    pageNumber: {
-      type: Number,
-      required: true,
-    },
-    imageUrl: {
-      type: String,
-      required: true,
-    },
+    pageNumber: { type: Number, required: true },
+    imageUrl: { type: String, required: true },
   },
-  {
-    _id: false,
-  }
+  { _id: false }
 );
 
 const chapterSchema = new mongoose.Schema(
@@ -31,9 +23,7 @@ const chapterSchema = new mongoose.Schema(
       required: true,
     },
 
-    title: {
-      type: String,
-    },
+    title: String,
 
     pages: [pageSchema],
 
@@ -63,13 +53,33 @@ const chapterSchema = new mongoose.Schema(
   }
 );
 
-// 📌 Нэг манхуа + хэл дотор chapterNumber давхцахгүй
+/* =========================
+   🔹 INDEX-ҮҮД (ЧУХАЛ)
+========================= */
+
+// ✅ 1. Давхцахгүй байх (танд байсан)
 chapterSchema.index(
   { manhua: 1, chapterNumber: 1, language: 1 },
   { unique: true }
 );
 
-// Хүсвэл сүүлийнхийг хурдан хайхад:
+// ✅ 2. MAIN getChapter query (хамгийн чухал)
+chapterSchema.index({
+  manhua: 1,
+  language: 1,
+  status: 1,
+  chapterNumber: 1,
+});
+
+// ✅ 3. PREV chapter ($lt + sort -1)
+chapterSchema.index({
+  manhua: 1,
+  language: 1,
+  status: 1,
+  chapterNumber: -1,
+});
+
+// (сонголтоор) Latest / admin list-д
 // chapterSchema.index({ manhua: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Chapter", chapterSchema);
