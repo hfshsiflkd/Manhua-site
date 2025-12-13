@@ -6,27 +6,42 @@ exports.protect = async (req, res, next) => {
 
   if (
     req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
+    req.headers.authorization.startsWith("Bearer ")
   ) {
-    try {
-      token = req.headers.authorization.split(" ")[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      req.user = await User.findById(decoded.id).select("-password");
-
-      if (!req.user || !req.user.isActive) {
-        return res.status(401).json({ message: "Хэрэглэгч идэвхгүй байна" });
-      }
-
-      next();
-    } catch (error) {
-      console.error(error);
-      return res.status(401).json({ message: "Token алдаатай" });
-    }
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
     return res.status(401).json({ message: "Token олдсонгүй" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // user-г авна
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Хэрэглэгч идэвхгүй байна" });
+    }
+
+    // ✅ SINGLE SESSION CHECK
+    // login дээр user.sessionToken шинэчлэгддэг.
+    // JWT-д sessionToken хадгалагдсан байдаг (genToken дээр чинь байгаа).
+    const jwtSession = decoded.sessionToken || null;
+    const dbSession = user.sessionToken || null;
+
+    if (jwtSession !== dbSession) {
+      return res.status(401).json({
+        message: "Session expired. Дахин нэвтэрнэ үү.",
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error(error);
+    return res.status(401).json({ message: "Token алдаатай" });
   }
 };
 

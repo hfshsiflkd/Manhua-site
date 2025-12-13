@@ -16,6 +16,7 @@ const {
   updateManhuaAdmin,
   deleteManhuaAdmin,
   listLogs,
+  unlockUser,
 } = require("../../controllers/admin");
 
 const {
@@ -26,15 +27,20 @@ const {
 } = require("../../controllers/chapterController");
 
 router.use(protect, adminOnly);
+router.use("/trial", require("./trialRoutes"));
+
 
 // Stats
 router.get("/stats", getAdminStats);
+
 
 // Users
 router.get("/users", listUsers);
 router.post("/users", createUserByAdmin);
 router.patch("/users/:id", updateUserByAdmin);
 router.patch("/users/:id/vip", extendVIP);
+router.patch("/users/:id/unlock", unlockUser);
+
 
 // Manhuas (ADMIN)
 router.get("/manhuas", listManhuasWithOwner);

@@ -8,7 +8,10 @@ import PopularToday from "./components/HomePage/PopularToday";
 import LatestUpdates from "./components/HomePage/LatestUpdates";
 import { api } from "@/lib/api";
 import {ManhuaDetailLoading} from "@/components/ui/Loading";
-import SnowBackground from "./components/Snow";
+import TrialSurprise from "./components/TrialSurprise";
+import VipTrialReminder from "./components/VipTrialReminder";
+import { useAuth } from "@/context/AuthContext";
+
 
 type HomeData = {
   hero: any[];
@@ -20,6 +23,8 @@ export default function HomePage() {
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+
 
   useEffect(() => {
     const fetchHome = async () => {
@@ -69,13 +74,18 @@ export default function HomePage() {
     );
   }
 
+  
+
   // NORMAL UI
   return (
     <div className="m-0 min-h-screen w-screen overflow-x-hidden bg-slate-950 text-white">
       {/* <SnowBackground /> */}
+
       <HomePageHeader slides={data.hero} />
+      <VipTrialReminder isVIP={user?.isVIP} vipExpiresAt={user?.vipExpiresAt} />
       <PopularToday popular={data.popularToday} />
       <LatestUpdates updates={data.latestUpdates} />
+      <TrialSurprise />
     </div>
   );
 }

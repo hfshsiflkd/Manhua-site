@@ -3,7 +3,7 @@
 import axios from "axios";
 import type { Chapter } from "@/types/manhua";
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:9000/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -13,17 +13,58 @@ function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
 }
+function getDeviceId() {
+  if (typeof window === "undefined") return null;
+
+  const key = "device_id";
+  let id = localStorage.getItem(key);
+
+  if (!id) {
+    // modern browsers
+    id = crypto.randomUUID();
+    localStorage.setItem(key, id);
+  }
+
+  return id;
+}
 
 api.interceptors.request.use((config) => {
   const token = getToken();
+  const deviceId = getDeviceId();
+
+  config.headers = config.headers || {};
+
   if (token) {
-    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // ✅ Trial 1 удаа болгох зорилгоор бүх request дээр явуулж болно
+  // (ялангуяа /auth/register дээр заавал хэрэгтэй)
+  if (deviceId) {
+    config.headers["x-device-id"] = deviceId;
+  }
+
   return config;
 });
 
 export type UserRole = "user" | "translator" | "admin";
+
+export type TrialSettings = {
+  enabled: boolean;
+  days: number;
+};
+
+export async function adminGetTrialSettings() {
+  const res = await api.get<TrialSettings>("/admin/trial");
+  return res.data;
+}
+
+export async function adminUpdateTrialSettings(
+  payload: Partial<TrialSettings>
+) {
+  const res = await api.put<TrialSettings>("/admin/trial", payload);
+  return res.data;
+}
 
 export interface User {
   _id: string;
@@ -33,6 +74,8 @@ export interface User {
   isActive: boolean;
   createdAt: string;
   vipExpiresAt?: string; // VIP дуусах огноо
+  hasUsedTrial?: boolean;
+  trialGrantedAt?: string;
 }
 
 export interface ActionLog {
@@ -252,5 +295,9 @@ export async function editorUpdateChapter(
   payload: Partial<Chapter>
 ) {
   const res = await api.put<Chapter>(`/editor/chapters/${id}`, payload);
+  return res.data;
+}
+export async function adminUnlockUser(id: string) {
+  const res = await api.patch<User>(`/admin/users/${id}/unlock`);
   return res.data;
 }

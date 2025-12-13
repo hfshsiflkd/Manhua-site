@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="mn" suppressHydrationWarning={true}>
+    <html lang="mn" >
       <body
         className="
     min-h-screen text-slate-100

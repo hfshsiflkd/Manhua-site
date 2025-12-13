@@ -21,15 +21,28 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const res = await api.post("/auth/register", form);
-      await login(res.data.token);
-      router.push("/");
-    } catch (e: any) {
-      alert(e.response?.data?.message || "Алдаа гарлаа");
-    } finally {
-      setLoading(false);
-    }
+   try {
+     const res = await api.post("/auth/register", form);
+
+     // ✅ trial granted бол home дээр popup гаргах flag хадгална
+     const granted = !!res.data?.trial?.granted;
+     if (granted && typeof window !== "undefined") {
+       localStorage.setItem(
+         "trial_popup",
+         JSON.stringify({
+           at: Date.now(),
+           days: res.data?.trial?.days ?? 3,
+         })
+       );
+     }
+
+     await login(res.data.token);
+     router.push("/");
+   } catch (e: any) {
+     alert(e.response?.data?.message || "Алдаа гарлаа");
+   } finally {
+     setLoading(false);
+   }
   };
 
   return (

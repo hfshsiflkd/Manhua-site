@@ -8,6 +8,7 @@ interface User {
   username: string;
   email: string;
   isVIP: boolean;
+  vipExpiresAt?: string;
 }
 
 interface AuthContextType {

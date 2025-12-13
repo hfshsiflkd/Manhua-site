@@ -6,11 +6,60 @@ import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
+function formatTimeLeft(untilISO: string) {
+  const until = new Date(untilISO);
+  const now = new Date();
+
+  const diffMs = until.getTime() - now.getTime();
+  if (isNaN(until.getTime())) return null;
+
+  if (diffMs <= 0) {
+    return { untilText: until.toLocaleString(), leftText: "0 минут" };
+  }
+
+  const diffMin = Math.ceil(diffMs / (1000 * 60));
+  const hours = Math.floor(diffMin / 60);
+  const mins = diffMin % 60;
+
+  const leftText =
+    hours > 0 ? `${hours} цаг ${mins} минут` : `${diffMin} минут`;
+
+  return {
+    untilText: until.toLocaleString(),
+    leftText,
+  };
+}
+
+function buildNiceError(err: any) {
+  const status = err?.response?.status;
+  const data = err?.response?.data;
+
+  // ✅ Lock case
+  if (status === 403 && data?.lockUntil) {
+    const t = formatTimeLeft(data.lockUntil);
+
+    const reason = data?.reason ? `(${data.reason})` : "";
+
+    if (t) {
+      return `⛔ Түр түгжигдсэн байна ${reason}
+Тайлагдах хугацаа: ${t.untilText} (үлдсэн: ${t.leftText})
+Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.`;
+    }
+
+    return `⛔ Түр түгжигдсэн байна ${reason}
+Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.`;
+  }
+
+  // Default
+  return (
+    data?.message || "Нэвтрэхэд алдаа гарлаа. Имэйл/нэр, нууц үгээ шалгана уу."
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
 
-  // Одоо энэ талбарт ИМЭЙЛ эсвэл USERNAME хоёулаа орж болно
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,17 +71,14 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      // backend login controller:
-      // const { email: identifier, password } = req.body;
       const res = await api.post("/auth/login", {
-        email: identifier, // энд нь email гэсэн ключээр username ч явж болно
+        email: identifier,
         password,
       });
 
       const token = res.data.token;
       if (!token) {
         setErrorMsg("Token олдсонгүй, backend login response-ээ шалгаарай.");
-        setLoading(false);
         return;
       }
 
@@ -40,10 +86,7 @@ export default function LoginPage() {
       router.push("/");
     } catch (err: any) {
       console.error(err);
-      const backendMsg =
-        err.response?.data?.message ||
-        "Нэвтрэхэд алдаа гарлаа. Имэйл/нэр, нууц үгээ шалгана уу.";
-      setErrorMsg(backendMsg);
+      setErrorMsg(buildNiceError(err));
     } finally {
       setLoading(false);
     }
@@ -58,7 +101,7 @@ export default function LoginPage() {
         </p>
 
         {errorMsg && (
-          <div className="mt-3 rounded-md border border-rose-500/60 bg-rose-950/40 px-3 py-2 text-[12px] text-rose-200">
+          <div className="mt-3 rounded-md border border-rose-500/60 bg-rose-950/40 px-3 py-2 text-[12px] text-rose-200 whitespace-pre-line">
             {errorMsg}
           </div>
         )}

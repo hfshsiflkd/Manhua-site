@@ -24,6 +24,19 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
+    hasUsedTrial: { type: Boolean, default: false },
+    trialGrantedAt: { type: Date, default: null },
+
+    deviceId: { type: String, default: "" },
+    lastRegisterIP: { type: String, default: "" },
+    lastDeviceId: { type: String, default: "" },
+
+    deviceSwitchWindowStart: { type: Date, default: null },
+    deviceSwitchCount: { type: Number, default: 0 },
+
+    lockUntil: { type: Date, default: null },
+    lockReason: { type: String, default: "" },
+
     role: {
       type: String,
       enum: ["user", "translator", "admin"],
@@ -35,10 +48,14 @@ const userSchema = new mongoose.Schema(
       default: true,
     },
 
+    isVIP: { type: Boolean, default: false },
+
     vipExpiresAt: {
       type: Date,
       default: null,
     },
+
+    sessionToken: { type: String, default: "" },
 
     // 📌 Bookmark-ласан манхуанууд
     bookmarks: [

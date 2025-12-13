@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -5,11 +6,16 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { ChapterNav } from "../components/ChapterNav";
+import  VipGateOverlay  from "@/app/components/VipGateOverlay";
+import VipTrialReminder from "@/app/components/VipTrialReminder";
+
+
 
 interface UserMe {
   _id: string;
   username: string;
   isVIP: boolean;
+  vipExpiresAt?: string | null;
 }
 
 interface ChapterPage {
@@ -34,21 +40,18 @@ function PageWithLoader({ page }: { page: ChapterPage }) {
 
   return (
     <div className="relative w-full mb-2">
-      {/* LOADER - хараахан уншаагүй үед */}
       {!loaded && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 z-10">
           <div className="loader scale-75 md:scale-90" />
         </div>
       )}
 
-      {/* ERROR - зураг уншиж чадаагүй үед */}
       {error && (
         <div className="flex h-[60vh] items-center justify-center bg-slate-900 text-sm text-red-400">
           Зургийг ачаалж чадсангүй...
         </div>
       )}
 
-      {/* IMAGE */}
       <img
         src={page.imageUrl}
         alt=""
@@ -66,11 +69,8 @@ function PageWithLoader({ page }: { page: ChapterPage }) {
   );
 }
 
-/* ------------------------------ MAIN PAGES LIST ------------------------------ */
-
 function ChapterPages({ chapter }: { chapter: Chapter }) {
   const sorted = [...chapter.pages].sort((a, b) => a.pageNumber - b.pageNumber);
-
   return (
     <section className="w-full">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
@@ -117,32 +117,6 @@ function LoginRequired({ onLogin }: { onLogin: () => void }) {
         className="rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
       >
         Нэвтрэх
-      </button>
-    </div>
-  );
-}
-
-function VipRequired({
-  onGoVip,
-  onBack,
-}: {
-  onGoVip: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="flex h-[60vh] flex-col items-center justify-center text-slate-200">
-      <p className="text-sm mb-3">Энэ манхуа зөвхөн VIP хэрэглэгчдэд ✨</p>
-      <button
-        onClick={onGoVip}
-        className="rounded-full bg-yellow-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-yellow-200"
-      >
-        VIP эрх авах
-      </button>
-      <button
-        onClick={onBack}
-        className="text-[11px] mt-2 text-slate-400 hover:text-slate-300"
-      >
-        Буцах
       </button>
     </div>
   );
@@ -195,11 +169,11 @@ export default function ChapterReaderPage() {
   const [userLoading, setUserLoading] = useState(true);
   const [chapterLoading, setChapterLoading] = useState(true);
 
-  // Scroll to top when chapter loads
+  // ✅ Хэрвээ backend VIP биш үед chapter endpoint-оос 403 өгдөг бол
+  const [vipGateFromApi, setVipGateFromApi] = useState(false);
+
   useEffect(() => {
-    if (chapter) {
-      window.scrollTo({ top: 0, behavior: "auto" });
-    }
+    if (chapter) window.scrollTo({ top: 0, behavior: "auto" });
   }, [chapter]);
 
   // Load user
@@ -220,13 +194,20 @@ export default function ChapterReaderPage() {
   // Load chapter
   useEffect(() => {
     async function load() {
+      setVipGateFromApi(false);
       try {
         const res = await api.get<Chapter>(
           `/manhuas/${slug}/chapters/${chapterNumber}`
         );
         setChapter(res.data);
-      } catch {
-        setChapter(null);
+      } catch (err: any) {
+        // ✅ VIP required (backend 403)
+        if (err?.response?.status === 403) {
+          setVipGateFromApi(true);
+          setChapter(null); // контент байхгүй байж болно
+        } else {
+          setChapter(null);
+        }
       } finally {
         setChapterLoading(false);
       }
@@ -234,50 +215,88 @@ export default function ChapterReaderPage() {
     load();
   }, [slug, chapterNumber]);
 
-  /* --- STATES --- */
-
   if (userLoading || chapterLoading) return <LoadingState />;
-
-  if (!chapter) return <ChapterNotFound onBack={() => router.back()} />;
 
   if (user === null)
     return <LoginRequired onLogin={() => router.push("/login")} />;
 
-  if (user && !user.isVIP)
-    return (
-      <VipRequired
-        onGoVip={() => router.push("/vip")}
-        onBack={() => router.back()}
-      />
-    );
+  // ✅ VIP эсэх
+  const canRead = user?.isVIP === true;
+  const showVipGate = !canRead || vipGateFromApi;
 
-  /* --- VIP USER VIEW --- */
+  // Chapter олдохгүй (vipGateFromApi биш үед)
+  if (!chapter && !vipGateFromApi)
+    return <ChapterNotFound onBack={() => router.back()} />;
 
   return (
     <div className="w-full">
-      <ChapterHeader
-        slug={slug}
-        chapter={chapter}
-        onBack={() => router.back()}
+      {/* ✅ Trial дуусахаас 24 цагийн өмнө banner */}
+      <VipTrialReminder
+        isVIP={user?.isVIP}
+        vipExpiresAt={user?.vipExpiresAt ?? null}
       />
 
-      <ChapterNav
-        slug={slug}
-        chapterNumber={chapter.chapterNumber}
-        hasPrev={chapter.hasPrev}
-        hasNext={chapter.hasNext}
-        homePath="/"
-      />
+      {/* Header (chapter байхгүй үед placeholder) */}
+      {chapter ? (
+        <ChapterHeader
+          slug={slug}
+          chapter={chapter}
+          onBack={() => router.back()}
+        />
+      ) : (
+        <div className="mx-auto max-w-3xl px-3 py-3 text-[13px] text-slate-300">
+          <p className="text-[12px] text-slate-500">{slug}</p>
+          <p className="font-semibold text-slate-100">
+            Chapter {chapterNumber}
+          </p>
+        </div>
+      )}
 
-      <ChapterPages chapter={chapter} />
+      {chapter && (
+        <ChapterNav
+          slug={slug}
+          chapterNumber={chapter.chapterNumber}
+          hasPrev={chapter.hasPrev}
+          hasNext={chapter.hasNext}
+          homePath="/"
+        />
+      )}
 
-      <ChapterNav
-        slug={slug}
-        chapterNumber={chapter.chapterNumber}
-        hasPrev={chapter.hasPrev}
-        hasNext={chapter.hasNext}
-        homePath="/"
-      />
+      {/* ✅ VIP overlay: унших хэсэг дээр */}
+      <div className="relative">
+        {chapter ? (
+          <div
+            className={
+              showVipGate ? "pointer-events-none select-none blur-[1.5px]" : ""
+            }
+          >
+            <ChapterPages chapter={chapter} />
+          </div>
+        ) : (
+          <div className="mx-auto flex h-[55vh] w-full max-w-3xl items-center justify-center text-slate-400">
+            Content unavailable
+          </div>
+        )}
+
+        {showVipGate && (
+          <VipGateOverlay
+            title="VIP эрх шаардлагатай"
+            subtitle="Таны trial дууссан байна. VIP эрх авснаар бүх chapter-уудыг бүрэн уншина."
+            onGoVip={() => router.push("/vip")}
+            onBack={() => router.back()}
+          />
+        )}
+      </div>
+
+      {chapter && (
+        <ChapterNav
+          slug={slug}
+          chapterNumber={chapter.chapterNumber}
+          hasPrev={chapter.hasPrev}
+          hasNext={chapter.hasNext}
+          homePath="/"
+        />
+      )}
     </div>
   );
 }
