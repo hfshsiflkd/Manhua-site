@@ -6,9 +6,8 @@ const {
   getChaptersOfManhua,
   getChapter,
 } = require("../controllers/chapterController");
+const { optionalProtect } = require("../middleware/optionalProtect");
 
-// PUBLIC
-router.get("/manhuas/:slug/chapters", getChaptersOfManhua);
-router.get("/manhuas/:slug/chapters/:chapterNumber", getChapter);
+
 
 module.exports = router;

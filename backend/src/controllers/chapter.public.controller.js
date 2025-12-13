@@ -1,8 +1,14 @@
 // src/controllers/chapter.public.controller.js
+// src/controllers/chapter.public.controller.js
 const Chapter = require("../models/Chapter");
 const { trackView } = require("../utils/viewCounter");
 const { getManhuaIdBySlug } = require("../services/manhua.service");
 const { chapterCache, makeChapterKey } = require("../cache/chapterCache");
+
+function computeIsVip(user) {
+  if (!user?.vipExpiresAt) return false;
+  return new Date(user.vipExpiresAt).getTime() > Date.now();
+}
 
 exports.getChapter = async (req, res, next) => {
   try {
@@ -16,7 +22,16 @@ exports.getChapter = async (req, res, next) => {
     const manhuaId = await getManhuaIdBySlug(slug);
     if (!manhuaId) return res.status(404).json({ message: "Manhua not found" });
 
-    const cacheKey = makeChapterKey({ manhuaId, chapterNumber: chNum });
+    // ✅ VIP эсэхийг optionalProtect-аас авна
+    const isVIP = computeIsVip(req.user);
+
+    // ✅ cache key-г VIP/FREE гэж салгахгүй бол VIP-ийн pages cache-даад FREE-д очно
+    const cacheKey = makeChapterKey({
+      manhuaId,
+      chapterNumber: chNum,
+      tier: isVIP ? "vip" : "free",
+    });
+
     const cached = chapterCache.get(cacheKey);
     if (cached) return res.json(cached);
 
@@ -51,13 +66,26 @@ exports.getChapter = async (req, res, next) => {
       trackView({ chapterId: chapter._id, manhuaId });
     }
 
+    // ✅ pages-ийг default-р битгий тараа!
     const payload = {
-      ...chapter,
+      _id: chapter._id,
+      chapterNumber: chapter.chapterNumber,
+      title: chapter.title,
       hasPrev: !!prev,
       hasNext: !!next,
       prevChapterNumber: prev ? prev.chapterNumber : null,
       nextChapterNumber: next ? next.chapterNumber : null,
+      // (хүсвэл энд нэмэлт meta: cover, pageCount гэх мэт)
+      pageCount: Array.isArray(chapter.pages) ? chapter.pages.length : 0,
     };
+
+    // ✅ зөвхөн VIP үед pages өгнө
+    if (isVIP) {
+      payload.pages = chapter.pages;
+    } else {
+      // ⭐ Хэрэв VIP биш бол бүрэн хаахыг хүсвэл:
+      // return res.status(403).json({ message: "VIP required", code: "VIP_REQUIRED" });
+    }
 
     chapterCache.set(cacheKey, payload, 60_000);
     return res.json(payload);

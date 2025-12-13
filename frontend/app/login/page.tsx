@@ -1,58 +1,47 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useMemo, useState, FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
-function formatTimeLeft(untilISO: string) {
-  const until = new Date(untilISO);
-  const now = new Date();
+type LockInfo = {
+  lockUntil: string; // ISO
+  reason?: string;
+};
 
-  const diffMs = until.getTime() - now.getTime();
-  if (isNaN(until.getTime())) return null;
-
-  if (diffMs <= 0) {
-    return { untilText: until.toLocaleString(), leftText: "0 минут" };
-  }
-
-  const diffMin = Math.ceil(diffMs / (1000 * 60));
-  const hours = Math.floor(diffMin / 60);
-  const mins = diffMin % 60;
-
-  const leftText =
-    hours > 0 ? `${hours} цаг ${mins} минут` : `${diffMin} минут`;
-
-  return {
-    untilText: until.toLocaleString(),
-    leftText,
-  };
-}
-
-function buildNiceError(err: any) {
+function parseLock(err: any): LockInfo | null {
   const status = err?.response?.status;
   const data = err?.response?.data;
-
-  // ✅ Lock case
   if (status === 403 && data?.lockUntil) {
-    const t = formatTimeLeft(data.lockUntil);
-
-    const reason = data?.reason ? `(${data.reason})` : "";
-
-    if (t) {
-      return `⛔ Түр түгжигдсэн байна ${reason}
-Тайлагдах хугацаа: ${t.untilText} (үлдсэн: ${t.leftText})
-Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.`;
-    }
-
-    return `⛔ Түр түгжигдсэн байна ${reason}
-Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.`;
+    return { lockUntil: String(data.lockUntil), reason: data?.reason };
   }
+  return null;
+}
 
-  // Default
+function toTimeParts(diffMs: number) {
+  const totalSec = Math.max(0, Math.ceil(diffMs / 1000));
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  return { days, hours, mins, secs, totalSec };
+}
+
+function formatLeft(parts: ReturnType<typeof toTimeParts>) {
+  const { days, hours, mins, secs } = parts;
+  if (parts.totalSec <= 0) return "0 секунд";
+  if (days > 0) return `${days} өдөр ${hours} цаг ${mins} мин`;
+  if (hours > 0) return `${hours} цаг ${mins} мин ${secs} сек`;
+  if (mins > 0) return `${mins} мин ${secs} сек`;
+  return `${secs} сек`;
+}
+
+function niceDefaultError(err: any) {
   return (
-    data?.message || "Нэвтрэхэд алдаа гарлаа. Имэйл/нэр, нууц үгээ шалгана уу."
+    err?.response?.data?.message ||
+    "Нэвтрэхэд алдаа гарлаа. Имэйл/нэр, нууц үгээ шалгана уу."
   );
 }
 
@@ -62,13 +51,52 @@ export default function LoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
+
+  // ✅ lock info + live countdown
+  const [lock, setLock] = useState<LockInfo | null>(null);
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  // ✅ normal error (non-lock)
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const lockUntilDate = useMemo(() => {
+    if (!lock?.lockUntil) return null;
+    const d = new Date(lock.lockUntil);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  }, [lock]);
+
+  const lockParts = useMemo(() => {
+    if (!lockUntilDate) return null;
+    return toTimeParts(lockUntilDate.getTime() - nowTick);
+  }, [lockUntilDate, nowTick]);
+
+  const isLocked = !!lockUntilDate && !!lockParts && lockParts.totalSec > 0;
+
+  // live tick while locked
+  useEffect(() => {
+    if (!isLocked) return;
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isLocked]);
+
+  // auto clear lock when expired
+  useEffect(() => {
+    if (!lockUntilDate || !lockParts) return;
+    if (lockParts.totalSec <= 0) setLock(null);
+  }, [lockUntilDate, lockParts]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    // ✅ lock байхад submit хийхгүй
+    if (isLocked) return;
+
     setLoading(true);
     setErrorMsg(null);
+    setLock(null);
 
     try {
       const res = await api.post("/auth/login", {
@@ -86,7 +114,16 @@ export default function LoginPage() {
       router.push("/");
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(buildNiceError(err));
+
+      // ✅ lock case
+      const l = parseLock(err);
+      if (l) {
+        setLock(l);
+        setErrorMsg(null);
+        return;
+      }
+
+      setErrorMsg(niceDefaultError(err));
     } finally {
       setLoading(false);
     }
@@ -100,8 +137,65 @@ export default function LoginPage() {
           Имэйл эсвэл хэрэглэгчийн нэр, нууц үгээ ашиглан нэвтэрнэ үү.
         </p>
 
+        {/* ✅ Lock card */}
+        {lockUntilDate && (
+          <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-[12px] text-amber-100">
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5">⛔</div>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-100">
+                  Түр түгжигдсэн байна{" "}
+                  {lock?.reason ? (
+                    <span className="text-amber-200/80 font-normal">
+                      ({lock.reason})
+                    </span>
+                  ) : null}
+                </p>
+
+                <p className="mt-1 text-amber-100/90">
+                  Тайлагдах хугацаа:{" "}
+                  <span className="font-medium">
+                    {lockUntilDate.toLocaleString()}
+                  </span>
+                </p>
+
+                <p className="mt-1 text-amber-100/90">
+                  Үлдсэн хугацаа:{" "}
+                  <span className="font-semibold">
+                    {lockParts ? formatLeft(lockParts) : "-"}
+                  </span>
+                </p>
+
+                <p className="mt-2 text-[11px] text-amber-100/80">
+                  Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.
+                </p>
+
+                <div className="mt-3 flex gap-2">
+                  <a
+                    href="/contact"
+                    className="inline-flex flex-1 items-center justify-center rounded-full border border-amber-400/50 bg-slate-900/40 px-3 py-2 text-[12px] font-medium text-amber-100 hover:bg-slate-900/70"
+                  >
+                    Админд хандах
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNowTick(Date.now());
+                    }}
+                    className="inline-flex items-center justify-center rounded-full bg-amber-400 px-3 py-2 text-[12px] font-semibold text-slate-950 hover:bg-amber-300"
+                  >
+                    Дахин шалгах
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Normal error */}
         {errorMsg && (
-          <div className="mt-3 rounded-md border border-rose-500/60 bg-rose-950/40 px-3 py-2 text-[12px] text-rose-200 whitespace-pre-line">
+          <div className="mt-3 rounded-md border border-rose-500/60 bg-rose-950/40 px-3 py-2 text-[12px] text-rose-200">
             {errorMsg}
           </div>
         )}
@@ -118,6 +212,7 @@ export default function LoginPage() {
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
@@ -130,27 +225,42 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isLocked}
             className="mt-2 w-full rounded-full bg-cyan-500 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700"
           >
-            {loading ? "Нэвтрэж байна..." : "Нэвтрэх"}
+            {loading
+              ? "Нэвтрэж байна..."
+              : isLocked
+              ? "Түр түгжигдсэн"
+              : "Нэвтрэх"}
           </button>
         </form>
 
-        <p className="mt-4 text-center text-[12px] text-slate-400">
-          Шинэ хэрэглэгч үү?{" "}
+        <div className="mt-4 flex items-center justify-between text-[12px] text-slate-400">
+          <p>
+            Шинэ хэрэглэгч үү?{" "}
+            <a
+              href="/register"
+              className="text-cyan-300 hover:text-cyan-200 underline-offset-2 hover:underline"
+            >
+              Бүртгүүлэх
+            </a>
+          </p>
+
+          {/* ✅ forgot password link */}
           <a
-            href="/register"
-            className="text-cyan-300 hover:text-cyan-200 underline-offset-2 hover:underline"
+            href="/login/forgot-password"
+            className="text-slate-300 hover:text-slate-100 underline-offset-2 hover:underline"
           >
-            Бүртгүүлэх
+            Нууц үг мартсан
           </a>
-        </p>
+        </div>
       </div>
     </div>
   );

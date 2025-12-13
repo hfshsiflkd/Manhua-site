@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const TrialDevice = require("../models/TrialDevice");
 const { getSetting } = require("../services/settingsService");
+const sendEmail = require("../utils/sendEmail");
 
 const JWT_SECRET = process.env.JWT_SECRET || "secret";
 
@@ -365,11 +366,63 @@ exports.me = async (req, res, next) => {
   }
 };
 
-// Эд нарыг дараа жинхэнэ болгоно
+
+
 exports.forgotPassword = async (req, res) => {
-  res.json({ message: "forgot-password API одоохондоо бэлдээгүй" });
+  const { email } = req.body;
+
+  if (!email)
+    return res.status(400).json({ message: "Email шаардлагатай" });
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    // Security: email байгаа эсэхийг илчлэхгүй
+    return res.json({ message: "Хэрэв ийм email байвал link илгээгдэнэ" });
+  }
+
+  const resetToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  await sendEmail({
+    to: user.email,
+    subject: "Нууц үг сэргээх",
+    html: `
+      <p>Нууц үг сэргээх хүсэлт ирлээ.</p>
+      <p>Доорх линкээр орж шинэ нууц үг үүсгэнэ үү:</p>
+      <a href="${resetUrl}">${resetUrl}</a>
+      <p>⏱ 15 минутын дотор хүчинтэй</p>
+    `,
+  });
+
+  res.json({ message: "Reset link илгээгдлээ" });
 };
 
 exports.resetPassword = async (req, res) => {
-  res.json({ message: "reset-password API одоохондоо бэлдээгүй" });
+  const { token, password } = req.body;
+
+  if (!token || !password)
+    return res.status(400).json({ message: "Token ба password шаардлагатай" });
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res.status(400).json({
+      message: "Token хүчингүй эсвэл хугацаа дууссан",
+    });
+  }
+
+  user.password = password; // bcrypt pre-save ажиллана
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+
+  await user.save();
+
+  res.json({ message: "Нууц үг амжилттай шинэчлэгдлээ" });
 };

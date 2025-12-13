@@ -4,17 +4,19 @@ const router = require("express").Router();
 const manhuaCtrl = require("../controllers/manhuaController");
 const chapterPublicCtrl = require("../controllers/chapter.public.controller");
 const chapterAdminCtrl = require("../controllers/admin/chapter.admin.controller");
-
 const { protect } = require("../middleware/authMiddleware");
 const adminOnly = require("../middleware/adminOnly");
+
 
 // PUBLIC
 router.get("/home/sections", manhuaCtrl.getHomeSections);
 router.get("/", manhuaCtrl.getManhuas);
 
-// order important
 router.get("/:slug/chapters", chapterPublicCtrl.getChaptersOfManhua);
-router.get("/:slug/chapters/:chapterNumber", chapterPublicCtrl.getChapter);
+router.get(
+  "/:slug/chapters/:chapterNumber",
+  chapterPublicCtrl.getChapter
+);
 router.get("/:slug", manhuaCtrl.getManhuaBySlug);
 
 // ADMIN (keep here if you want)

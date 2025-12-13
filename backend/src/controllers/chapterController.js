@@ -45,28 +45,37 @@ async function getManhuaIdBySlug(slug) {
    GET /api/manhuas/:slug/chapters/:chapterNumber
    🔥 CACHE + 1 DB AGGREGATE
 ===================================================== */
+// GET /api/manhuas/:slug/chapters/:chapterNumber
 exports.getChapter = async (req, res, next) => {
   try {
     const { slug, chapterNumber } = req.params;
     const chNum = Number(chapterNumber);
-
     if (!Number.isFinite(chNum)) {
       return res.status(400).json({ message: "Invalid chapterNumber" });
     }
 
     const manhuaId = await getManhuaIdBySlug(slug);
-    if (!manhuaId) {
-      return res.status(404).json({ message: "Manhua not found" });
+    if (!manhuaId) return res.status(404).json({ message: "Manhua not found" });
+
+    const user = req.user;
+
+    const isVIP =
+      user?.vipExpiresAt && new Date(user.vipExpiresAt).getTime() > Date.now();
+
+    if (!isVIP) {
+      // ❌ VIP биш → шууд хаана
+      return res.status(403).json({
+        message: "VIP required",
+        code: "VIP_REQUIRED",
+      });
     }
 
-    // 🔥 CACHE CHECK
-    const cacheKey = `${manhuaId}:${chNum}:mn:published`;
+    // ✅ cacheKey-д vip/free ялгалт
+    const cacheKey = `${manhuaId}:${chNum}:mn:published:${isVIP ? "vip" : "free"}`;
+
     const cached = cacheGet(cacheKey);
-    if (cached) {
-      return res.json(cached);
-    }
+    if (cached) return res.json(cached);
 
-    // 🔥 SINGLE DB CALL
     const [result] = await Chapter.aggregate([
       {
         $match: {
@@ -95,28 +104,29 @@ exports.getChapter = async (req, res, next) => {
     ]);
 
     const chapter = result?.current?.[0];
-    if (!chapter) {
-      return res.status(404).json({ message: "Chapter not found" });
-    }
+    if (!chapter) return res.status(404).json({ message: "Chapter not found" });
 
     const prev = result.prev?.[0] || null;
     const next = result.next?.[0] || null;
 
-    // views (load test үед унтрааж болно)
-    if (process.env.DISABLE_VIEWS !== "1") {
-      trackView({ chapterId: chapter._id, manhuaId });
-    }
-
+    // ✅ Үндсэн payload (pages байхгүй)
     const payload = {
-      ...chapter,
+      _id: chapter._id,
+      chapterNumber: chapter.chapterNumber,
+      title: chapter.title,
       hasPrev: !!prev,
       hasNext: !!next,
       prevChapterNumber: prev ? prev.chapterNumber : null,
       nextChapterNumber: next ? next.chapterNumber : null,
+      // pages: зөвхөн VIP үед л нэмнэ
+      ...(isVIP ? { pages: chapter.pages } : {}),
     };
 
-    // 🔥 CACHE SET (60s)
-    cacheSet(cacheKey, payload, 60_000);
+    // 🔥 Зөвлөмж: VIP payload-ийг cache хийхгүй байвал бүр найдвартай
+    // cacheSet(cacheKey, payload, 60_000);
+
+    // ✅ Харин ингэвэл safe: free-г л cache хийнэ
+    if (!isVIP) cacheSet(cacheKey, payload, 60_000);
 
     return res.json(payload);
   } catch (err) {

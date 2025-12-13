@@ -111,6 +111,29 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
+// src/models/User.js
+
+const crypto = require("crypto");
+
+userSchema.add({
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date },
+});
+
+// reset token үүсгэх method
+userSchema.methods.createPasswordResetToken = function () {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
+
+  this.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 минут
+
+  return rawToken; // email-д явуулах
+};
+
 // Хэрэгтэй бол bookmark / recentlyViewed дээр index тавьж болно
 // userSchema.index({ "bookmarks.manhua": 1 });
 // userSchema.index({ "recentlyViewed.manhua": 1 });
