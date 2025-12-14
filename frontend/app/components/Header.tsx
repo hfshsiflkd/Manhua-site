@@ -11,6 +11,8 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  
+  
 
   const role = (user as { role?: string } | null | undefined)?.role;
   const isAdmin = role === "admin";
@@ -30,8 +32,16 @@ export default function Header() {
     router.push("/");
   };
 
+  const isReading =
+    pathname?.includes("/manhua/") && pathname?.includes("/chapter/");
+
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md">
+    <header
+      className={[
+        "z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md",
+        isReading ? "relative" : "sticky top-0",
+      ].join(" ")}
+    >
       {/* TOP BAR */}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:py-3 lg:px-16">
         {/* LOGO */}

@@ -13,7 +13,7 @@ export default function PageWithLoader({ page }: { page: ChapterPage }) {
   const [error, setError] = useState(false);
 
   return (
-    <div className="relative w-full mb-2">
+    <div className="relative w-full">
       {!loaded && !error && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40">
           <div className="loader scale-75 md:scale-90" />

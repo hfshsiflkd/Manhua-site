@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 
 export const metadata: Metadata = {
   title: "Manhua.mn",
@@ -15,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="mn" >
+    <html lang="mn">
       <body
         className="
     min-h-screen text-slate-100
@@ -30,6 +31,7 @@ export default function RootLayout({
 
           {children}
           <Footer />
+          <ScrollToTop />
         </AuthProvider>
       </body>
     </html>

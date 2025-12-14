@@ -1,7 +1,7 @@
 // src/lib/device.ts
 export const DEVICE_KEY = "mh_device_id";
 
-export function getDeviceId(): string {
+ function getDeviceId(): string {
   // Next SSR дээр window байхгүй тул хамгаална
   if (typeof window === "undefined") return "server";
 
@@ -15,3 +15,4 @@ export function getDeviceId(): string {
   localStorage.setItem(DEVICE_KEY, id);
   return id;
 }
+export default getDeviceId;

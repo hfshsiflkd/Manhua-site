@@ -2,6 +2,7 @@
 // src/lib/api.ts
 import axios from "axios";
 import type { Chapter } from "@/types/manhua";
+import { getDeviceIdFromCookie } from "./deviceCookie";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -10,12 +11,9 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  // header object байхгүй бол үүсгэнэ
   config.headers = config.headers ?? {};
-
-  // axios 1.x дээр headers нь object хэлбэрээр ажиллана
-  (config.headers as any)["x-device-id"] = getDeviceId();
-
+  const deviceId = getDeviceIdFromCookie();
+  if (deviceId) (config.headers as any)["x-device-id"] = deviceId;
   return config;
 });
 
