@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,7 +29,7 @@ export default function ChapterReaderPage() {
   const slug = params.slug as string;
   const chapterNumber = Number(params.chapterNumber as string);
 
-  const [user, setUser] = useState<UserMe | null | undefined>();
+  const [user, setUser] = useState<UserMe | null | undefined>(undefined);
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [loading, setLoading] = useState(true);
   const [vipGateFromApi, setVipGateFromApi] = useState(false);
@@ -35,20 +37,69 @@ export default function ChapterReaderPage() {
   const canRead = user?.isVIP === true;
   const showVipGate = !canRead || vipGateFromApi;
 
+  // ✅ slug/chapter солигдох бүрт локал state reset
   useEffect(() => {
-    Promise.all([
-      api
-        .get<UserMe>("/auth/me")
-        .then((r) => setUser(r.data))
-        .catch(() => setUser(null)),
-      api
-        .get<Chapter>(`/manhuas/${slug}/chapters/${chapterNumber}`)
-        .then((r) => setChapter(r.data))
-        .catch((err) => {
+    setLoading(true);
+    setVipGateFromApi(false);
+    setChapter(null);
+  }, [slug, chapterNumber]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      try {
+        // 1) эхлээд ME
+        let me: UserMe | null = null;
+        try {
+          const r = await api.get<UserMe>("/auth/me", {
+            headers: { "Cache-Control": "no-store" }, // bonus
+          });
+          me = r.data;
+        } catch {
+          me = null;
+        }
+
+        if (cancelled) return;
+        setUser(me);
+
+        // login шаардах бол chapter авахгүй
+        if (me === null) {
+          setLoading(false);
+          return;
+        }
+
+        // 2) дараа нь chapter (VIP state тодорхой болсон үед)
+        try {
+          const r2 = await api.get<Chapter>(
+            `/manhuas/${slug}/chapters/${chapterNumber}`,
+            { headers: { "Cache-Control": "no-store" } } // bonus
+          );
+          if (cancelled) return;
+
+          setChapter(r2.data);
+
+          // VIP мөртлөө pages байхгүй бол backend дээр VIP танигдахгүй байна гэсэн дохио
+          if (me.isVIP && !("pages" in (r2.data as any))) {
+            // энэ тохиолдолд gate-аа заавал асаахгүй, харин backend-ээ засах хэрэгтэй гэдгийг илтгэнэ
+            // хүсвэл энд console.warn хийж болно
+          }
+        } catch (err: any) {
+          if (cancelled) return;
           if (err?.response?.status === 403) setVipGateFromApi(true);
           setChapter(null);
-        }),
-    ]).finally(() => setLoading(false));
+        }
+
+        if (!cancelled) setLoading(false);
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [slug, chapterNumber]);
 
   useEffect(() => {

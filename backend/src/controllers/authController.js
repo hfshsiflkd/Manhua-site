@@ -1,428 +1,136 @@
-const User = require("../models/User");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
-const TrialDevice = require("../models/TrialDevice");
-const { getSetting } = require("../services/settingsService");
-const sendEmail = require("../utils/sendEmail");
+const { getClientIP } = require("../utils/ip");
+const { registerUser, loginUser, getMe } = require("../services/authService");
+const {
+  requestPasswordReset,
+  resetPasswordByToken,
+} = require("../services/passwordResetService");
 
-const JWT_SECRET = process.env.JWT_SECRET || "secret";
-
-
-
-// IP авах (Railway/Vercel/Proxy үед зөв ажиллана)
-function getClientIP(req) {
-  return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
-}
-
-function normalizeEmail(email) {
-  return String(email || "")
-    .trim()
-    .toLowerCase();
-}
-
-function normalizeUsername(username) {
-  return String(username || "").trim();
-}
-
-// VIP шалгах helper
-const computeIsVIP = (user) => {
-  if (!user.vipExpiresAt) return false;
-  return user.vipExpiresAt.getTime() > Date.now();
-};
-
-// JWT үүсгэгч (sessionToken дагаж явна)
-const genToken = (user) => {
-  return jwt.sign(
-    {
-      id: user._id,
-      sessionToken: user.sessionToken || null,
-    },
-    JWT_SECRET,
-    { expiresIn: "30d" }
+// ✅ HTTP cache бүрэн унтраах helper
+function noStore(res) {
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
   );
-};
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  // auth header/cookie-оос хамаарах response гэдгийг proxy-д ойлгуулна
+  res.setHeader("Vary", "Authorization, Cookie");
+}
 
 exports.register = async (req, res, next) => {
   try {
-    const { username, email, password } = req.body;
+    noStore(res);
 
-    // ✅ deviceId (frontend-ээс x-device-id header ирнэ)
+    const { username, email, password } = req.body;
     const deviceId = String(req.headers["x-device-id"] || "").trim();
     const ip = getClientIP(req);
 
-    if (!username || !email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Username, email, нууц үг шаардлагатай." });
-    }
-
-    if (!deviceId) {
-      return res.status(400).json({
-        message:
-          "Device мэдээлэл дутуу байна. (x-device-id header шаардлагатай)",
-      });
-    }
-
-    const normEmail = normalizeEmail(email);
-    const normUsername = normalizeUsername(username);
-
-    const existingEmail = await User.findOne({ email: normEmail });
-    if (existingEmail) {
-      return res
-        .status(400)
-        .json({ message: "Энэ email аль хэдийн бүртгэлтэй." });
-    }
-
-    const existingUsername = await User.findOne({ username: normUsername });
-    if (existingUsername) {
-      return res
-        .status(400)
-        .json({ message: "Энэ username аль хэдийн бүртгэлтэй." });
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-
-    // анхны sessionToken
-    const sessionToken = crypto.randomBytes(32).toString("hex");
-
-    const user = await User.create({
-      username: normUsername,
-      email: normEmail,
-      password: hashed,
-      role: "user",
-
-      isVIP: false,
-      vipExpiresAt: null,
-
-      sessionToken,
-
-      // ✅ optional: user дээр хадгалж болно (лог/аналитик)
+    const result = await registerUser({
+      username,
+      email,
+      password,
       deviceId,
-      lastRegisterIP: ip,
-
-      // ✅ trial flags (User schema дээр нэмнэ)
-      hasUsedTrial: false,
-      trialGrantedAt: null,
+      ip,
     });
 
-    // =========================
-    // ✅ TRIAL = VIP (нэг device дээр 1 л удаа)
-    // admin-аас days тохируулж болно
-    // =========================
-    const trialEnabled = await getSetting("trial.enabled", true);
-    const trialDays = await getSetting("trial.days", 3);
-
-    let trialGranted = false;
-
-    if (trialEnabled && !user.hasUsedTrial) {
-      const existed = await TrialDevice.findOne({ deviceId });
-
-      if (!existed) {
-        // ✅ анхны удаа → trial олгоно
-        user.vipExpiresAt = new Date(
-          Date.now() + Number(trialDays) * 24 * 60 * 60 * 1000
-        );
-        user.hasUsedTrial = true;
-        user.trialGrantedAt = new Date();
-        trialGranted = true;
-
-        await TrialDevice.create({
-          deviceId,
-          firstUserId: user._id,
-          firstGrantedAt: user.trialGrantedAt,
-          ip,
-        });
-      } else {
-        // ❌ энэ device өмнө нь trial авсан → энэ user-д trial өгөхгүй
-        user.hasUsedTrial = true; // нэг удаа л гэдгийг хатуу болгох (optional)
-        trialGranted = false;
-      }
-    }
-
-    // VIP flag update
-    const isVIP = computeIsVIP(user);
-    user.isVIP = isVIP;
-
-    await user.save();
-
-    const token = genToken(user);
-
-    res.json({
+    return res.json({
       message: "Амжилттай бүртгэгдлээ",
-      token,
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isVIP: user.isVIP,
-        vipExpiresAt: user.vipExpiresAt,
-
-        // ✅ trial info (frontend дээр badge/alert гаргана)
-        hasUsedTrial: user.hasUsedTrial,
-        trialGrantedAt: user.trialGrantedAt,
-      },
-      trial: { granted: trialGranted },
+      token: result.token,
+      user: result.user,
+      trial: result.trial,
     });
   } catch (err) {
     next(err);
   }
 };
 
-// helpers
-function getClientIP(req) {
-  return (
-    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    req.ip ||
-    ""
-  );
-}
-
-function nowMs() {
-  return Date.now();
-}
-
-// Policy constants (та хүсвэл config/setting болгоод admin-аас тохируулж болно)
-const SWITCH_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 цаг
-const SWITCH_THRESHOLD = 3; // 3 дахь удаанаас lock эхэлнэ
-const LOCK_DURATIONS_MS = [
-  0,                         // 0 -> unused
-  0,                         // 1st switch
-  0,                         // 2nd switch
-  1 * 24 * 60 * 60 * 1000,   // 3rd -> 1 day
-  3 * 24 * 60 * 60 * 1000,   // 4th -> 3 days
-  7 * 24 * 60 * 60 * 1000,   // 5th+ -> 7 days
-];
-
-function getLockDurationMs(switchCount) {
-  if (switchCount <= 2) return 0;
-  if (switchCount === 3) return LOCK_DURATIONS_MS[3];
-  if (switchCount === 4) return LOCK_DURATIONS_MS[4];
-  return LOCK_DURATIONS_MS[5];
-}
-function getClientIP(req) {
-  return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip || "";
-}
-function nowMs() {
-  return Date.now();
-}
-
-// POST /api/auth/login  (email эсвэл username)
 exports.login = async (req, res, next) => {
   try {
+    noStore(res);
+
     const { email, emailOrUsername, password } = req.body;
     const identifier = (emailOrUsername || email || "").trim();
-
-    // ✅ deviceId заавал (account sharing-ийг хянахын тулд)
     const deviceId = String(req.headers["x-device-id"] || "").trim();
-    const ip = getClientIP(req);
 
-    if (!identifier || !password) {
-      return res
-        .status(400)
-        .json({ message: "Имэйл/нэр болон нууц үг шаардлагатай." });
-    }
+    const result = await loginUser({ identifier, password, deviceId });
 
-    if (!deviceId) {
-      return res.status(400).json({
-        message: "Device мэдээлэл дутуу байна. (x-device-id шаардлагатай)",
-      });
-    }
-
-    const identifierEmail = identifier.includes("@")
-      ? identifier.toLowerCase()
-      : identifier;
-
-    let user = await User.findOne({
-      $or: [{ email: identifierEmail }, { username: identifier }],
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: "Нэвтрэх мэдээлэл буруу байна." });
-    }
-
-    // ✅ Lock шалгах (login хийхээс өмнө)
-    if (user.lockUntil && user.lockUntil.getTime() > nowMs()) {
-      return res.status(403).json({
-        message: "Түр түгжигдсэн. Дахин оролдоно уу.",
-        lockUntil: user.lockUntil,
-        reason: user.lockReason || "device_switch",
-      });
-    }
-
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) {
-      return res.status(400).json({ message: "Нэвтрэх мэдээлэл буруу байна." });
-    }
-
-    // =========================
-    // ✅ Device switch policy (амжилттай login дараа тоолно)
-    // =========================
-    const prevDevice = user.lastDeviceId || "";
-    const isSwitch = prevDevice && prevDevice !== deviceId;
-
-    // Window reset logic
-    const wStart = user.deviceSwitchWindowStart
-      ? user.deviceSwitchWindowStart.getTime()
-      : 0;
-
-    const inWindow = wStart && nowMs() - wStart <= SWITCH_WINDOW_MS;
-
-    if (isSwitch) {
-      // window эхлүүлэх/үргэлжлүүлэх
-      if (!inWindow) {
-        user.deviceSwitchWindowStart = new Date(nowMs());
-        user.deviceSwitchCount = 1;
-      } else {
-        user.deviceSwitchCount = (user.deviceSwitchCount || 0) + 1;
-      }
-
-      // threshold давбал lock
-      const count = user.deviceSwitchCount || 0;
-      const lockMs = getLockDurationMs(count);
-
-      if (lockMs > 0 && count >= SWITCH_THRESHOLD) {
-        user.lockUntil = new Date(nowMs() + lockMs);
-        user.lockReason = `device_switch_${count}`;
-        // СЭШН token шинэчлэхгүйгээр шууд lock өгөөд буцааж болно
-        await user.save();
-
-        return res.status(403).json({
-          message: "Олон төхөөрөмжөөс давтамжтай нэвтрэх оролдлого илэрсэн тул түр түгжлээ.",
-          lockUntil: user.lockUntil,
-          reason: user.lockReason,
-        });
-      }
-    } else {
-      // Switch биш бол window-г reset хийх шаардлагагүй.
-      // Хүсвэл тогтвортой төхөөрөмжөөр орж байвал count-г бага зэрэг бууруулж болно (optional).
-    }
-
-    // ✅ lastDeviceId шинэчилнэ (амжилттай login үед)
-    user.lastDeviceId = deviceId;
-
-    // 🔥 Нэг аккаунтаар нэг л session
-    const sessionToken = crypto.randomBytes(32).toString("hex");
-    user.sessionToken = sessionToken;
-
-    const isVIP = computeIsVIP(user);
-    if (user.isVIP !== isVIP) {
-      user.isVIP = isVIP;
-    }
-
-    await user.save();
-
-    const token = genToken(user);
-
-    res.json({
+    return res.json({
       message: "Амжилттай нэвтэрлээ",
-      token,
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isVIP: user.isVIP,
-        vipExpiresAt: user.vipExpiresAt,
-      },
-      security: {
-        deviceId,
-        switched: isSwitch,
-        switchCount: user.deviceSwitchCount || 0,
-        windowStart: user.deviceSwitchWindowStart,
-      },
+      token: result.token,
+      user: result.user,
+      security: result.security,
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        message: err.message,
+        ...(err.meta || {}),
+      });
+    }
     next(err);
   }
 };
 
-// GET /api/auth/me
 exports.me = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    // ✅ хамгийн чухал нь ЭНД
+    // /me-г browser/proxy хэзээ ч cache-дах ёсгүй
+    noStore(res);
 
-    if (!user) {
-      return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
-    }
+    const me = await getMe(req.user.id);
+    return res.json(me);
+  } catch (err) {
+    if (err.statusCode)
+      return res.status(err.statusCode).json({ message: err.message });
+    next(err);
+  }
+};
 
-    const isVIP = computeIsVIP(user);
-    if (user.isVIP !== isVIP) {
-      user.isVIP = isVIP;
-      await user.save();
-    }
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    noStore(res);
 
-    res.json({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      isVIP: user.isVIP,
-      vipExpiresAt: user.vipExpiresAt,
-    });
+    const { emailOrUsername, email } = req.body;
+    const identifier = String(emailOrUsername || email || "").trim();
+
+    if (!identifier)
+      return res.status(400).json({ message: "Email шаардлагатай" });
+
+    const safeResponse = () =>
+      res.json({
+        message:
+          "Хэрэв энэ имэйл/нэр бүртгэлтэй бол нууц үг сэргээх холбоос очно.",
+      });
+
+    await requestPasswordReset(identifier);
+    return safeResponse();
   } catch (err) {
     next(err);
   }
 };
 
+exports.resetPassword = async (req, res, next) => {
+  try {
+    noStore(res);
 
+    const { token, password } = req.body;
 
-exports.forgotPassword = async (req, res) => {
-  const { email } = req.body;
+    if (!token || !password) {
+      return res
+        .status(400)
+        .json({ message: "Token болон шинэ нууц үг шаардлагатай" });
+    }
+    if (String(password).length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Нууц үг хамгийн багадаа 6 тэмдэгт" });
+    }
 
-  if (!email)
-    return res.status(400).json({ message: "Email шаардлагатай" });
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    // Security: email байгаа эсэхийг илчлэхгүй
-    return res.json({ message: "Хэрэв ийм email байвал link илгээгдэнэ" });
+    await resetPasswordByToken({ token, password });
+    return res.json({ message: "Нууц үг амжилттай солигдлоо" });
+  } catch (err) {
+    if (err.statusCode)
+      return res.status(err.statusCode).json({ message: err.message });
+    next(err);
   }
-
-  const resetToken = user.createPasswordResetToken();
-  await user.save({ validateBeforeSave: false });
-
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
-  await sendEmail({
-    to: user.email,
-    subject: "Нууц үг сэргээх",
-    html: `
-      <p>Нууц үг сэргээх хүсэлт ирлээ.</p>
-      <p>Доорх линкээр орж шинэ нууц үг үүсгэнэ үү:</p>
-      <a href="${resetUrl}">${resetUrl}</a>
-      <p>⏱ 15 минутын дотор хүчинтэй</p>
-    `,
-  });
-
-  res.json({ message: "Reset link илгээгдлээ" });
-};
-
-exports.resetPassword = async (req, res) => {
-  const { token, password } = req.body;
-
-  if (!token || !password)
-    return res.status(400).json({ message: "Token ба password шаардлагатай" });
-
-  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-  const user = await User.findOne({
-    resetPasswordToken: hashedToken,
-    resetPasswordExpires: { $gt: Date.now() },
-  });
-
-  if (!user) {
-    return res.status(400).json({
-      message: "Token хүчингүй эсвэл хугацаа дууссан",
-    });
-  }
-
-  user.password = password; // bcrypt pre-save ажиллана
-  user.resetPasswordToken = undefined;
-  user.resetPasswordExpires = undefined;
-
-  await user.save();
-
-  res.json({ message: "Нууц үг амжилттай шинэчлэгдлээ" });
 };

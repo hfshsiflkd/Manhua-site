@@ -1,13 +1,19 @@
 // src/controllers/chapter.public.controller.js
-// src/controllers/chapter.public.controller.js
 const Chapter = require("../models/Chapter");
 const { trackView } = require("../utils/viewCounter");
 const { getManhuaIdBySlug } = require("../services/manhua.service");
-const { chapterCache, makeChapterKey } = require("../cache/chapterCache");
+const { chapterCache } = require("../cache/chapterCache");
 
 function computeIsVip(user) {
   if (!user?.vipExpiresAt) return false;
   return new Date(user.vipExpiresAt).getTime() > Date.now();
+}
+
+// ✅ cache key: VIP/FREE заавал салгаж өгнө
+function makePublicChapterCacheKey({ manhuaId, chapterNumber, isVIP }) {
+  return `${manhuaId.toString()}:ch:${Number(chapterNumber)}:tier:${
+    isVIP ? "vip" : "free"
+  }`;
 }
 
 exports.getChapter = async (req, res, next) => {
@@ -15,28 +21,33 @@ exports.getChapter = async (req, res, next) => {
     const { slug, chapterNumber } = req.params;
     const chNum = Number(chapterNumber);
 
-    if (!Number.isFinite(chNum)) {
+    if (!Number.isFinite(chNum) || chNum <= 0) {
       return res.status(400).json({ message: "Invalid chapterNumber" });
     }
 
     const manhuaId = await getManhuaIdBySlug(slug);
     if (!manhuaId) return res.status(404).json({ message: "Manhua not found" });
 
-    // ✅ VIP эсэхийг optionalProtect-аас авна
+    // ✅ optionalProtect-аас ирсэн user дээр үндэслэнэ
     const isVIP = computeIsVip(req.user);
 
-    // ✅ cache key-г VIP/FREE гэж салгахгүй бол VIP-ийн pages cache-даад FREE-д очно
-    const cacheKey = makeChapterKey({
+    const cacheKey = makePublicChapterCacheKey({
       manhuaId,
       chapterNumber: chNum,
-      tier: isVIP ? "vip" : "free",
+      isVIP,
     });
 
     const cached = chapterCache.get(cacheKey);
     if (cached) return res.json(cached);
 
     const [result] = await Chapter.aggregate([
-      { $match: { manhua: manhuaId, language: "mn", status: "published" } },
+      {
+        $match: {
+          manhua: manhuaId,
+          language: "mn",
+          status: "published",
+        },
+      },
       {
         $facet: {
           current: [{ $match: { chapterNumber: chNum } }, { $limit: 1 }],
@@ -62,20 +73,22 @@ exports.getChapter = async (req, res, next) => {
     const prev = result.prev?.[0] || null;
     const next = result.next?.[0] || null;
 
+    // ✅ view count
     if (process.env.DISABLE_VIEWS !== "1") {
       trackView({ chapterId: chapter._id, manhuaId });
     }
 
-    // ✅ pages-ийг default-р битгий тараа!
+    // ✅ pages-ийг default-р БҮҮ явуул
     const payload = {
       _id: chapter._id,
       chapterNumber: chapter.chapterNumber,
       title: chapter.title,
+
       hasPrev: !!prev,
       hasNext: !!next,
       prevChapterNumber: prev ? prev.chapterNumber : null,
       nextChapterNumber: next ? next.chapterNumber : null,
-      // (хүсвэл энд нэмэлт meta: cover, pageCount гэх мэт)
+
       pageCount: Array.isArray(chapter.pages) ? chapter.pages.length : 0,
     };
 
@@ -83,15 +96,33 @@ exports.getChapter = async (req, res, next) => {
     if (isVIP) {
       payload.pages = chapter.pages;
     } else {
-      // ⭐ Хэрэв VIP биш бол бүрэн хаахыг хүсвэл:
-      // return res.status(403).json({ message: "VIP required", code: "VIP_REQUIRED" });
+      // 🔒 Хэрвээ FREE хэрэглэгчийг бүрэн хаахыг хүсвэл uncomment хийнэ:
+      // return res
+      //   .status(403)
+      //   .json({ message: "VIP required", code: "VIP_REQUIRED" });
     }
 
+    // ✅ safety: ямар нэг merge/old cache-н нөлөө байвал pages-г хүчээр арилгана
+    if (!isVIP && "pages" in payload) {
+      delete payload.pages;
+    }
+
+    // ✅ cache 60s
     chapterCache.set(cacheKey, payload, 60_000);
+
+    console.log("[chapter] auth debug", {
+      hasAuthHeader: !!req.headers.authorization,
+      authHeaderPrefix: (req.headers.authorization || "").slice(0, 20),
+      hasCookie: !!req.headers.cookie,
+      hasUser: !!req.user,
+      userId: req.user?.id || req.user?._id,
+      vipExpiresAt: req.user?.vipExpiresAt,
+    });
     return res.json(payload);
   } catch (err) {
     next(err);
   }
+  
 };
 
 exports.getChaptersOfManhua = async (req, res, next) => {
@@ -110,7 +141,7 @@ exports.getChaptersOfManhua = async (req, res, next) => {
       .select("chapterNumber title createdAt updatedAt")
       .lean();
 
-    res.json(chapters);
+    return res.json(chapters);
   } catch (err) {
     next(err);
   }

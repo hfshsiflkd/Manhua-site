@@ -5,16 +5,16 @@ const manhuaCtrl = require("../controllers/manhuaController");
 const chapterPublicCtrl = require("../controllers/chapter.public.controller");
 const chapterAdminCtrl = require("../controllers/admin/chapter.admin.controller");
 const { protect } = require("../middleware/authMiddleware");
+const { optionalProtect } = require("../middleware/optionalProtect"); 
 const adminOnly = require("../middleware/adminOnly");
 
-
-// PUBLIC
 router.get("/home/sections", manhuaCtrl.getHomeSections);
 router.get("/", manhuaCtrl.getManhuas);
 
 router.get("/:slug/chapters", chapterPublicCtrl.getChaptersOfManhua);
 router.get(
   "/:slug/chapters/:chapterNumber",
+  optionalProtect,
   chapterPublicCtrl.getChapter
 );
 router.get("/:slug", manhuaCtrl.getManhuaBySlug);

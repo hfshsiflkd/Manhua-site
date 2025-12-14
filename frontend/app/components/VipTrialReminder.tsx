@@ -34,7 +34,7 @@ export default function VipTrialReminder({ isVIP, vipExpiresAt }: Props) {
     <div className="mx-auto mt-3 mb-3 w-full max-w-3xl rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 shadow-lg shadow-black/30">
       <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="font-semibold">⏳ Таны trial маргааш дуусна</p>
+          <p className="font-semibold">⏳ Таны vip эрх дуусах гэж байна</p>
           <p className="text-[12px] text-amber-100/80">
             {info.hoursLeft} цагийн дараа дуусна • ({info.expText})
           </p>

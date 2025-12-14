@@ -56,6 +56,8 @@ const userSchema = new mongoose.Schema(
     },
 
     sessionToken: { type: String, default: "" },
+    resetPasswordToken: { type: String, default: null }, // hashed
+    resetPasswordExpires: { type: Date, default: null },
 
     // 📌 Bookmark-ласан манхуанууд
     bookmarks: [
