@@ -2,7 +2,7 @@
 // src/lib/api.ts
 import axios from "axios";
 import type { Chapter } from "@/types/manhua";
-import { getDeviceIdFromCookie } from "./deviceCookie";
+import { ensureDeviceIdCookieClient } from "./deviceCookie";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -12,8 +12,13 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   config.headers = config.headers ?? {};
-  const deviceId = getDeviceIdFromCookie();
-  if (deviceId) (config.headers as any)["x-device-id"] = deviceId;
+
+  // ✅ зөвхөн browser дээр device id баталгаатай үүсгээд явуулна
+  if (typeof window !== "undefined") {
+    const deviceId = ensureDeviceIdCookieClient();
+    if (deviceId) (config.headers as any)["x-device-id"] = deviceId;
+  }
+
   return config;
 });
 

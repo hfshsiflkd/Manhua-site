@@ -109,15 +109,6 @@ exports.getChapter = async (req, res, next) => {
 
     // ✅ cache 60s
     chapterCache.set(cacheKey, payload, 60_000);
-
-    console.log("[chapter] auth debug", {
-      hasAuthHeader: !!req.headers.authorization,
-      authHeaderPrefix: (req.headers.authorization || "").slice(0, 20),
-      hasCookie: !!req.headers.cookie,
-      hasUser: !!req.user,
-      userId: req.user?.id || req.user?._id,
-      vipExpiresAt: req.user?.vipExpiresAt,
-    });
     return res.json(payload);
   } catch (err) {
     next(err);
