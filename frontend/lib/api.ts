@@ -2,7 +2,6 @@
 // src/lib/api.ts
 import axios from "axios";
 import type { Chapter } from "@/types/manhua";
-import { ensureDeviceIdCookieClient } from "./deviceCookie";
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -11,50 +10,37 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  config.headers = config.headers ?? {};
+  // Axios v1: headers нь AxiosHeaders байж болно
+  const headers: any = config.headers ?? (config.headers = {} as any);
 
-  // ✅ зөвхөн browser дээр device id баталгаатай үүсгээд явуулна
   if (typeof window !== "undefined") {
-    const deviceId = ensureDeviceIdCookieClient();
-    if (deviceId) (config.headers as any)["x-device-id"] = deviceId;
+    // device id
+    const key = "device_id";
+    let deviceId = localStorage.getItem(key);
+    if (!deviceId) {
+      deviceId =
+        (crypto?.randomUUID?.() ??
+          `${Date.now()}-${Math.random().toString(16).slice(2)}`) + "";
+      localStorage.setItem(key, deviceId);
+    }
+
+    // ✅ хамгийн найдвартай setter
+    if (headers.set) headers.set("x-device-id", deviceId);
+    else headers["x-device-id"] = deviceId;
+
+    const token = localStorage.getItem("token");
+    if (token) {
+      if (headers.set) headers.set("Authorization", `Bearer ${token}`);
+      else headers.Authorization = `Bearer ${token}`;
+    }
   }
 
-  return config;
-});
-
-function getToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
-function getDeviceId() {
-  if (typeof window === "undefined") return null;
-
-  const key = "device_id";
-  let id = localStorage.getItem(key);
-
-  if (!id) {
-    // modern browsers
-    id = crypto.randomUUID();
-    localStorage.setItem(key, id);
-  }
-
-  return id;
-}
-
-api.interceptors.request.use((config) => {
-  const token = getToken();
-  const deviceId = getDeviceId();
-
-  config.headers = config.headers || {};
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  // ✅ Trial 1 удаа болгох зорилгоор бүх request дээр явуулж болно
-  // (ялангуяа /auth/register дээр заавал хэрэгтэй)
-  if (deviceId) {
-    config.headers["x-device-id"] = deviceId;
+  // login дээр auth-г хүчээр авч хаяна
+  const url = config.url || "";
+  if (url.includes("/auth/login") || url.includes("/auth/register")) {
+    if (headers.set) headers.set("Authorization", "");
+    delete headers.Authorization;
+    delete headers.authorization;
   }
 
   return config;
