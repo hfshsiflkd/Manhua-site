@@ -48,11 +48,18 @@ exports.login = async (req, res, next) => {
   try {
     noStore(res);
 
-    const { email, emailOrUsername, password } = req.body;
+    const {
+      email,
+      emailOrUsername,
+      password,
+      deviceId: bodyDeviceId,
+    } = req.body;
     const identifier = (emailOrUsername || email || "").trim();
 
-    // ✅ header-ээс deviceId авна (нэг л удаа)
-    const deviceId = String(req.get("x-device-id") || "").trim();
+    // ✅ Header-ээс авна, байхгүй бол body-оос авна
+    const deviceId = String(
+      req.get("x-device-id") || bodyDeviceId || ""
+    ).trim();
 
     const result = await loginUser({ identifier, password, deviceId });
 
@@ -63,7 +70,6 @@ exports.login = async (req, res, next) => {
       security: result.security,
     });
   } catch (err) {
-    // ✅ нэг газар л алдаа буцаана
     if (err.statusCode) {
       return res.status(err.statusCode).json({
         message: err.message,

@@ -2,6 +2,8 @@
 // src/lib/api.ts
 import axios from "axios";
 import type { Chapter } from "@/types/manhua";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -114,9 +116,14 @@ export interface Manhua {
 }
 
 // Auth
-export async function loginApi(email: string, password: string) {
-  const res = await api.post("/auth/login", { email, password });
-  return res.data; // { token, user }
+export async function loginApi(identifier: string, password: string) {
+  const deviceId = getOrCreateDeviceId();
+  const res = await api.post("/auth/login", {
+    emailOrUsername: identifier,
+    password,
+    deviceId, // ✅ body дээр явууллаа
+  });
+  return res.data;
 }
 
 // Admin API
