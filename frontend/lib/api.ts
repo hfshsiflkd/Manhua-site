@@ -9,6 +9,16 @@ export const api = axios.create({
   baseURL: BASE_URL,
 });
 
+api.interceptors.request.use((config) => {
+  // header object байхгүй бол үүсгэнэ
+  config.headers = config.headers ?? {};
+
+  // axios 1.x дээр headers нь object хэлбэрээр ажиллана
+  (config.headers as any)["x-device-id"] = getDeviceId();
+
+  return config;
+});
+
 function getToken() {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("token");
