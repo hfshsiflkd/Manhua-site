@@ -171,13 +171,6 @@ export default function LoginPage() {
                 </p>
 
                 <div className="mt-3 flex gap-2">
-                  <a
-                    href="/contact"
-                    className="inline-flex flex-1 items-center justify-center rounded-full border border-amber-400/50 bg-slate-900/40 px-3 py-2 text-[12px] font-medium text-amber-100 hover:bg-slate-900/70"
-                  >
-                    Админд хандах
-                  </a>
-
                   <button
                     type="button"
                     onClick={() => {

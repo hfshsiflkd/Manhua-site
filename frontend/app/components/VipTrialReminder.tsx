@@ -31,21 +31,53 @@ export default function VipTrialReminder({ isVIP, vipExpiresAt }: Props) {
   if (!info) return null;
 
   return (
-    <div className="mx-auto mt-3 mb-3 w-full max-w-3xl rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 shadow-lg shadow-black/30">
-      <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="font-semibold">⏳ Таны vip эрх дуусах гэж байна</p>
-          <p className="text-[12px] text-amber-100/80">
-            {info.hoursLeft} цагийн дараа дуусна • ({info.expText})
-          </p>
-        </div>
+    <div className="mx-auto w-full max-w-3xl px-3 sm:px-0">
+      <div
+        className="
+          mt-3 mb-3
+          rounded-2xl border border-amber-400/35
+          bg-gradient-to-br from-amber-500/15 via-amber-500/10 to-transparent
+          p-3 sm:p-4
+          shadow-lg shadow-black/30
+          backdrop-blur
+        "
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Left */}
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-semibold text-amber-100">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-amber-400/15 ring-1 ring-amber-300/30">
+                ⏳
+              </span>
+              <span className="truncate">VIP эрх дуусах гэж байна</span>
+            </p>
 
-        <a
-          href="/vip"
-          className="mt-2 inline-flex w-fit items-center justify-center rounded-full bg-amber-400 px-4 py-2 text-[12px] font-semibold text-slate-950 hover:bg-amber-300 md:mt-0"
-        >
-          VIP авах
-        </a>
+            <p className="mt-1 text-[12px] leading-snug text-amber-100/75">
+              <span className="font-semibold text-amber-100/90">
+                {info.hoursLeft} цаг
+              </span>{" "}
+              үлдлээ •{" "}
+              <span className="whitespace-nowrap sm:whitespace-normal">
+                {info.expText}
+              </span>
+            </p>
+          </div>
+
+          {/* Right (button) */}
+          <a
+            href="/vip"
+            className="
+              inline-flex items-center justify-center
+              rounded-xl
+              bg-amber-400 px-4 py-2.5
+              text-[12px] font-bold text-slate-950
+              hover:bg-amber-300 active:scale-[0.99]
+              w-full sm:w-auto
+            "
+          >
+            VIP авах
+          </a>
+        </div>
       </div>
     </div>
   );
