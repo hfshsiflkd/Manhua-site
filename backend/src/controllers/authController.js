@@ -1,9 +1,7 @@
 const { getClientIP } = require("../utils/ip");
 const { registerUser, loginUser, getMe } = require("../services/authService");
-const {
-  requestPasswordReset,
-  resetPasswordByToken,
-} = require("../services/passwordResetService");
+const requestPasswordReset = require("../services/requestPasswordReset");
+const resetPasswordByToken = require("../services/resetPasswordByToken");
 
 // ✅ HTTP cache бүрэн унтраах helper
 function noStore(res) {
@@ -48,18 +46,11 @@ exports.login = async (req, res, next) => {
   try {
     noStore(res);
 
-    const {
-      email,
-      emailOrUsername,
-      password,
-      deviceId: bodyDeviceId,
-    } = req.body;
+    const { email, emailOrUsername, password, deviceId: bodyDeviceId } = req.body;
     const identifier = (emailOrUsername || email || "").trim();
 
     // ✅ Header-ээс авна, байхгүй бол body-оос авна
-    const deviceId = String(
-      req.get("x-device-id") || bodyDeviceId || ""
-    ).trim();
+    const deviceId = String(req.get("x-device-id") || bodyDeviceId || "").trim();
 
     const result = await loginUser({ identifier, password, deviceId });
 
@@ -105,13 +96,18 @@ exports.forgotPassword = async (req, res, next) => {
     if (!identifier)
       return res.status(400).json({ message: "Email шаардлагатай" });
 
+    // ✅ хэрэглэгчид үргэлж safe хариу
     const safeResponse = () =>
       res.json({
         message:
           "Хэрэв энэ имэйл/нэр бүртгэлтэй бол нууц үг сэргээх холбоос очно.",
       });
 
-    await requestPasswordReset(identifier);
+    // ✅ enqueue/smtp fail боллоо ч 200 буцаана (харин log дээр алдаа гарна)
+    requestPasswordReset(identifier).catch((e) =>
+      console.error("[forgot-password] failed:", e?.message || e)
+    );
+
     return safeResponse();
   } catch (err) {
     next(err);

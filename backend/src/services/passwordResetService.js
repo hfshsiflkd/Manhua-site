@@ -12,19 +12,22 @@ async function requestPasswordReset(identifier) {
     $or: [{ email: idEmail }, { username: identifier }],
   });
 
-  if (!user) return; // controller safeResponse буцаана
+  if (!user) return;
 
   const rawToken = crypto.randomBytes(32).toString("hex");
+  const hashed = hashToken(rawToken);
 
-  user.resetPasswordToken = hashToken(rawToken);
+  user.resetPasswordToken = hashed;
   user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
-
   await user.save();
 
-  const baseUrl =
-    process.env.FRONTEND_URL_RESET_PASSWORD || "http://localhost:3000/login";
+  // ✅ зөв domain (login хавчуулахгүй)
+  const origin = process.env.FRONTEND_URL || "http://localhost:3000";
+  const resetLink = `${origin}/reset-password?token=${rawToken}`;
 
-  const resetLink = `${baseUrl}/reset-password?token=${rawToken}`;
+  // ✅ debug (түр)
+  console.log("[forgot] raw last6:", rawToken.slice(-6));
+  console.log("[forgot] hashed last6:", hashed.slice(-6));
 
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.5">
@@ -35,15 +38,15 @@ async function requestPasswordReset(identifier) {
     </div>
   `;
 
-  await enqueueEmail({
-    to: user.email,
-    subject: "Reset password",
-    html,
-  });
+  await enqueueEmail({ to: user.email, subject: "Reset password", html });
 }
 
 async function resetPasswordByToken({ token, password }) {
-  const hashed = hashToken(String(token));
+  const raw = String(token || "").trim();
+  const hashed = hashToken(raw);
+
+  console.log("[reset] raw last6:", raw.slice(-6));
+  console.log("[reset] hashed last6:", hashed.slice(-6));
 
   const user = await User.findOne({
     resetPasswordToken: hashed,
@@ -56,13 +59,11 @@ async function resetPasswordByToken({ token, password }) {
     throw err;
   }
 
-  // ✅ Хэрвээ User schema дээр pre('save') hash хийдэг бол ингэж болно
-  user.password = password;
-  user.resetPasswordToken = null;
-  user.resetPasswordExpires = null;
+  user.password = password; // pre-save hash байвал OK
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
 
   await user.save();
-
   return true;
 }
 
