@@ -6,13 +6,73 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 
+function ArcReadMark({ className = "" }: { className?: string }) {
+  // Minimal “arc + page” mark (SVG) — dark UI дээр clean харагдана
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      className={className}
+      fill="none"
+      aria-hidden="true"
+    >
+      {/* Arc */}
+      <path
+        d="M10 34c8-16 36-16 44 0"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+        opacity="0.95"
+      />
+      {/* Page */}
+      <path
+        d="M22 40c6-4 14-4 20 0"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        opacity="0.95"
+      />
+      {/* Small sparkle/dot */}
+      <circle cx="32" cy="18" r="3.5" className="fill-rose-500" />
+    </svg>
+  );
+}
+
+function ArcReadLogo() {
+  return (
+    <div className="flex items-center gap-2">
+      {/* Icon */}
+      <div className="relative">
+        <div className="absolute -inset-1 rounded-xl bg-rose-500/10 blur-md" />
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/60">
+          <ArcReadMark className="h-6 w-6 text-slate-200" />
+        </div>
+      </div>
+
+      {/* Text */}
+      <div className="leading-none">
+        <div
+          className="
+            text-[18px] font-extrabold tracking-tight
+            text-slate-100
+            drop-shadow-[0_0_12px_rgba(244,63,94,0.22)]
+            sm:text-lg
+          "
+        >
+          ARC<span className="text-rose-500">•</span>READ
+        </div>
+        {/* <div className="mt-0.5 hidden text-[10px] font-medium tracking-wide text-slate-400 sm:block">
+          manhwa • manhua
+        </div> */}
+      </div>
+    </div>
+  );
+}
+
 export default function Header() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  
-  
 
   const role = (user as { role?: string } | null | undefined)?.role;
   const isAdmin = role === "admin";
@@ -47,12 +107,10 @@ export default function Header() {
         {/* LOGO */}
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2">
-            <span className="rounded-md bg-cyan-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 sm:px-2 sm:py-1 sm:text-xs">
-              BETA
-            </span>
-            <span className="bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-400 bg-clip-text text-[18px] font-extrabold tracking-tight text-transparent sm:text-lg">
-              Manhua.mn
-            </span>
+            {/* Optional: жижиг badge (хүсэхгүй бол устга) */}
+            
+
+            <ArcReadLogo />
           </Link>
         </div>
 
@@ -144,7 +202,6 @@ export default function Header() {
             aria-label="Toggle navigation"
           >
             <span className="sr-only">Toggle navigation</span>
-            {/* simple icon */}
             <div className="flex flex-col gap-[3px]">
               <span className="h-[2px] w-4 rounded-full bg-current" />
               <span className="h-[2px] w-4 rounded-full bg-current" />
@@ -215,15 +272,13 @@ export default function Header() {
                   Гарах
                 </button>
               ) : (
-                <>
-                  <Link
-                    href="/register"
-                    className="w-full rounded-full bg-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-slate-950 shadow-sm shadow-cyan-500/40 hover:bg-cyan-400"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Бүртгүүлэх
-                  </Link>
-                </>
+                <Link
+                  href="/register"
+                  className="w-full rounded-full bg-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-slate-950 shadow-sm shadow-cyan-500/40 hover:bg-cyan-400"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Бүртгүүлэх
+                </Link>
               )}
             </div>
           </nav>
