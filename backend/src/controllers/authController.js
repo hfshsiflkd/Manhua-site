@@ -217,11 +217,12 @@ exports.forgotPassword = async (req, res, next) => {
       req.body.email || req.body.identifier || ""
     ).trim();
     if (!identifier) {
-      return res.status(400).json({
-        success: false,
-        message: "Имэйл эсвэл хэрэглэгчийн нэр шаардлагатай.",
-        code: "MISSING_IDENTIFIER",
-      });
+      return sendError(
+        res,
+        400,
+        "Имэйл эсвэл хэрэглэгчийн нэр шаардлагатай.",
+        "MISSING_IDENTIFIER"
+      );
     }
 
     // Don't leak whether email exists - always return same response
@@ -253,19 +254,19 @@ exports.forgotPassword = async (req, res, next) => {
 
     if (last && now - last < 60 * 1000) return okResponse();
 
-    // Use User model method to generate token
+    // Use User model method to generate token (do not persist yet)
     const rawToken = user.createPasswordResetToken();
-    await user.save();
 
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     const resetLink = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(
       user.email
     )}`;
 
-    await enqueueEmail({
-      to: user.email,
-      subject: "Нууц үг сэргээх холбоос",
-      html: `
+    try {
+      await enqueueEmail({
+        to: user.email,
+        subject: "Нууц үг сэргээх холбоос",
+        html: `
         <div style="font-family:Arial,sans-serif;line-height:1.5">
           <h2>Нууц үг сэргээх хүсэлт</h2>
           <p>Доорх товч дээр дарж нууц үгээ шинэчлээрэй (45 минут хүчинтэй).</p>
@@ -279,8 +280,31 @@ exports.forgotPassword = async (req, res, next) => {
           <p style="color:#666;font-size:12px">Хэрэв та энэ хүсэлтийг гаргаагүй бол үл тооно уу.</p>
         </div>
       `,
-      text: `Нууц үг сэргээх холбоос (45 минут хүчинтэй): ${resetLink}`,
-    });
+        text: `Нууц үг сэргээх холбоос (45 минут хүчинтэй): ${resetLink}`,
+      });
+
+      // Persist token only after email succeeds
+      await user.save();
+    } catch (emailErr) {
+      console.error(
+        "Forgot password email failed:",
+        emailErr?.message || emailErr
+      );
+      // Rollback token fields so token is not usable if email failed
+      user.resetPasswordTokenHash = undefined;
+      user.resetPasswordExpiresAt = undefined;
+      user.resetPasswordRequestedAt = undefined;
+      try {
+        await user.save();
+      } catch (rollbackErr) {
+        console.error(
+          "Rollback reset token failed:",
+          rollbackErr?.message || rollbackErr
+        );
+      }
+      // Always return generic success to avoid leaking existence
+      return okResponse();
+    }
 
     return okResponse();
   } catch (err) {
