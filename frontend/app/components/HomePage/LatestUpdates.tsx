@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { SectionHeader } from "./SectionHeader";
+import { isChapterRead } from "@/lib/useReadState";
 
 type LatestChapter = {
   name?: string;
@@ -221,13 +222,27 @@ const LatestUpdates = ({
                             ? `/manhua/${item.slug}/chapter/${ch.chapterNumber}`
                             : `/manhua/${item.slug}`;
 
+                        // Check if chapter is read
+                        const isRead = isChapterRead(
+                          item.slug,
+                          ch.chapterNumber ?? null
+                        );
+
                         return (
                           <Link
                             key={`${item.slug}-${idx}`}
                             href={href}
-                            className="flex items-center gap-2 text-[12px] md:text-sm text-gray-300 hover:text-white transition truncate"
+                            className={`flex items-center gap-2 text-[12px] md:text-sm transition truncate ${
+                              isRead
+                                ? "text-gray-500 hover:text-gray-300 font-normal"
+                                : "text-gray-300 hover:text-white font-medium"
+                            }`}
                           >
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                isRead ? "bg-gray-600" : "bg-red-500"
+                              }`}
+                            />
                             <span className="truncate">{label}</span>
                             {timeLabel && (
                               <span className="ml-auto w-20 text-right text-[11px] md:text-xs text-gray-500 whitespace-nowrap">

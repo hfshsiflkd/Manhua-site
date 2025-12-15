@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import type { Chapter } from "@/types/manhua";
+import { isChapterRead } from "@/lib/useReadState";
 
 type ManhuaChaptersProps = {
   slug: string;
@@ -32,7 +33,6 @@ function getTimeAgo(dateStr?: string | null) {
   if (diffDays === 1) return "1 day ago";
   return `${diffDays} days ago`;
 }
-
 
 function getChapterAddedTime(ch: Chapter) {
   const base = ch.releaseAt || ch.createdAt || ch.updatedAt;
@@ -86,18 +86,31 @@ export function ManhuaChapters({ slug, chapters }: ManhuaChaptersProps) {
           <ul className="divide-y divide-slate-800/80 text-[13px]">
             {sortedChapters.map((ch) => {
               const addedTime = getChapterAddedTime(ch);
+              const isRead = isChapterRead(slug, ch.chapterNumber);
 
               return (
                 <li key={ch._id}>
                   <Link
                     href={`/manhua/${slug}/chapter/${ch.chapterNumber}`}
-                    className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-900/80"
+                    className={`flex items-center justify-between px-4 py-2.5 transition ${
+                      isRead ? "hover:bg-slate-900/60" : "hover:bg-slate-900/80"
+                    }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-slate-900 px-3 py-0.5 text-[11px] text-cyan-300">
+                      <span
+                        className={`rounded-full bg-slate-900 px-3 py-0.5 text-[11px] ${
+                          isRead ? "text-gray-500" : "text-cyan-300"
+                        }`}
+                      >
                         Ch. {ch.chapterNumber}
                       </span>
-                      <span className="line-clamp-1 text-[13px] text-slate-100">
+                      <span
+                        className={`line-clamp-1 text-[13px] ${
+                          isRead
+                            ? "text-gray-500 font-normal hover:text-gray-300"
+                            : "text-gray-300 font-medium"
+                        } transition`}
+                      >
                         {ch.title || `Chapter ${ch.chapterNumber}`}
                       </span>
                     </div>

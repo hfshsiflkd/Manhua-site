@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { SectionHeader } from "./SectionHeader";
+import { isChapterRead } from "@/lib/useReadState";
 
 type PopularItem = {
   _id: string;
@@ -215,7 +216,13 @@ const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
 
                       {/* LATEST CHAPTER */}
                       {latestChapter ? (
-                        <p className="text-[11px] text-gray-400 md:text-xs truncate">
+                        <p
+                          className={`text-[11px] md:text-xs truncate ${
+                            isChapterRead(item.slug, latestChapter)
+                              ? "text-gray-500 font-normal"
+                              : "text-gray-400 font-medium"
+                          }`}
+                        >
                           Ch. {latestChapter}
                         </p>
                       ) : (

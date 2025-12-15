@@ -14,6 +14,7 @@ import ChapterHeader from "./components/ChapterHeader";
 import LoadingState from "./components/LoadingState";
 import LoginRequired from "./components/LoginRequired";
 import ChapterNotFound from "./components/ChapterNotFound";
+import { markChapterAsRead } from "@/lib/useReadState";
 
 interface UserMe {
   _id: string;
@@ -80,6 +81,11 @@ export default function ChapterReaderPage() {
           if (cancelled) return;
 
           setChapter(r2.data);
+
+          // Mark chapter as read when successfully loaded
+          if (r2.data && r2.data.chapterNumber) {
+            markChapterAsRead(slug, r2.data.chapterNumber);
+          }
 
           // VIP мөртлөө pages байхгүй бол backend дээр VIP танигдахгүй байна гэсэн дохио
           if (me.isVIP && !("pages" in (r2.data as any))) {
