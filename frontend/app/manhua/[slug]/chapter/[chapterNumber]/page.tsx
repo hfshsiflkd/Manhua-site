@@ -52,11 +52,13 @@ export default function ChapterReaderPage() {
         // 1) эхлээд ME
         let me: UserMe | null = null;
         try {
-          const r = await api.get<UserMe>("/auth/me", {
+          const r = await api.get("/auth/me", {
             headers: { "Cache-Control": "no-store" }, // bonus
           });
-          me = r.data;
-        } catch {
+          // Backend returns { success: true, user: {...} }
+          me = r.data?.user || r.data;
+        } catch (err: any) {
+          console.error("Failed to fetch user:", err);
           me = null;
         }
 

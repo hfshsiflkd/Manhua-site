@@ -10,7 +10,7 @@ const morgan = require("morgan");
 const { registerCrashHandlers } = require("./middleware/crash");
 const routes = require("./routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
-require("./workers/emailWorker");
+
 
 const app = express();
 

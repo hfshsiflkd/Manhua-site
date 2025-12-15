@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 
 type LockInfo = {
   lockUntil: string; // ISO
@@ -39,10 +40,32 @@ function formatLeft(parts: ReturnType<typeof toTimeParts>) {
 }
 
 function niceDefaultError(err: any) {
-  return (
-    err?.response?.data?.message ||
-    "Нэвтрэхэд алдаа гарлаа. Имэйл/нэр, нууц үгээ шалгана уу."
-  );
+  // Check for network errors
+  if (!err.response) {
+    if (err.code === "ECONNREFUSED" || err.message?.includes("Network Error")) {
+      return "Сервертэй холбогдох боломжгүй байна. Интернэт холболтоо шалгана уу.";
+    }
+    return "Сүлжээний алдаа гарлаа. Дахин оролдоно уу.";
+  }
+
+  // Check for specific status codes
+  const status = err.response?.status;
+  const message = err.response?.data?.message;
+
+  if (status === 400 && message) {
+    return message;
+  }
+  if (status === 401) {
+    return "Нэвтрэх эрх хүчингүй байна.";
+  }
+  if (status === 403) {
+    return message || "Энэ үйлдлийг хийх эрхгүй байна.";
+  }
+  if (status === 500) {
+    return "Серверийн алдаа гарлаа. Дахин оролдоно уу.";
+  }
+
+  return message || "Нэвтрэхэд алдаа гарлаа. Имэйл/нэр, нууц үгээ шалгана уу.";
 }
 
 export default function LoginPage() {
@@ -99,31 +122,39 @@ export default function LoginPage() {
     setLock(null);
 
     try {
+      // Ensure deviceId is available (interceptor adds it to header, but send in body too as backup)
+      const deviceId = getOrCreateDeviceId();
+      
       const res = await api.post("/auth/login", {
-        email: identifier,
+        emailOrUsername: identifier.trim(),
         password,
+        deviceId, // Send in body as backup (backend checks both header and body)
       });
 
       const token = res.data.token;
       if (!token) {
         setErrorMsg("Token олдсонгүй, backend login response-ээ шалгаарай.");
+        setLoading(false);
         return;
       }
 
       await login(token);
       router.push("/");
     } catch (err: any) {
-      console.error(err);
+      console.error("Login error:", err);
 
       // ✅ lock case
       const l = parseLock(err);
       if (l) {
         setLock(l);
         setErrorMsg(null);
+        setLoading(false);
         return;
       }
 
-      setErrorMsg(niceDefaultError(err));
+      // Extract error message from response
+      const errorMessage = niceDefaultError(err);
+      setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
     }

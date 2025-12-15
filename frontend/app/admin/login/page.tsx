@@ -4,6 +4,7 @@
 import { useState, FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 
 export default function AdminLoginPage() {
   const [identifier, setIdentifier] = useState("");
@@ -18,24 +19,35 @@ export default function AdminLoginPage() {
     setErrorMsg(null);
 
     try {
-      // backend login: const { email: identifier, password } = req.body;
+      const deviceId = getOrCreateDeviceId();
+      
       const res = await api.post("/auth/login", {
-        email: identifier, // ← ЭНЭ ЧУХАЛ: backend "email" нэртэйг л уншина
+        emailOrUsername: identifier.trim(),
         password,
+        deviceId, // Send in body as backup (backend checks both header and body)
       });
 
       // Response: { _id, username, email, role, isVIP, token }
       if (res.data.role !== "admin") {
         setErrorMsg("Admin эрхтэй хэрэглэгч л нэвтэрнэ!");
+        setLoading(false);
         return;
       }
 
       localStorage.setItem("token", res.data.token);
       router.push("/admin");
     } catch (error: any) {
-      setErrorMsg(
-        error?.response?.data?.message || "Нэвтрэхэд алдаа гарлаа"
-      );
+      console.error("Admin login error:", error);
+      
+      // Extract error message from response
+      const errorMessage = error?.response?.data?.message || 
+        (error?.response?.status === 400 
+          ? "Имэйл/нэр эсвэл нууц үг буруу байна." 
+          : error?.code === "ECONNREFUSED" || error?.message?.includes("Network Error")
+          ? "Сервертэй холбогдох боломжгүй байна."
+          : "Нэвтрэхэд алдаа гарлаа");
+      
+      setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
     }

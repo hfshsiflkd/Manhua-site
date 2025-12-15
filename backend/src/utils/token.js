@@ -1,22 +1,21 @@
-const jwt = require("jsonwebtoken");
+// src/utils/token.js
 const crypto = require("crypto");
-
-const JWT_SECRET = process.env.JWT_SECRET || "secret";
+const jwt = require("jsonwebtoken");
 
 function genSessionToken() {
-  return crypto.randomBytes(32).toString("hex");
+  return crypto.randomBytes(24).toString("hex");
 }
 
 function genJwt(user) {
   return jwt.sign(
-    { id: user._id, sessionToken: user.sessionToken || null },
-    JWT_SECRET,
-    { expiresIn: "30d" }
+    {
+      id: user._id.toString(),
+      sessionToken: user.sessionToken || null, // ✅ protect middleware үүнийг шалгана
+      role: user.role || "user",
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || "30d" }
   );
 }
 
-function hashToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-module.exports = { genSessionToken, genJwt, hashToken };
+module.exports = { genSessionToken, genJwt };

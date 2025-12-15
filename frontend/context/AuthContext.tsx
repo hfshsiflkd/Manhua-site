@@ -34,8 +34,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const res = await api.get("/auth/me");
-      setUser(res.data);
-    } catch {
+      // Backend returns { success: true, user: {...} }
+      const userData = res.data?.user || res.data;
+      setUser(userData);
+    } catch (err: any) {
+      console.error("Failed to fetch user after login:", err);
+      // If 401/403, token is invalid - clear it
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        localStorage.removeItem("token");
+      }
       setUser(null);
     }
   };
@@ -52,8 +59,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!token) return;
     api
       .get("/auth/me")
-      .then((res) => setUser(res.data))
-      .catch(() => setUser(null));
+      .then((res) => {
+        // Backend returns { success: true, user: {...} }
+        const userData = res.data?.user || res.data;
+        setUser(userData);
+      })
+      .catch((err: any) => {
+        console.error("Failed to fetch user on initial load:", err);
+        // If 401/403, token is invalid - clear it
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
+          localStorage.removeItem("token");
+        }
+        setUser(null);
+      });
   }, []);
 
   return (

@@ -22,10 +22,13 @@ export default function ProfilePage() {
   useEffect(() => {
     async function loadMe() {
       try {
-        const res = await api.get<MeResponse>("/auth/me");
-        setMe(res.data);
+        const res = await api.get("/auth/me");
+        // Backend returns { success: true, user: {...} }
+        const userData = res.data?.user || res.data;
+        setMe(userData);
       } catch (err: any) {
         const status = err?.response?.status;
+        console.error("Failed to load profile:", err);
         setErrorStatus(status || 500);
         setMe(null);
       } finally {

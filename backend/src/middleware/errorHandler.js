@@ -8,8 +8,20 @@ exports.errorHandler = (err, req, res, next) => {
   console.error("💥 Error:", err);
 
   const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
+  const response = {
+    success: false,
     message: err.message || "Server error",
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
-  });
+  };
+  
+  // Add error code if available
+  if (err.code) {
+    response.code = err.code;
+  }
+  
+  // Add stack trace in development only
+  if (process.env.NODE_ENV === "development" && err.stack) {
+    response.stack = err.stack;
+  }
+  
+  res.status(statusCode).json(response);
 };

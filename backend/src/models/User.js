@@ -1,6 +1,7 @@
 // src/models/User.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema(
   {
@@ -21,7 +22,13 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
+      minlength: 8,
+      select: false, // Security: don't include password in queries by default
+    },
+
+    sessionToken: {
+      type: String,
+      default: null,
     },
 
     hasUsedTrial: { type: Boolean, default: false },
@@ -55,9 +62,9 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
-    sessionToken: { type: String, default: "" },
-    resetPasswordToken: { type: String, default: null }, // hashed
-    resetPasswordExpires: { type: Date, default: null },
+    resetPasswordTokenHash: { type: String },
+    resetPasswordExpiresAt: { type: Date },
+    resetPasswordRequestedAt: { type: Date },
 
     // 📌 Bookmark-ласан манхуанууд
     bookmarks: [
@@ -113,27 +120,16 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
-// src/models/User.js
-
-const crypto = require("crypto");
-
-userSchema.add({
-  resetPasswordToken: { type: String },
-  resetPasswordExpires: { type: Date },
-});
-
-// reset token үүсгэх method
+// Helper method to create password reset token
 userSchema.methods.createPasswordResetToken = function () {
   const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-  this.resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(rawToken)
-    .digest("hex");
+  this.resetPasswordTokenHash = tokenHash;
+  this.resetPasswordExpiresAt = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes
+  this.resetPasswordRequestedAt = new Date();
 
-  this.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 минут
-
-  return rawToken; // email-д явуулах
+  return rawToken; // Return raw token for email
 };
 
 // Хэрэгтэй бол bookmark / recentlyViewed дээр index тавьж болно

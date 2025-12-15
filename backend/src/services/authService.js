@@ -1,3 +1,4 @@
+// src/services/authService.js
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 
@@ -28,26 +29,23 @@ async function registerUser({ username, email, password, deviceId, ip }) {
   const normEmail = normalizeEmail(email);
   const normUsername = normalizeUsername(username);
 
-  const existingEmail = await User.findOne({ email: normEmail });
-  if (existingEmail) {
+  if (await User.findOne({ email: normEmail })) {
     const err = new Error("Энэ email аль хэдийн бүртгэлтэй.");
     err.statusCode = 400;
     throw err;
   }
 
-  const existingUsername = await User.findOne({ username: normUsername });
-  if (existingUsername) {
+  if (await User.findOne({ username: normUsername })) {
     const err = new Error("Энэ username аль хэдийн бүртгэлтэй.");
     err.statusCode = 400;
     throw err;
   }
 
-  const hashed = await bcrypt.hash(password, 10);
-
+  // Password will be hashed by pre-save hook in User model
   const user = await User.create({
     username: normUsername,
     email: normEmail,
-    password: hashed,
+    password: password, // Pre-save hook will hash this
     role: "user",
 
     isVIP: false,
@@ -103,9 +101,10 @@ async function loginUser({ identifier, password, deviceId }) {
     ? identifier.toLowerCase()
     : identifier;
 
+  // ✅ password select:false байж магадгүй
   const user = await User.findOne({
     $or: [{ email: identifierEmail }, { username: identifier }],
-  });
+  }).select("+password");
 
   if (!user) {
     const err = new Error("Нэвтрэх мэдээлэл буруу байна.");
@@ -113,7 +112,6 @@ async function loginUser({ identifier, password, deviceId }) {
     throw err;
   }
 
-  // ✅ lock шалгах
   if (user.lockUntil && user.lockUntil.getTime() > nowMs()) {
     const err = new Error("Түр түгжигдсэн. Дахин оролдоно уу.");
     err.statusCode = 403;
@@ -131,7 +129,6 @@ async function loginUser({ identifier, password, deviceId }) {
     throw err;
   }
 
-  // ✅ device switch policy (амжилттай login дараа)
   const policy = await applyDeviceSwitchPolicy({ user, deviceId });
 
   if (policy.locked) {
@@ -143,7 +140,6 @@ async function loginUser({ identifier, password, deviceId }) {
     throw err;
   }
 
-  // ✅ нэг аккаунтаар 1 session
   user.sessionToken = genSessionToken();
 
   const isVIP = computeIsVIP(user);

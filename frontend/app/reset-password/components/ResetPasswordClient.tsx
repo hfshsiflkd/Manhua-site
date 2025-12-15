@@ -5,7 +5,13 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
-export default function ResetPasswordClient({ token }: { token: string }) {
+export default function ResetPasswordClient({
+  token,
+  email,
+}: {
+  token: string;
+  email: string;
+}) {
   const router = useRouter();
 
   const [password, setPassword] = useState("");
@@ -23,8 +29,8 @@ export default function ResetPasswordClient({ token }: { token: string }) {
       setErr("Token олдсонгүй. Email-ээр ирсэн линкийг дахин шалгана уу.");
       return;
     }
-    if (!password || password.length < 6) {
-      setErr("Нууц үг дор хаяж 6 тэмдэгт байх ёстой.");
+    if (!password || password.length < 8) {
+      setErr("Нууц үг дор хаяж 8 тэмдэгт байх ёстой.");
       return;
     }
     if (password !== confirm) {
@@ -34,14 +40,17 @@ export default function ResetPasswordClient({ token }: { token: string }) {
 
     try {
       setLoading(true);
+      console.log("RESET props:", { token, email });
 
-      // backend: POST /api/auth/reset-password { token, password }
-      await api.post("/auth/reset-password", { token, password });
+      await api.post("/auth/reset-password", {
+        email,
+        token,
+        newPassword: password,
+      });
 
       setMsg("✅ Нууц үг амжилттай шинэчлэгдлээ. Одоо нэвтэрч болно.");
       setPassword("");
       setConfirm("");
-
       setTimeout(() => router.push("/login"), 800);
     } catch (e: any) {
       setErr(e?.response?.data?.message || "Алдаа гарлаа. Дахин оролдоно уу.");

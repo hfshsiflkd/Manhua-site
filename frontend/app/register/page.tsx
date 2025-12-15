@@ -5,6 +5,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,28 +22,58 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
 
-   try {
-     const res = await api.post("/auth/register", form);
+    // Validate inputs
+    if (!form.username || !form.email || !form.password) {
+      alert("Бүх талбарыг бөглөнө үү.");
+      setLoading(false);
+      return;
+    }
 
-     // ✅ trial granted бол home дээр popup гаргах flag хадгална
-     const granted = !!res.data?.trial?.granted;
-     if (granted && typeof window !== "undefined") {
-       localStorage.setItem(
-         "trial_popup",
-         JSON.stringify({
-           at: Date.now(),
-           days: res.data?.trial?.days ?? 3,
-         })
-       );
-     }
+    if (form.password.length < 8) {
+      alert("Нууц үг хамгийн багадаа 8 тэмдэгт байх ёстой.");
+      setLoading(false);
+      return;
+    }
 
-     await login(res.data.token);
-     router.push("/");
-   } catch (e: any) {
-     alert(e.response?.data?.message || "Алдаа гарлаа");
-   } finally {
-     setLoading(false);
-   }
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      alert("Зөв имэйл хаяг оруулна уу.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const deviceId = getOrCreateDeviceId();
+      const res = await api.post("/auth/register", {
+        ...form,
+        deviceId, // Send deviceId in body as backup
+      });
+
+      // ✅ trial granted бол home дээр popup гаргах flag хадгална
+      const granted = !!res.data?.trial?.granted;
+      if (granted && typeof window !== "undefined") {
+        localStorage.setItem(
+          "trial_popup",
+          JSON.stringify({
+            at: Date.now(),
+            days: res.data?.trial?.days ?? 3,
+          })
+        );
+      }
+
+      await login(res.data.token);
+      router.push("/");
+    } catch (e: any) {
+      const errorMsg =
+        e?.response?.data?.message ||
+        (e?.code === "ECONNREFUSED" || e?.message?.includes("Network Error")
+          ? "Сервертэй холбогдох боломжгүй байна."
+          : "Алдаа гарлаа. Дахин оролдоно уу.");
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -100,7 +131,7 @@ export default function RegisterPage() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
               <p className="text-xs text-slate-500">
-                Хамгийн багадаа 6 тэмдэгт байх нь тохиромжтой.
+                Хамгийн багадаа 8 тэмдэгт байх ёстой.
               </p>
             </div>
 

@@ -22,7 +22,8 @@ export default function ForgotPasswordPage() {
 
     try {
       const res = await api.post("/auth/forgot-password", {
-        email: identifier.trim(),
+        email: identifier.trim(), // Backend accepts 'email' or 'identifier'
+        identifier: identifier.trim(),
       });
 
       setSuccessMsg(
@@ -31,8 +32,12 @@ export default function ForgotPasswordPage() {
       );
     } catch (err: any) {
       console.error(err);
+      const errorData = err?.response?.data;
       setErrorMsg(
-        err?.response?.data?.message || "Алдаа гарлаа. Дахин оролдоно уу."
+        errorData?.message ||
+          (err?.code === "ECONNREFUSED" || err?.message?.includes("Network Error")
+            ? "Сервертэй холбогдох боломжгүй байна."
+            : "Алдаа гарлаа. Дахин оролдоно уу.")
       );
     } finally {
       setLoading(false);

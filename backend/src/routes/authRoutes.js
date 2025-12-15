@@ -5,14 +5,9 @@ const {
   register,
   login,
   me,
-  forgotPassword,
-  resetPassword,
 } = require("../controllers/authController");
+const authController = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
-const {
-  forgotPasswordIpLimiter,
-  forgotPasswordIdLimiter,
-} = require("../middleware/forgotPasswordLimiter");
 
 // Бүртгүүлэх
 router.post("/register", register);
@@ -23,12 +18,7 @@ router.post("/login", login);
 // Өөрийгөө авах
 router.get("/me", protect, me);
 
-router.post(
-  "/forgot-password",
-  forgotPasswordIpLimiter,
-  forgotPasswordIdLimiter,
-  forgotPassword
-);
-router.post("/reset-password", resetPassword);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/reset-password", authController.resetPassword);
 
 module.exports = router;

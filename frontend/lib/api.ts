@@ -48,6 +48,36 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor to handle 401/403 errors globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Handle 401/403 - token expired or invalid
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      // Only clear token and redirect if we're in browser
+      if (typeof window !== "undefined") {
+        const isAuthEndpoint = error?.config?.url?.includes("/auth/");
+        
+        // Don't clear token on login/register endpoints (they return 401 for invalid credentials)
+        if (!isAuthEndpoint) {
+          console.warn("Authentication failed, clearing token");
+          localStorage.removeItem("token");
+          
+          // Only redirect if not already on login page
+          if (!window.location.pathname.includes("/login")) {
+            // Use setTimeout to avoid navigation during render
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 100);
+          }
+        }
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 export type UserRole = "user" | "translator" | "admin";
 
 export type TrialSettings = {
