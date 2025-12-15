@@ -355,3 +355,123 @@ export async function adminUnlockUser(id: string) {
   const res = await api.patch<User>(`/admin/users/${id}/unlock`);
   return res.data;
 }
+
+// User Profile APIs
+export interface Favorite {
+  _id: string;
+  user: string;
+  manhua: {
+    _id: string;
+    title: string;
+    slug: string;
+    coverImageUrl?: string;
+    coverImage?: string;
+  };
+  createdAt: string;
+}
+
+export interface Bookmark {
+  _id: string;
+  user: string;
+  manhua: {
+    _id: string;
+    title: string;
+    slug: string;
+    coverImageUrl?: string;
+    coverImage?: string;
+  };
+  chapterNumber: number;
+  pageNumber: number;
+  updatedAt: string;
+}
+
+export async function getMyFavorites() {
+  const res = await api.get<Favorite[]>("/me/favorites");
+  return res.data;
+}
+
+export async function getMyBookmarks() {
+  const res = await api.get<Bookmark[]>("/me/bookmarks");
+  return res.data;
+}
+
+// Toggle favorite/bookmark
+export async function toggleFavorite(manhuaId: string) {
+  const res = await api.post<{ isFavorited: boolean }>(
+    `/me/favorites/${manhuaId}/toggle`
+  );
+  return res.data;
+}
+
+export async function toggleBookmark(manhuaId: string) {
+  const res = await api.post<{ isBookmarked: boolean }>(
+    `/me/bookmarks/${manhuaId}/toggle`
+  );
+  return res.data;
+}
+
+// Get favorite/bookmark status for a manhua
+export async function getManhuaStatus(manhuaId: string) {
+  const res = await api.get<{ isFavorited: boolean; isBookmarked: boolean }>(
+    `/user/me/status/${manhuaId}`
+  );
+  return res.data;
+}
+
+// Avatar upload
+export async function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await api.post<{ success: boolean; avatar: string }>(
+    "/user/avatar",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+  return res.data;
+}
+
+// Profile updates
+export interface UpdateProfileResponse {
+  success: boolean;
+  user: {
+    _id: string;
+    username: string;
+    email: string;
+    role: string;
+    isVIP: boolean;
+    vipExpiresAt?: string | null;
+    avatar?: string | null;
+  };
+  message: string;
+}
+
+export async function updateProfile(username: string) {
+  const res = await api.patch<UpdateProfileResponse>("/user/profile", {
+    username,
+  });
+  return res.data;
+}
+
+export async function updateEmail(email: string, password: string) {
+  const res = await api.patch<UpdateProfileResponse>("/user/email", {
+    email,
+    password,
+  });
+  return res.data;
+}
+
+export async function updatePassword(
+  currentPassword: string,
+  newPassword: string
+) {
+  const res = await api.patch<UpdateProfileResponse>("/user/password", {
+    currentPassword,
+    newPassword,
+  });
+  return res.data;
+}

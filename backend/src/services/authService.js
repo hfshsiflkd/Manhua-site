@@ -212,6 +212,7 @@ async function getMe(userId) {
     role: user.role,
     isVIP: user.isVIP,
     vipExpiresAt: user.vipExpiresAt,
+    avatar: user.avatar || null,
   };
 }
 

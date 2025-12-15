@@ -1,6 +1,52 @@
 const Favorite = require("../models/Favorite");
+const Manhua = require("../models/Manhua");
 
-// POST /api/me/favorites/:manhuaId
+// POST /api/me/favorites/:manhuaId (toggle)
+exports.toggleFavorite = async (req, res, next) => {
+  try {
+    const { manhuaId } = req.params;
+
+    // Verify manhua exists
+    const manhua = await Manhua.findById(manhuaId);
+    if (!manhua) {
+      return res.status(404).json({ message: "Manhua not found" });
+    }
+
+    // Check if already favorited
+    const existing = await Favorite.findOne({
+      user: req.user._id,
+      manhua: manhuaId,
+    });
+
+    if (existing) {
+      // Remove favorite
+      await Favorite.findOneAndDelete({
+        user: req.user._id,
+        manhua: manhuaId,
+      });
+      return res.json({ isFavorited: false, message: "Favorite removed" });
+    } else {
+      // Add favorite
+      const fav = await Favorite.create({
+        user: req.user._id,
+        manhua: manhuaId,
+      });
+      return res.json({ isFavorited: true, favorite: fav });
+    }
+  } catch (err) {
+    if (err.code === 11000) {
+      // Duplicate key - already exists, remove it
+      await Favorite.findOneAndDelete({
+        user: req.user._id,
+        manhua: req.params.manhuaId,
+      });
+      return res.json({ isFavorited: false, message: "Favorite removed" });
+    }
+    next(err);
+  }
+};
+
+// POST /api/me/favorites/:manhuaId (legacy - keep for backward compatibility)
 exports.addFavorite = async (req, res, next) => {
   try {
     const { manhuaId } = req.params;

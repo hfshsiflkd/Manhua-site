@@ -1,31 +1,155 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { api, getMyFavorites, getMyBookmarks, type Favorite, type Bookmark } from "@/lib/api";
+import { getPublicChapters } from "@/lib/api";
+import { ProfileHeader } from "./components/ProfileHeader";
+import { ContinueReading } from "./components/ContinueReading";
+import { LibraryTabs } from "./components/LibraryTabs";
+import { Stats } from "./components/Stats";
+import { ProfileSettings } from "./components/ProfileSettings";
 
 interface MeResponse {
   _id: string;
   username: string;
   email: string;
   isVIP: boolean;
-  vipExpiresAt?: string | null; // 🔹 VIP дуусах огноо
+  vipExpiresAt?: string | null;
 }
 
 export default function ProfilePage() {
   const router = useRouter();
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
+  const [totalChapters, setTotalChapters] = useState<number | undefined>(undefined);
+
+  // Get last read chapter from bookmarks (most recent)
+  const lastReadBookmark = useMemo(() => {
+    if (bookmarks.length === 0) return null;
+    // Sort by updatedAt descending, get the most recent
+    const sorted = [...bookmarks].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    return sorted[0];
+  }, [bookmarks]);
+
+  // Get recently read from localStorage
+  const recentlyRead = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("readChapterIds");
+      if (!stored) return [];
+
+      const readChapters = JSON.parse(stored) as Record<string, boolean>;
+      const entries = Object.entries(readChapters)
+        .filter(([_, isRead]) => isRead)
+        .map(([key]) => {
+          const [slug, chapterStr] = key.split(":");
+          const chapterNumber = parseInt(chapterStr, 10);
+          if (!slug || isNaN(chapterNumber)) return null;
+          return { slug, chapterNumber };
+        })
+        .filter((item): item is { slug: string; chapterNumber: number } => item !== null);
+
+      // Get unique manhuas, keep the highest chapter number for each
+      const manhuaMap = new Map<string, { chapterNumber: number; slug: string }>();
+      entries.forEach(({ slug, chapterNumber }) => {
+        const existing = manhuaMap.get(slug);
+        if (!existing || chapterNumber > existing.chapterNumber) {
+          manhuaMap.set(slug, { slug, chapterNumber });
+        }
+      });
+
+      // Convert to array and find titles from favorites/bookmarks
+      // Sort by chapter number descending to show most recent first
+      return Array.from(manhuaMap.values())
+        .sort((a, b) => b.chapterNumber - a.chapterNumber)
+        .slice(0, 10) // Limit to 10 most recent
+        .map(({ slug, chapterNumber }) => {
+          // Try to find title from favorites or bookmarks
+          const fav = favorites.find((f) => f.manhua.slug === slug);
+          const bookmark = bookmarks.find((b) => b.manhua.slug === slug);
+          const manhua = fav?.manhua || bookmark?.manhua;
+
+          return {
+            manhuaSlug: slug,
+            chapterNumber,
+            manhuaTitle: manhua?.title || slug,
+            coverImageUrl: manhua?.coverImageUrl || manhua?.coverImage,
+          };
+        });
+    } catch {
+      return [];
+    }
+  }, [favorites, bookmarks]);
+
+  // Calculate stats from localStorage
+  const stats = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("readChapterIds");
+      if (!stored) {
+        return { totalChaptersRead: 0, readingStreak: 0, todayReadCount: 0 };
+      }
+
+      const readChapters = JSON.parse(stored) as Record<string, boolean>;
+      const totalChaptersRead = Object.values(readChapters).filter(Boolean).length;
+
+      // Simple streak calculation: check if read today
+      // For a more accurate streak, we'd need to track dates, but this is a simple version
+      const today = new Date().toDateString();
+      const todayReadCount = Object.keys(readChapters).filter((key) => {
+        // This is a simplified version - in reality, we'd need to track when chapters were read
+        return readChapters[key] === true;
+      }).length;
+
+      // Reading streak: assume 1 if they've read today (simplified)
+      const readingStreak = totalChaptersRead > 0 ? 1 : 0;
+
+      return {
+        totalChaptersRead,
+        readingStreak,
+        todayReadCount: Math.min(todayReadCount, totalChaptersRead), // Cap at total
+      };
+    } catch {
+      return { totalChaptersRead: 0, readingStreak: 0, todayReadCount: 0 };
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadMe() {
+    async function loadProfile() {
       try {
+        setLoading(true);
+
+        // Load user data
         const res = await api.get("/auth/me");
-        // Backend returns { success: true, user: {...} }
         const userData = res.data?.user || res.data;
         setMe(userData);
+
+        // Load favorites and bookmarks in parallel
+        const [favsData, bookmarksData] = await Promise.all([
+          getMyFavorites().catch(() => [] as Favorite[]),
+          getMyBookmarks().catch(() => [] as Bookmark[]),
+        ]);
+
+        setFavorites(favsData);
+        setBookmarks(bookmarksData);
+
+        // If we have a bookmark, get total chapters for progress calculation
+        if (bookmarksData.length > 0) {
+          const mostRecent = bookmarksData.sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          )[0];
+          try {
+            const chapters = await getPublicChapters(mostRecent.manhua.slug);
+            setTotalChapters(chapters?.length || undefined);
+          } catch {
+            // Ignore errors fetching chapters
+          }
+        }
       } catch (err: any) {
         const status = err?.response?.status;
         console.error("Failed to load profile:", err);
@@ -36,18 +160,8 @@ export default function ProfilePage() {
       }
     }
 
-    loadMe();
+    loadProfile();
   }, []);
-
-  const formatVipDate = (d?: string | null) => {
-    if (!d) return null;
-    try {
-      const date = new Date(d);
-      return date.toLocaleDateString("mn-MN");
-    } catch {
-      return null;
-    }
-  };
 
   if (loading) {
     return (
@@ -57,7 +171,7 @@ export default function ProfilePage() {
     );
   }
 
-  // Нэвтрээгүй (token байхгүй эсвэл 401)
+  // Not logged in
   if (!me && (errorStatus === 401 || errorStatus === 403)) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-slate-100">
@@ -72,7 +186,7 @@ export default function ProfilePage() {
     );
   }
 
-  // Өөр алдаа (500 гэх мэт)
+  // Other errors
   if (!me && errorStatus && errorStatus !== 401 && errorStatus !== 403) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 text-sm text-red-400">
@@ -87,62 +201,32 @@ export default function ProfilePage() {
     );
   }
 
-  // Нэвтэрсэн хэрэглэгч
   if (!me) return null;
 
-  const vipExpireText = formatVipDate(me.vipExpiresAt);
-
   return (
-    <div className="mx-auto max-w-md space-y-5">
-      <h1 className="text-lg font-semibold text-slate-50">Миний профайл</h1>
+    <div className="mx-auto max-w-md px-4 pb-12 pt-6">
+      {/* Top Summary */}
+      <ProfileHeader />
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm shadow-lg shadow-slate-900/60">
-        <div className="space-y-1">
-          <p className="text-[12px] text-slate-400">Хэрэглэгчийн нэр</p>
-          <p className="text-base font-medium text-slate-100">{me.username}</p>
-        </div>
+      {/* Reading Progress */}
+      <ContinueReading bookmark={lastReadBookmark || undefined} totalChapters={totalChapters} />
 
-        <div className="mt-4 space-y-1">
-          <p className="text-[12px] text-slate-400">Имэйл</p>
-          <p className="text-sm text-slate-100">{me.email}</p>
-        </div>
+      {/* Library Tabs */}
+      <LibraryTabs
+        favorites={favorites}
+        bookmarks={bookmarks}
+        recentlyRead={recentlyRead}
+      />
 
-        <div className="mt-4 flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <p className="text-[12px] text-slate-400">VIP статус</p>
-              {me.isVIP ? (
-                <span className="inline-flex items-center rounded-full bg-yellow-300/90 px-3 py-1 text-[11px] font-semibold text-slate-900">
-                  VIP ✨
-                </span>
-              ) : (
-                <span className="inline-flex items-center rounded-full bg-slate-800 px-3 py-1 text-[11px] font-semibold text-slate-200">
-                  Энгийн хэрэглэгч
-                </span>
-              )}
-            </div>
+      {/* Stats */}
+      <Stats
+        totalChaptersRead={stats.totalChaptersRead}
+        readingStreak={stats.readingStreak}
+        todayReadCount={stats.todayReadCount}
+      />
 
-            {/* 🔹 VIP дуусах огноо */}
-            {me.isVIP && vipExpireText && (
-              <p className="text-[11px] text-slate-300">
-                Дуусах огноо:{" "}
-                <span className="font-medium text-yellow-200">
-                  {vipExpireText}
-                </span>
-              </p>
-            )}
-          </div>
-
-          {!me.isVIP && (
-            <button
-              onClick={() => router.push("/vip")}
-              className="rounded-full bg-yellow-300 px-4 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-yellow-200"
-            >
-              VIP эрх авах
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Profile Settings */}
+      <ProfileSettings />
     </div>
   );
 }

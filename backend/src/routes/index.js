@@ -10,6 +10,8 @@ const statsRoutes = require("./statsRoutes");
 const uploadRoutes = require("./uploadRoutes");
 const editorRoutes = require("./editorRoutes");
 const adminRoutes = require("./admin/adminRoutes");
+const userController = require("../controllers/userController");
+const { protect } = require("../middleware/authMiddleware");
 
 router.use("/auth", authRoutes);
 
@@ -18,6 +20,13 @@ router.use("/chapters", chapterRoutes);
 
 router.use("/me/favorites", favoriteRoutes);
 router.use("/me/bookmarks", bookmarkRoutes);
+
+// User routes
+router.post("/user/avatar", protect, userController.uploadAvatar);
+router.get("/user/me/status/:manhuaId", protect, userController.getManhuaStatus);
+router.patch("/user/profile", protect, userController.updateProfile);
+router.patch("/user/email", protect, userController.updateEmail);
+router.patch("/user/password", protect, userController.updatePassword);
 
 router.use("/stats", statsRoutes);
 

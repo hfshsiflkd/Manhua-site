@@ -1,8 +1,13 @@
 // src/components/manhua/ManhuaHero.tsx
 /* eslint-disable @next/next/no-img-element */
+"use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import type { Manhua, Chapter } from "@/types/manhua";
+import { useFavorites } from "@/lib/hooks/useFavorites";
+import { useBookmarks } from "@/lib/hooks/useBookmarks";
+import { useAuth } from "@/context/AuthContext";
 
 type ManhuaHeroProps = {
   manhua: Manhua;
@@ -33,6 +38,11 @@ function getTimeAgoEN(dateLike?: string | number | Date | null) {
 }
 
 export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
+  const { user } = useAuth();
+  const manhuaId = (manhua as any)._id || null;
+  const favorites = useFavorites(manhuaId);
+  const bookmarks = useBookmarks(manhuaId);
+
   const coverSrc =
     manhua.coverImage || "https://via.placeholder.com/450x600?text=No+Cover";
 
@@ -43,6 +53,26 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   const lastUpdateText = getTimeAgoEN(
     manhua.latestChapterAt || manhua.updatedAt
   );
+
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    try {
+      await favorites.toggle();
+    } catch (err) {
+      // Error already handled in hook
+    }
+  };
+
+  const handleBookmarkClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    try {
+      await bookmarks.toggle();
+    } catch (err) {
+      // Error already handled in hook
+    }
+  };
 
   return (
     <section className="relative overflow-hidden md:rounded-2xl border border-slate-800 bg-slate-950/90 shadow-xl shadow-black/50">
@@ -77,7 +107,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
           {/* RIGHT: info */}
           <div className="flex flex-col justify-between gap-4">
             <div className="space-y-3">
-              {/* Title + status chip */}
+              {/* Title + status chip + action buttons */}
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-semibold text-slate-50 sm:text-2xl">
@@ -87,6 +117,44 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
                   <span className="rounded-full border border-emerald-500/50 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
                     {manhua.status}
                   </span>
+
+                  {/* Favorite & Bookmark buttons */}
+                  {user && (
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        onClick={handleFavoriteClick}
+                        disabled={favorites.isLoading}
+                        className={`rounded-lg p-1.5 transition-all ${
+                          favorites.isFavorited
+                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                            : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300"
+                        } ${favorites.isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                        title={
+                          favorites.isFavorited
+                            ? "Дуртай жагсаалтаас хасах"
+                            : "Дуртай жагсаалтад нэмэх"
+                        }
+                      >
+                        {favorites.isFavorited ? "❤️" : "🤍"}
+                      </button>
+                      <button
+                        onClick={handleBookmarkClick}
+                        disabled={bookmarks.isLoading}
+                        className={`rounded-lg p-1.5 transition-all ${
+                          bookmarks.isBookmarked
+                            ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
+                            : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300"
+                        } ${bookmarks.isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                        title={
+                          bookmarks.isBookmarked
+                            ? "Хавтсаас хасах"
+                            : "Хавтасанд нэмэх"
+                        }
+                      >
+                        {bookmarks.isBookmarked ? "🔖" : "📑"}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Small meta row: rating, chapters, last update */}

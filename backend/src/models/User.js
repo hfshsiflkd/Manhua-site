@@ -50,6 +50,8 @@ const userSchema = new mongoose.Schema(
     vipExpiresAt: { type: Date, default: null },
     vipLevel: { type: Number, default: 0 },
 
+    avatar: { type: String, default: null },
+
     resetPasswordTokenHash: { type: String },
     resetPasswordExpiresAt: { type: Date },
     resetPasswordRequestedAt: { type: Date },
