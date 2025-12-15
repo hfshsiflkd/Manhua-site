@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import LockModal from "./components/LockModal";
 
 export const metadata: Metadata = {
   title: "Manhua.mn",
@@ -32,6 +33,7 @@ export default function RootLayout({
           {children}
           <Footer />
           <ScrollToTop />
+          <LockModal />
         </AuthProvider>
       </body>
     </html>

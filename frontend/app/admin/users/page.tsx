@@ -10,6 +10,8 @@ import {
   adminForceLogout,
   adminResetPassword,
   adminUpdateUser,
+  adminLockUser,
+  adminUnlockUser,
 } from "@/lib/adminUsers";
 import FiltersBar from "./components/FiltersBar";
 import UsersTable from "./components/UsersTable";
@@ -27,13 +29,14 @@ export default function AdminUsersPage() {
     role: "all" as "all" | AdminUser["role"],
     vip: "all" as "all" | "true" | "false",
     blocked: "all" as "all" | "true" | "false",
+    locked: "all" as "all" | "true" | "false",
   });
 
   const [selected, setSelected] = useState<AdminUser | null>(null);
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{
     id: string;
-    action: "block" | "unblock" | "logout";
+    action: "block" | "unblock" | "logout" | "lock" | "unlock";
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,6 +51,8 @@ export default function AdminUsersPage() {
         vip: filters.vip === "all" ? undefined : filters.vip === "true",
         blocked:
           filters.blocked === "all" ? undefined : filters.blocked === "true",
+        locked:
+          filters.locked === "all" ? undefined : filters.locked === "true",
       });
       setData(res.items);
       setPage(res.page);
@@ -84,6 +89,11 @@ export default function AdminUsersPage() {
     if (confirm.action === "block") await adminBlockUser(confirm.id);
     if (confirm.action === "unblock") await adminUnblockUser(confirm.id);
     if (confirm.action === "logout") await adminForceLogout(confirm.id);
+    if (confirm.action === "lock") {
+      // Default: 60 minutes lock
+      await adminLockUser(confirm.id, { reason: "admin_lock", minutes: 60 });
+    }
+    if (confirm.action === "unlock") await adminUnlockUser(confirm.id);
     setConfirm(null);
     await load(page);
   };
@@ -114,6 +124,8 @@ export default function AdminUsersPage() {
           onSelect={setSelected}
           onBlock={(u) => setConfirm({ id: u._id, action: "block" })}
           onUnblock={(u) => setConfirm({ id: u._id, action: "unblock" })}
+          onLock={(u) => setConfirm({ id: u._id, action: "lock" })}
+          onUnlock={(u) => setConfirm({ id: u._id, action: "unlock" })}
           onForceLogout={(u) => setConfirm({ id: u._id, action: "logout" })}
           onResetPassword={(u) => setResetUserId(u._id)}
         />
@@ -137,7 +149,11 @@ export default function AdminUsersPage() {
               ? "Force logout this user?"
               : confirm?.action === "block"
               ? "Block this user?"
-              : "Unblock this user?"
+              : confirm?.action === "unblock"
+              ? "Unblock this user?"
+              : confirm?.action === "lock"
+              ? "Lock this user for 60 minutes?"
+              : "Unlock this user?"
           }
           description="This action is immediate and will be audited."
           onCancel={() => setConfirm(null)}

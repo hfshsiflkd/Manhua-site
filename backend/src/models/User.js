@@ -32,6 +32,7 @@ const userSchema = new mongoose.Schema(
 
     deviceSwitchWindowStart: { type: Date, default: null },
     deviceSwitchCount: { type: Number, default: 0 },
+    deviceSwitchFirstAt: { type: Date, default: null }, // Rolling window start
 
     lockUntil: { type: Date, default: null },
     lockReason: { type: String, default: "" },
@@ -62,13 +63,21 @@ const userSchema = new mongoose.Schema(
 
     bookmarks: [
       {
-        manhua: { type: mongoose.Schema.Types.ObjectId, ref: "Manhua", required: true },
+        manhua: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Manhua",
+          required: true,
+        },
         addedAt: { type: Date, default: Date.now },
       },
     ],
     recentlyViewed: [
       {
-        manhua: { type: mongoose.Schema.Types.ObjectId, ref: "Manhua", required: true },
+        manhua: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Manhua",
+          required: true,
+        },
         lastChapter: { type: mongoose.Schema.Types.ObjectId, ref: "Chapter" },
         lastReadAt: { type: Date, default: Date.now },
       },
@@ -98,6 +107,16 @@ userSchema.methods.createPasswordResetToken = function () {
 
   return rawToken;
 };
+
+// Virtual: isLocked (computed from lockUntil)
+userSchema.virtual("isLocked").get(function () {
+  if (!this.lockUntil) return false;
+  return new Date(this.lockUntil).getTime() > Date.now();
+});
+
+// Ensure virtuals are included in JSON
+userSchema.set("toJSON", { virtuals: true });
+userSchema.set("toObject", { virtuals: true });
 
 const User = mongoose.model("User", userSchema);
 module.exports = User;

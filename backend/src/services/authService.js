@@ -112,12 +112,17 @@ async function loginUser({ identifier, password, deviceId }) {
     throw err;
   }
 
-  if (user.lockUntil && user.lockUntil.getTime() > nowMs()) {
+  // Check lock status
+  const now = Date.now();
+  if (user.lockUntil && new Date(user.lockUntil).getTime() > now) {
+    const lockUntil = new Date(user.lockUntil);
+    const remainingSeconds = Math.ceil((lockUntil.getTime() - now) / 1000);
     const err = new Error("Түр түгжигдсэн. Дахин оролдоно уу.");
-    err.statusCode = 403;
+    err.statusCode = 423; // 423 Locked
     err.meta = {
-      lockUntil: user.lockUntil,
-      reason: user.lockReason || "device_switch",
+      lockUntil: lockUntil.toISOString(),
+      reason: user.lockReason || "LOCKED",
+      remainingSeconds,
     };
     throw err;
   }
@@ -131,12 +136,22 @@ async function loginUser({ identifier, password, deviceId }) {
 
   const policy = await applyDeviceSwitchPolicy({ user, deviceId });
 
+  // If locked, throw 423 with devicePolicy metadata
   if (policy.locked) {
+    const lockUntil = new Date(policy.lockUntil);
+    const remainingSeconds =
+      policy.remainingSeconds || Math.ceil((lockUntil.getTime() - now) / 1000);
     const err = new Error(
       "Олон төхөөрөмжөөс давтамжтай нэвтрэх оролдлого илэрсэн тул түр түгжлээ."
     );
-    err.statusCode = 403;
-    err.meta = { lockUntil: policy.lockUntil, reason: policy.reason };
+    err.statusCode = 423; // 423 Locked
+    err.meta = {
+      code: "DEVICE_SWITCH_LOCK",
+      lockUntil: lockUntil.toISOString(),
+      reason: policy.reason || "Too many device switches",
+      remainingSeconds,
+      devicePolicy: policy.devicePolicy,
+    };
     throw err;
   }
 
@@ -149,7 +164,8 @@ async function loginUser({ identifier, password, deviceId }) {
 
   const token = genJwt(user);
 
-  return {
+  // Include devicePolicy warning in response if present
+  const response = {
     token,
     user: {
       _id: user._id,
@@ -166,6 +182,13 @@ async function loginUser({ identifier, password, deviceId }) {
       windowStart: policy.windowStart,
     },
   };
+
+  // Add devicePolicy warning if present
+  if (policy.devicePolicy && policy.devicePolicy.status === "warning") {
+    response.devicePolicy = policy.devicePolicy;
+  }
+
+  return response;
 }
 
 async function getMe(userId) {

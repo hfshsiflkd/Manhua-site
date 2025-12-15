@@ -5,6 +5,7 @@ type Filters = {
   role: "all" | "user" | "translator" | "admin" | "editor";
   vip: "all" | "true" | "false";
   blocked: "all" | "true" | "false";
+  locked: "all" | "true" | "false";
 };
 
 export default function FiltersBar({
@@ -35,7 +36,9 @@ export default function FiltersBar({
         <select
           className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
           value={filters.role}
-          onChange={(e) => onChange({ ...filters, role: e.target.value as Filters["role"] })}
+          onChange={(e) =>
+            onChange({ ...filters, role: e.target.value as Filters["role"] })
+          }
         >
           <option value="all">All roles</option>
           <option value="user">User</option>
@@ -46,7 +49,9 @@ export default function FiltersBar({
         <select
           className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
           value={filters.vip}
-          onChange={(e) => onChange({ ...filters, vip: e.target.value as Filters["vip"] })}
+          onChange={(e) =>
+            onChange({ ...filters, vip: e.target.value as Filters["vip"] })
+          }
         >
           <option value="all">VIP: all</option>
           <option value="true">VIP only</option>
@@ -55,11 +60,30 @@ export default function FiltersBar({
         <select
           className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
           value={filters.blocked}
-          onChange={(e) => onChange({ ...filters, blocked: e.target.value as Filters["blocked"] })}
+          onChange={(e) =>
+            onChange({
+              ...filters,
+              blocked: e.target.value as Filters["blocked"],
+            })
+          }
         >
           <option value="all">Blocked: all</option>
           <option value="true">Blocked</option>
           <option value="false">Active</option>
+        </select>
+        <select
+          className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+          value={filters.locked}
+          onChange={(e) =>
+            onChange({
+              ...filters,
+              locked: e.target.value as Filters["locked"],
+            })
+          }
+        >
+          <option value="all">Locked: all</option>
+          <option value="true">Locked</option>
+          <option value="false">Not locked</option>
         </select>
         <button
           onClick={onRefresh}
@@ -91,4 +115,3 @@ export default function FiltersBar({
     </div>
   );
 }
-

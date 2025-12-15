@@ -24,6 +24,23 @@ function applySearchFilters(query) {
   if (query.role) filter.role = query.role;
   if (typeof query.vip === "boolean") filter.isVIP = query.vip;
   if (typeof query.blocked === "boolean") filter.blocked = query.blocked;
+
+  // Filter by locked status
+  if (typeof query.locked === "boolean") {
+    const now = new Date();
+    if (query.locked === true) {
+      // User is locked if lockUntil exists and is in the future
+      filter.lockUntil = { $exists: true, $gt: now };
+    } else {
+      // User is not locked if lockUntil doesn't exist or is in the past
+      filter.$or = [
+        { lockUntil: { $exists: false } },
+        { lockUntil: null },
+        { lockUntil: { $lte: now } },
+      ];
+    }
+  }
+
   return filter;
 }
 
@@ -94,12 +111,6 @@ exports.updateUser = async (req, res) => {
     "vipExpiresAt",
     "vipLevel",
     "blocked",
-    "preferredActivities",
-    "workValues",
-    "energyBoosts",
-    "goingOut",
-    "weekend",
-    "hobby",
     "isActive",
   ];
 
@@ -222,6 +233,65 @@ exports.unblockUser = async (req, res) => {
     adminId: req.user.id || req.user._id,
     targetUserId: user._id,
     action: "UNBLOCK_USER",
+    before,
+    after: buildSafeUser(user),
+    req,
+  });
+
+  return res.json(buildSafeUser(user));
+};
+
+exports.lockUser = async (req, res) => {
+  const { reason, minutes } = req.body;
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
+
+  if (!reason || typeof reason !== "string") {
+    return res.status(400).json({ message: "reason is required (string)" });
+  }
+
+  const lockMinutes = Number(minutes) || 60; // Default 1 hour
+  if (lockMinutes < 1 || lockMinutes > 10080) {
+    return res
+      .status(400)
+      .json({ message: "minutes must be between 1 and 10080 (7 days)" });
+  }
+
+  const before = buildSafeUser(user);
+  const now = Date.now();
+  user.lockUntil = new Date(now + lockMinutes * 60 * 1000);
+  user.lockReason = reason;
+  user.tokenVersion += 1; // Force logout
+  user.sessionToken = null;
+  await user.save();
+
+  await writeAudit({
+    adminId: req.user.id || req.user._id,
+    targetUserId: user._id,
+    action: "LOCK_USER",
+    before,
+    after: buildSafeUser(user),
+    req,
+  });
+
+  return res.json(buildSafeUser(user));
+};
+
+exports.unlockUser = async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
+
+  const before = buildSafeUser(user);
+  user.lockUntil = null;
+  user.lockReason = "";
+  user.deviceSwitchWindowStart = null;
+  user.deviceSwitchCount = 0;
+  await user.save();
+
+  await writeAudit({
+    adminId: req.user.id || req.user._id,
+    targetUserId: user._id,
+    action: "UNLOCK_USER",
     before,
     after: buildSafeUser(user),
     req,

@@ -13,6 +13,10 @@ export type AdminUser = {
   vipExpiresAt?: string | null;
   vipLevel?: number;
   createdAt: string;
+  lockUntil?: string | null;
+  lockReason?: string;
+  isLocked?: boolean; // Virtual field from backend
+  deviceSwitchCount?: number;
   preferredActivities?: string[];
   workValues?: string[];
   energyBoosts?: string[];
@@ -36,6 +40,7 @@ export async function adminListUsers(params?: {
   role?: AdminUserRole;
   vip?: boolean;
   blocked?: boolean;
+  locked?: boolean;
   sort?: string;
 }) {
   const res = await api.get<AdminUserListResponse>("/admin/users", { params });
@@ -80,3 +85,15 @@ export async function adminUnblockUser(id: string) {
   return res.data;
 }
 
+export async function adminLockUser(
+  id: string,
+  payload: { reason: string; minutes: number }
+) {
+  const res = await api.post<AdminUser>(`/admin/users/${id}/lock`, payload);
+  return res.data;
+}
+
+export async function adminUnlockUser(id: string) {
+  const res = await api.post<AdminUser>(`/admin/users/${id}/unlock`);
+  return res.data;
+}

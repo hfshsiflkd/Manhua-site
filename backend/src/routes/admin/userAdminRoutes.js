@@ -10,6 +10,8 @@ const {
   forceLogout,
   blockUser,
   unblockUser,
+  lockUser,
+  unlockUser,
 } = require("../../controllers/admin/userAdmin.controller");
 
 router.use(requireAdmin);
@@ -21,5 +23,7 @@ router.post("/:id/reset-password", resetPassword);
 router.post("/:id/force-logout", forceLogout);
 router.post("/:id/block", blockUser);
 router.post("/:id/unblock", unblockUser);
+router.post("/:id/lock", lockUser);
+router.post("/:id/unlock", unlockUser);
 
 module.exports = router;

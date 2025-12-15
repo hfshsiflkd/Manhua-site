@@ -48,10 +48,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor to handle 401/403 errors globally
+// Response interceptor to handle 401/403/423 errors globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle 423 Locked - emit custom event for lock modal
+    if (error?.response?.status === 423) {
+      if (typeof window !== "undefined") {
+        const lockData = error?.response?.data;
+        window.dispatchEvent(
+          new CustomEvent("user-locked", {
+            detail: {
+              code: lockData?.code || "LOCKED",
+              lockUntil: lockData?.lockUntil,
+              remainingSeconds: lockData?.remainingSeconds,
+              reason: lockData?.reason,
+              devicePolicy: lockData?.devicePolicy,
+            },
+          })
+        );
+      }
+    }
+
     // Handle 401/403 - token expired or invalid
     if (error?.response?.status === 401 || error?.response?.status === 403) {
       // Only clear token and redirect if we're in browser

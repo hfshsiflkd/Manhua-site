@@ -10,13 +10,36 @@ import { getOrCreateDeviceId } from "@/lib/deviceId";
 type LockInfo = {
   lockUntil: string; // ISO
   reason?: string;
+  code?: string;
+  remainingSeconds?: number;
+  devicePolicy?: {
+    status: "locked" | "warning";
+    count?: number;
+    minutesLocked?: number;
+    remainingBeforeLock?: number;
+    windowHours?: number;
+  };
 };
 
 function parseLock(err: any): LockInfo | null {
   const status = err?.response?.status;
   const data = err?.response?.data;
+  // Handle 423 Locked (device switch lock or any lock)
+  if (status === 423 && data?.lockUntil) {
+    return {
+      lockUntil: String(data.lockUntil),
+      reason: data?.reason || "Түр түгжигдсэн",
+      code: data?.code || "LOCKED",
+      remainingSeconds: data?.remainingSeconds,
+      devicePolicy: data?.devicePolicy,
+    };
+  }
+  // Handle legacy 403 lock (for backward compatibility)
   if (status === 403 && data?.lockUntil) {
-    return { lockUntil: String(data.lockUntil), reason: data?.reason };
+    return {
+      lockUntil: String(data.lockUntil),
+      reason: data?.reason,
+    };
   }
   return null;
 }
@@ -76,6 +99,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [deviceWarning, setDeviceWarning] = useState<{
+    count: number;
+    remainingBeforeLock: number;
+  } | null>(null);
 
   // ✅ lock info + live countdown
   const [lock, setLock] = useState<LockInfo | null>(null);
@@ -124,7 +151,7 @@ export default function LoginPage() {
     try {
       // Ensure deviceId is available (interceptor adds it to header, but send in body too as backup)
       const deviceId = getOrCreateDeviceId();
-      
+
       const res = await api.post("/auth/login", {
         emailOrUsername: identifier.trim(),
         password,
@@ -136,6 +163,16 @@ export default function LoginPage() {
         setErrorMsg("Token олдсонгүй, backend login response-ээ шалгаарай.");
         setLoading(false);
         return;
+      }
+
+      // Check for devicePolicy warning in response
+      if (res.data.devicePolicy && res.data.devicePolicy.status === "warning") {
+        setDeviceWarning({
+          count: res.data.devicePolicy.count || 0,
+          remainingBeforeLock: res.data.devicePolicy.remainingBeforeLock || 0,
+        });
+        // Auto-dismiss after 8 seconds
+        setTimeout(() => setDeviceWarning(null), 8000);
       }
 
       await login(token);
@@ -213,6 +250,33 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Device switch warning */}
+        {deviceWarning && (
+          <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-100">
+            <div className="flex items-start gap-2">
+              <div className="mt-0.5">⚠️</div>
+              <div className="flex-1">
+                <p className="font-semibold text-amber-100">
+                  Та өөр төхөөрөмжөөс нэвтэрлээ
+                </p>
+                <p className="mt-1 text-amber-100/90">
+                  Хэрвээ үргэлжилбэл түр түгжигдэж магадгүй.{" "}
+                  <span className="font-medium">
+                    {deviceWarning.remainingBeforeLock} удаа үлдлээ
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeviceWarning(null)}
+                className="text-amber-200/70 hover:text-amber-100"
+              >
+                ✕
+              </button>
             </div>
           </div>
         )}
