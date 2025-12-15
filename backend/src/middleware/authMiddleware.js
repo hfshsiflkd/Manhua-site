@@ -18,8 +18,7 @@ exports.protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // user-г авна
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("+password");
 
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "Хэрэглэгч идэвхгүй байна" });
@@ -37,7 +36,17 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    req.user = user;
+    // tokenVersion check to force logout existing tokens
+    const jwtVersion = decoded.tokenVersion || 0;
+    const dbVersion = user.tokenVersion || 0;
+    if (jwtVersion !== dbVersion) {
+      return res
+        .status(401)
+        .json({ message: "Session invalidated. Please login again." });
+    }
+
+    req.user = user.toObject({ getters: true });
+    delete req.user.password;
     next();
   } catch (error) {
     console.error(error);

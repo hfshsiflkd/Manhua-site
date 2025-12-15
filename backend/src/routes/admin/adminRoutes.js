@@ -7,10 +7,6 @@ const adminOnly = require("../../middleware/adminOnly");
 
 const {
   getAdminStats,
-  listUsers,
-  createUserByAdmin,
-  updateUserByAdmin,
-  extendVIP,
   listManhuasWithOwner,
   getManhuaDetailAdmin,
   updateManhuaAdmin,
@@ -28,18 +24,11 @@ const {
 
 router.use(protect, adminOnly);
 router.use("/trial", require("./trialRoutes"));
+router.use("/users", require("./userAdminRoutes"));
 
 
 // Stats
 router.get("/stats", getAdminStats);
-
-
-// Users
-router.get("/users", listUsers);
-router.post("/users", createUserByAdmin);
-router.patch("/users/:id", updateUserByAdmin);
-router.patch("/users/:id/vip", extendVIP);
-router.patch("/users/:id/unlock", unlockUser);
 
 
 // Manhuas (ADMIN)

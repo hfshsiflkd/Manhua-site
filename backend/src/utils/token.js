@@ -10,7 +10,8 @@ function genJwt(user) {
   return jwt.sign(
     {
       id: user._id.toString(),
-      sessionToken: user.sessionToken || null, // ✅ protect middleware үүнийг шалгана
+      sessionToken: user.sessionToken || null,
+      tokenVersion: user.tokenVersion || 0,
       role: user.role || "user",
     },
     process.env.JWT_SECRET,

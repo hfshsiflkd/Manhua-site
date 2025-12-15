@@ -3,33 +3,25 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
+const preferenceStringArray = {
+  type: [String],
+  default: [],
+  validate: {
+    validator: (arr) => Array.isArray(arr) && arr.length <= 20,
+    message: "Too many preference items",
+  },
+};
+
 const userSchema = new mongoose.Schema(
   {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
+    username: { type: String, required: true, unique: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
+    phone: { type: String, default: "" },
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-    },
+    password: { type: String, required: true, minlength: 8, select: false },
 
-    password: {
-      type: String,
-      required: true,
-      minlength: 8,
-      select: false, // Security: don't include password in queries by default
-    },
-
-    sessionToken: {
-      type: String,
-      default: null,
-    },
+    sessionToken: { type: String, default: null },
+    tokenVersion: { type: Number, default: 0 }, // bump to force logout
 
     hasUsedTrial: { type: Boolean, default: false },
     trialGrantedAt: { type: Date, default: null },
@@ -46,95 +38,66 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["user", "translator", "admin"],
+      enum: ["user", "translator", "admin", "editor"],
       default: "user",
     },
 
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+    isActive: { type: Boolean, default: true },
+    blocked: { type: Boolean, default: false },
 
     isVIP: { type: Boolean, default: false },
-
-    vipExpiresAt: {
-      type: Date,
-      default: null,
-    },
+    vipExpiresAt: { type: Date, default: null },
+    vipLevel: { type: Number, default: 0 },
 
     resetPasswordTokenHash: { type: String },
     resetPasswordExpiresAt: { type: Date },
     resetPasswordRequestedAt: { type: Date },
 
-    // 📌 Bookmark-ласан манхуанууд
+    preferredActivities: preferenceStringArray,
+    workValues: preferenceStringArray,
+    energyBoosts: preferenceStringArray,
+    goingOut: preferenceStringArray,
+    weekend: preferenceStringArray,
+    hobby: preferenceStringArray,
+
     bookmarks: [
       {
-        manhua: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Manhua",
-          required: true,
-        },
-        addedAt: {
-          type: Date,
-          default: Date.now,
-        },
+        manhua: { type: mongoose.Schema.Types.ObjectId, ref: "Manhua", required: true },
+        addedAt: { type: Date, default: Date.now },
       },
     ],
-
-    // ⏱ Сүүлд үзсэн манхуанууд
     recentlyViewed: [
       {
-        manhua: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Manhua",
-          required: true,
-        },
-        lastChapter: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Chapter",
-        },
-        lastReadAt: {
-          type: Date,
-          default: Date.now,
-        },
+        manhua: { type: mongoose.Schema.Types.ObjectId, ref: "Manhua", required: true },
+        lastChapter: { type: mongoose.Schema.Types.ObjectId, ref: "Chapter" },
+        lastReadAt: { type: Date, default: Date.now },
       },
     ],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// 🔒 password hash
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-
   next();
 });
 
-// 🔑 password check
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
-// Helper method to create password reset token
 userSchema.methods.createPasswordResetToken = function () {
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   this.resetPasswordTokenHash = tokenHash;
-  this.resetPasswordExpiresAt = new Date(Date.now() + 45 * 60 * 1000); // 45 minutes
+  this.resetPasswordExpiresAt = new Date(Date.now() + 45 * 60 * 1000);
   this.resetPasswordRequestedAt = new Date();
 
-  return rawToken; // Return raw token for email
+  return rawToken;
 };
-
-// Хэрэгтэй бол bookmark / recentlyViewed дээр index тавьж болно
-// userSchema.index({ "bookmarks.manhua": 1 });
-// userSchema.index({ "recentlyViewed.manhua": 1 });
 
 const User = mongoose.model("User", userSchema);
 module.exports = User;
