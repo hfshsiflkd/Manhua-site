@@ -55,10 +55,7 @@ export function HomePageHeader({ slides }: HomePageHeaderProps) {
     () =>
       (slides || []).map((slide) => {
         const coverUrl = slide.coverImageUrl || slide.coverImage;
-        const ratingValue =
-          slide.rating ??
-          slide.ratingAverage ??
-          0;
+        const ratingValue = slide.rating ?? slide.ratingAverage ?? 0;
 
         const genresText = Array.isArray(slide.genres)
           ? slide.genres.join(", ")

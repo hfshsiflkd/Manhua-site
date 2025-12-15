@@ -7,11 +7,10 @@ import { HomePageHeader } from "./components/HomePage/HomePageHeader";
 import PopularToday from "./components/HomePage/PopularToday";
 import LatestUpdates from "./components/HomePage/LatestUpdates";
 import { api } from "@/lib/api";
-import {ManhuaDetailLoading} from "@/components/ui/Loading";
+import { ManhuaDetailLoading } from "@/components/ui/Loading";
 import TrialSurprise from "./components/TrialSurprise";
 import VipTrialReminder from "./components/VipTrialReminder";
 import { useAuth } from "@/context/AuthContext";
-
 
 type HomeData = {
   hero: any[];
@@ -25,11 +24,13 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-
   useEffect(() => {
     const fetchHome = async () => {
       try {
-        const res = await api.get("/manhuas/home/sections");
+        // Request limited data for home preview
+        const res = await api.get("/manhuas/home/sections", {
+          params: { latestUpdatesLimit: 6 },
+        });
         setData(res.data);
       } catch (err: any) {
         console.error(err);
@@ -49,7 +50,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="flex min-h-screen w-screen items-center justify-center bg-slate-950 text-white">
-        <ManhuaDetailLoading/>
+        <ManhuaDetailLoading />
       </div>
     );
   }
@@ -58,8 +59,6 @@ export default function HomePage() {
   if (error || !data) {
     return (
       <div className="flex min-h-screen w-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-200">
-       
-
         <div className="max-w-md space-y-3">
           <h1 className="text-xl font-semibold">Алдаа гарлаа</h1>
           <p className="text-sm text-slate-400">{error}</p>
@@ -74,17 +73,20 @@ export default function HomePage() {
     );
   }
 
-  
-
   // NORMAL UI
   return (
-    <div className="m-0 min-h-screen w-screen overflow-x-hidden bg-slate-950 text-white">
+    <div className="m-0 min-h-screen w-screen overflow-x-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* <SnowBackground /> */}
 
       <HomePageHeader slides={data.hero} />
       <VipTrialReminder isVIP={user?.isVIP} vipExpiresAt={user?.vipExpiresAt} />
-      <PopularToday popular={data.popularToday} />
-      <LatestUpdates updates={data.latestUpdates} />
+      <PopularToday />
+      <LatestUpdates
+        updates={data.latestUpdates}
+        limitMobile={4}
+        limitDesktop={6}
+        seeAllHref="/manhuas?sort=latest"
+      />
       <TrialSurprise />
     </div>
   );

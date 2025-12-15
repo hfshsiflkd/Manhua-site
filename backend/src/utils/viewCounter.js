@@ -9,6 +9,14 @@ function inc(map, id) {
   map.set(key, (map.get(key) || 0) + 1);
 }
 
+function getTodayDateKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function trackView({ chapterId, manhuaId }) {
   if (chapterId) inc(chapterCounts, chapterId);
   if (manhuaId) inc(manhuaCounts, manhuaId);
@@ -30,12 +38,19 @@ async function flush() {
   }
 
   if (manhuaCounts.size) {
+    const todayKey = getTodayDateKey();
     const ops = [];
     for (const [id, n] of manhuaCounts.entries()) {
       ops.push({
         updateOne: {
           filter: { _id: id },
-          update: { $inc: { views: n } },
+          update: {
+            $inc: {
+              views: n,
+              [`dailyViews.${todayKey}`]: n,
+              weeklyViews: n,
+            },
+          },
         },
       });
     }

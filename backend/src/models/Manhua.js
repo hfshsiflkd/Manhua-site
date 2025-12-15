@@ -68,6 +68,19 @@ const manhuaSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Daily views tracking: { "2024-12-16": 150, "2024-12-17": 200, ... }
+    dailyViews: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+
+    // Weekly views for fallback
+    weeklyViews: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
