@@ -50,56 +50,162 @@ export default function UsersTable({
   onForceLogout: (u: AdminUser) => void;
   onResetPassword: (u: AdminUser) => void;
 }) {
+  // Mobile card view
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-slate-400 text-sm">
+        Loading users...
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-slate-500 text-sm">
+        No users found
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur shadow-xl shadow-black/40">
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-900/90 border-b border-slate-800">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                Role
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                VIP
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                Blocked
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                Locked
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 hidden md:table-cell">
-                Created
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-6 text-center text-slate-400 text-sm"
+    <>
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {users.map((user) => {
+          const lock = lockLabel(user);
+          return (
+            <div
+              key={user._id}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <button
+                    onClick={() => onSelect(user)}
+                    className="text-left text-sm font-semibold text-slate-100 hover:underline truncate block w-full"
+                  >
+                    {user.username}
+                  </button>
+                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                    {user.email}
+                  </p>
+                  {user.phone && (
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {user.phone}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-slate-200 ml-2 flex-shrink-0">
+                  {user.role}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span
+                  className={`px-2 py-0.5 rounded-full ${
+                    user.blocked
+                      ? "bg-rose-500/10 text-rose-300 border border-rose-500/30"
+                      : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                  }`}
                 >
-                  Loading users...
-                </td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-6 text-center text-slate-500 text-sm"
+                  {user.blocked ? "Blocked" : "Active"}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                  {vipLabel(user)}
+                </span>
+                {lock.locked && (
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/30">
+                    🔒 {lock.label}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
+                <button
+                  onClick={() => onSelect(user)}
+                  className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-100 hover:bg-slate-700"
                 >
-                  No users found
-                </td>
+                  View
+                </button>
+                <button
+                  onClick={() => onResetPassword(user)}
+                  className="flex-1 rounded-lg border border-amber-500/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 hover:bg-amber-500/20"
+                >
+                  Reset PW
+                </button>
+                {lock.locked ? (
+                  <button
+                    onClick={() => onUnlock(user)}
+                    className="flex-1 rounded-lg border border-rose-500/70 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 hover:bg-rose-500/20"
+                  >
+                    Unlock
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onLock(user)}
+                    className="flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700"
+                  >
+                    Lock
+                  </button>
+                )}
+                {user.blocked ? (
+                  <button
+                    onClick={() => onUnblock(user)}
+                    className="flex-1 rounded-lg border border-emerald-500/70 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-500/20"
+                  >
+                    Unblock
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onBlock(user)}
+                    className="flex-1 rounded-lg border border-rose-500/70 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 hover:bg-rose-500/20"
+                  >
+                    Block
+                  </button>
+                )}
+                <button
+                  onClick={() => onForceLogout(user)}
+                  className="flex-1 rounded-lg border border-cyan-500/70 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-500/20"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur shadow-xl shadow-black/40">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-900/90 border-b border-slate-800">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
+                  User
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
+                  Role
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
+                  VIP
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
+                  Blocked
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
+                  Locked
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 hidden md:table-cell">
+                  Created
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400">
+                  Actions
+                </th>
               </tr>
-            ) : (
-              users.map((user) => {
+            </thead>
+            <tbody>
+              {users.map((user) => {
                 const lock = lockLabel(user);
                 return (
                   <tr
@@ -208,11 +314,11 @@ export default function UsersTable({
                     </td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

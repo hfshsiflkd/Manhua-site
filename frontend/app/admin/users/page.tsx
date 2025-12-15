@@ -102,7 +102,7 @@ export default function AdminUsersPage() {
 
   return (
     <AdminShell>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6 px-2 md:px-0">
         <FiltersBar
           filters={filters}
           onChange={setFilters}

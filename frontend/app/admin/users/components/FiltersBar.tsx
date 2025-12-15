@@ -27,14 +27,14 @@ export default function FiltersBar({
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div className="flex flex-wrap gap-2">
         <input
-          className="w-64 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
+          className="w-full sm:w-64 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
           placeholder="Search name/email/phone..."
           value={filters.q}
           onChange={(e) => onChange({ ...filters, q: e.target.value })}
           onKeyDown={(e) => e.key === "Enter" && onRefresh()}
         />
         <select
-          className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+          className="flex-1 sm:flex-none rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 min-w-[120px]"
           value={filters.role}
           onChange={(e) =>
             onChange({ ...filters, role: e.target.value as Filters["role"] })
@@ -47,7 +47,7 @@ export default function FiltersBar({
           <option value="admin">Admin</option>
         </select>
         <select
-          className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+          className="flex-1 sm:flex-none rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 min-w-[100px]"
           value={filters.vip}
           onChange={(e) =>
             onChange({ ...filters, vip: e.target.value as Filters["vip"] })
@@ -58,7 +58,7 @@ export default function FiltersBar({
           <option value="false">Non-VIP</option>
         </select>
         <select
-          className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+          className="flex-1 sm:flex-none rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 min-w-[110px]"
           value={filters.blocked}
           onChange={(e) =>
             onChange({
@@ -72,7 +72,7 @@ export default function FiltersBar({
           <option value="false">Active</option>
         </select>
         <select
-          className="rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100"
+          className="flex-1 sm:flex-none rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 min-w-[110px]"
           value={filters.locked}
           onChange={(e) =>
             onChange({

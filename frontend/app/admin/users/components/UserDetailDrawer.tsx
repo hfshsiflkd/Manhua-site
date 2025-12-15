@@ -25,6 +25,7 @@ export default function UserDetailDrawer({
   const now = new Date();
 
   function addMonths(months: number) {
+    if (!draft || !user) return;
     const base =
       draft.vipExpiresAt && new Date(draft.vipExpiresAt) > now
         ? new Date(draft.vipExpiresAt)
@@ -38,7 +39,7 @@ export default function UserDetailDrawer({
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/50">
-      <div className="w-full max-w-xl h-full overflow-y-auto bg-slate-950 border-l border-slate-800 p-6">
+      <div className="w-full md:max-w-xl h-full overflow-y-auto bg-slate-950 border-l border-slate-800 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-slate-50">User detail</h2>
           <button
@@ -97,9 +98,7 @@ export default function UserDetailDrawer({
           {draft.lockUntil && new Date(draft.lockUntil) > now && (
             <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-rose-100">
-                  🔒 Locked
-                </p>
+                <p className="text-xs font-semibold text-rose-100">🔒 Locked</p>
                 <span className="text-[11px] text-rose-200">
                   Until: {new Date(draft.lockUntil).toLocaleString()}
                 </span>
