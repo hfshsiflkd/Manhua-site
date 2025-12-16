@@ -74,9 +74,16 @@ export default function Header() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
-  const role = (user as { role?: string } | null | undefined)?.role;
-  const isAdmin = role === "admin";
-  const isEditor = role === "translator";
+  // Normalize role for safe comparison
+  const roleRaw = (user as { role?: string } | null | undefined)?.role;
+  const roleNorm = (roleRaw || "").toLowerCase().trim();
+  const isAdmin = roleNorm === "admin";
+  const isEditor = roleNorm === "editor" || roleNorm === "translator";
+
+  // Debug log (dev only)
+  if (process.env.NODE_ENV === "development" && user) {
+    console.log("[Header role]", { roleRaw, roleNorm, isAdmin, isEditor });
+  }
 
   const baseNavItem =
     "rounded-full px-3 py-1 text-[13px] font-medium transition-colors duration-150";
@@ -152,9 +159,22 @@ export default function Header() {
 
           {user ? (
             <>
-              <span className="max-w-[140px] truncate text-xs text-slate-400">
-                {user.username}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="max-w-[140px] truncate text-xs text-slate-400">
+                  {user.username}
+                </span>
+                {/* Role badge */}
+                {isAdmin && (
+                  <span className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-slate-950 shadow-sm shadow-amber-500/50">
+                    ADMIN
+                  </span>
+                )}
+                {isEditor && !isAdmin && (
+                  <span className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-2 py-0.5 text-[10px] font-bold text-slate-950 shadow-sm shadow-emerald-500/50">
+                    EDITOR
+                  </span>
+                )}
+              </div>
               <button
                 onClick={handleLogout}
                 className="rounded-full bg-slate-800 px-3 py-1 text-[12px] font-medium text-slate-100 hover:bg-slate-700"
@@ -183,9 +203,22 @@ export default function Header() {
         {/* MOBILE RIGHT SIDE (md-с доош) */}
         <div className="flex items-center gap-2 md:hidden">
           {user ? (
-            <span className="max-w-[90px] truncate text-[11px] text-slate-400">
-              {user.username}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="max-w-[90px] truncate text-[11px] text-slate-400">
+                {user.username}
+              </span>
+              {/* Role badge (mobile) */}
+              {isAdmin && (
+                <span className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-1.5 py-0.5 text-[9px] font-bold text-slate-950 shadow-sm shadow-amber-500/50">
+                  ADMIN
+                </span>
+              )}
+              {isEditor && !isAdmin && (
+                <span className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-1.5 py-0.5 text-[9px] font-bold text-slate-950 shadow-sm shadow-emerald-500/50">
+                  EDITOR
+                </span>
+              )}
+            </div>
           ) : (
             <Link
               href="/login"
