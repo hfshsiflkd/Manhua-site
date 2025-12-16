@@ -1,5 +1,6 @@
 // src/controllers/chapter.public.controller.js
 const Chapter = require("../models/Chapter");
+const { logAudit } = require("../utils/auditLogger");
 const { trackView } = require("../utils/viewCounter");
 const { getManhuaIdBySlug } = require("../services/manhua.service");
 const { chapterCache } = require("../cache/chapterCache");
@@ -76,6 +77,22 @@ exports.getChapter = async (req, res, next) => {
     // ✅ view count
     if (process.env.DISABLE_VIEWS !== "1") {
       trackView({ chapterId: chapter._id, manhuaId });
+    }
+
+    // Log chapter view
+    if (req.audit) {
+      logAudit(req, {
+        level: "INFO",
+        category: "reader",
+        action: "chapter_view",
+        message: `Chapter viewed: ${slug} - Chapter ${chNum}`,
+        meta: {
+          slug,
+          chapterNumber: chNum,
+          isVIP,
+          hasPages: isVIP && Array.isArray(chapter.pages),
+        },
+      });
     }
 
     // ✅ pages-ийг default-р БҮҮ явуул

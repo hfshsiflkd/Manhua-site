@@ -1,6 +1,7 @@
 // src/middleware/deviceIdCheck.js
 // Middleware to enforce deviceId header matches user's deviceId
 const User = require("../models/User");
+const { logAudit } = require("../utils/auditLogger");
 
 exports.checkDeviceId = async (req, res, next) => {
   if (!req.user) {
@@ -34,6 +35,25 @@ exports.checkDeviceId = async (req, res, next) => {
   const userLastDeviceId = user.lastDeviceId || "";
 
   if (deviceId !== userDeviceId && deviceId !== userLastDeviceId) {
+    // Log device mismatch
+    if (req.audit) {
+      req.audit.user = {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+      };
+      logAudit(req, {
+        level: "WARN",
+        category: "device",
+        action: "device_mismatch",
+        message: `Device ID mismatch for user: ${user.username}`,
+        meta: {
+          expectedDeviceId: userDeviceId ? "***" : null,
+          providedDeviceId: "***",
+        },
+      });
+    }
+
     return res.status(403).json({
       success: false,
       message: "Device ID таарахгүй байна. Зөвхөн бүртгэлтэй төхөөрөмжөөс хандах боломжтой.",

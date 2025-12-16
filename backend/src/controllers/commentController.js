@@ -1,6 +1,7 @@
 // src/controllers/commentController.js
 const Comment = require("../models/Comment");
 const Manhua = require("../models/Manhua");
+const { logAudit } = require("../utils/auditLogger");
 
 // GET /api/comments/manhua/:manhuaId?page=1&limit=20
 // List comments for a manhua (newest first)
@@ -99,6 +100,21 @@ exports.createManhuaComment = async (req, res, next) => {
       text
     });
 
+    // Log comment creation
+    if (req.audit) {
+      logAudit(req, {
+        level: "INFO",
+        category: "comment",
+        action: "comment_create",
+        message: `Comment created on manhua: ${manhua.title}`,
+        meta: {
+          manhuaId,
+          commentId: comment._id,
+          textLength: text.length,
+        },
+      });
+    }
+
     res.status(201).json({
       success: true,
       comment: {
@@ -149,6 +165,20 @@ exports.deleteComment = async (req, res, next) => {
     }
 
     await Comment.findByIdAndDelete(commentId);
+
+    // Log comment deletion
+    if (req.audit) {
+      logAudit(req, {
+        level: "INFO",
+        category: "comment",
+        action: "comment_delete",
+        message: `Comment deleted: ${commentId}`,
+        meta: {
+          commentId,
+          manhuaId: comment.manhua?.toString(),
+        },
+      });
+    }
 
     res.json({
       success: true,

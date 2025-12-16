@@ -46,8 +46,16 @@ router.get("/chapters/:id", getChapterById);
 router.put("/chapters/:id", updateChapter);
 
 
-// Logs
+// Logs (old ActionLog endpoint - keep for backward compatibility)
 router.get("/logs", listLogs);
+
+// Audit Logs (new comprehensive audit system)
+const {
+  listLogs: listAuditLogs,
+  getLogById: getAuditLogById,
+} = require("../../controllers/admin/auditLogController");
+router.get("/audit-logs", listAuditLogs);
+router.get("/audit-logs/:id", getAuditLogById);
 
 // Settings
 const {

@@ -79,6 +79,16 @@ exports.protect = async (req, res, next) => {
 
     req.user = user.toObject({ getters: true });
     delete req.user.password;
+
+    // Attach user info to audit context
+    if (req.audit) {
+      req.audit.user = {
+        id: req.user._id || req.user.id,
+        username: req.user.username,
+        role: req.user.role,
+      };
+    }
+
     next();
   } catch (error) {
     console.error(error);

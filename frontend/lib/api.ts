@@ -217,6 +217,59 @@ export async function adminGetLogs(params?: {
   return res.data;
 }
 
+// Audit Logs (new comprehensive system)
+export interface AuditLog {
+  _id: string;
+  time: string; // Canonical ISO timestamp field
+  ts?: string; // Backward compatibility
+  level: "INFO" | "WARN" | "ERROR";
+  category: "auth" | "device" | "payment" | "content" | "reader" | "comment" | "admin" | "system";
+  action: string;
+  message: string;
+  user: {
+    id: string;
+    username?: string;
+    role?: string;
+  } | null;
+  ip: string | null;
+  deviceIdHash: string | null;
+  method: string | null;
+  path: string | null;
+  statusCode: number | null;
+  durationMs: number | null;
+  requestId: string | null;
+  meta: any;
+}
+
+export interface AuditLogsResponse {
+  items: AuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export async function adminGetAuditLogs(params?: {
+  q?: string;
+  level?: string;
+  category?: string;
+  action?: string;
+  userId?: string;
+  ip?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const res = await api.get<AuditLogsResponse>("/admin/audit-logs", { params });
+  return res.data;
+}
+
+export async function adminGetAuditLogById(id: string) {
+  const res = await api.get<AuditLog>(`/admin/audit-logs/${id}`);
+  return res.data;
+}
+
 // ✨ Admin – бүх manhua + эзэнтэй нь
 export async function adminGetManhuas(limit?: number) {
   const params: Record<string, any> = {};

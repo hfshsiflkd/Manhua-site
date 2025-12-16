@@ -8,6 +8,7 @@ const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../queues/emailQueue");
 const { genSessionToken } = require("../utils/token");
 const { normalizeEmail } = require("../utils/normalize");
+const { logAudit } = require("../utils/auditLogger");
 
 // ✅ no-store helper
 function noStore(res) {
@@ -102,6 +103,26 @@ exports.register = async (req, res, next) => {
       ip,
     });
 
+    // Log successful registration
+    if (req.audit && result.user) {
+      req.audit.user = {
+        id: result.user._id || result.user.id,
+        username: result.user.username,
+        role: result.user.role,
+      };
+      logAudit(req, {
+        level: "INFO",
+        category: "auth",
+        action: "register_success",
+        message: `User registered: ${result.user.username}`,
+        meta: {
+          username: result.user.username,
+          email: result.user.email,
+          hasTrial: !!result.trial,
+        },
+      });
+    }
+
     return sendSuccess(
       res,
       {
@@ -165,6 +186,25 @@ exports.login = async (req, res, next) => {
 
     const result = await loginUser({ identifier, password, deviceId });
 
+    // Log successful login
+    if (req.audit && result.user) {
+      req.audit.user = {
+        id: result.user._id || result.user.id,
+        username: result.user.username,
+        role: result.user.role,
+      };
+      logAudit(req, {
+        level: "INFO",
+        category: "auth",
+        action: "login_success",
+        message: `User logged in: ${result.user.username}`,
+        meta: {
+          username: result.user.username,
+          hasSecurityWarning: !!result.security?.warning,
+        },
+      });
+    }
+
     return sendSuccess(
       res,
       {
@@ -177,6 +217,18 @@ exports.login = async (req, res, next) => {
   } catch (err) {
     // Handle known errors with statusCode
     if (err.statusCode) {
+      // Log failed login
+      logAudit(req, {
+        level: "WARN",
+        category: "auth",
+        action: "login_fail",
+        message: `Login failed: ${err.message}`,
+        meta: {
+          identifier: identifier ? identifier.substring(0, 3) + "***" : null,
+          errorCode: err.code,
+        },
+      });
+
       const response = {
         success: false,
         message: err.message,
@@ -239,6 +291,17 @@ exports.forgotPassword = async (req, res, next) => {
 
     // If user NOT found, return explicit 404 message
     if (!user) {
+      // Log forgot password request for non-existent user
+      logAudit(req, {
+        level: "WARN",
+        category: "auth",
+        action: "forgot_password_requested",
+        message: `Forgot password requested for non-existent email: ${normalizedEmail.substring(0, 3)}***`,
+        meta: {
+          emailPrefix: normalizedEmail.substring(0, 3),
+        },
+      });
+
       return res.status(404).json({
         ok: false,
         message: "Бүртгэлгүй хэрэглэгч байна.",
@@ -304,12 +367,30 @@ exports.forgotPassword = async (req, res, next) => {
       });
 
       // Persist token only after email succeeds
-      await fullUser.save();
+    await fullUser.save();
 
-      return res.json({
-        ok: true,
-        message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ.",
+    // Log forgot password request
+    if (req.audit) {
+      req.audit.user = {
+        id: fullUser._id,
+        username: fullUser.username,
+        role: fullUser.role,
+      };
+      logAudit(req, {
+        level: "INFO",
+        category: "auth",
+        action: "forgot_password_requested",
+        message: `Password reset requested for user: ${fullUser.username}`,
+        meta: {
+          username: fullUser.username,
+        },
       });
+    }
+
+    return res.json({
+      ok: true,
+      message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ.",
+    });
     } catch (emailErr) {
       console.error(
         "Forgot password email failed:",
@@ -383,6 +464,18 @@ exports.resetPassword = async (req, res, next) => {
     const user = await User.findOne(query).select("+password");
 
     if (!user) {
+      // Log failed reset attempt
+      logAudit(req, {
+        level: "WARN",
+        category: "auth",
+        action: "reset_password_fail",
+        message: "Password reset failed: invalid or expired token",
+        meta: {
+          hasUserId: !!userId,
+          hasEmail: !!email,
+        },
+      });
+
       return sendError(
         res,
         400,
@@ -407,6 +500,24 @@ exports.resetPassword = async (req, res, next) => {
     user.resetPasswordRequestedAt = undefined;
 
     await user.save();
+
+    // Log successful password reset
+    if (req.audit) {
+      req.audit.user = {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+      };
+      logAudit(req, {
+        level: "INFO",
+        category: "auth",
+        action: "reset_password_success",
+        message: `Password reset successful for user: ${user.username}`,
+        meta: {
+          username: user.username,
+        },
+      });
+    }
 
     return sendSuccess(res, {}, "Нууц үг амжилттай шинэчлэгдлээ.");
   } catch (err) {
