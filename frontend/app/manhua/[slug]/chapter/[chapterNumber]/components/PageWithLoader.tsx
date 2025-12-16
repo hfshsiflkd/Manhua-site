@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import PageSkeleton from "./PageSkeleton";
 
 export interface ChapterPage {
   pageNumber: number;
@@ -14,24 +15,23 @@ export default function PageWithLoader({ page }: { page: ChapterPage }) {
 
   return (
     <div className="relative w-full">
-      {!loaded && !error && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/40">
-          <div className="loader scale-75 md:scale-90" />
-        </div>
-      )}
+      {/* Skeleton placeholder - shown until image loads */}
+      {!loaded && !error && <PageSkeleton />}
 
+      {/* Error state */}
       {error && (
-        <div className="flex h-[60vh] items-center justify-center bg-slate-900 text-sm text-red-400">
+        <div className="flex min-h-[60vh] items-center justify-center bg-slate-900 text-sm text-red-400">
           Зургийг ачаалж чадсангүй...
         </div>
       )}
 
+      {/* Image - positioned absolutely over skeleton, fades in when loaded */}
       <img
         src={page.imageUrl}
-        alt=""
-        loading="lazy"
+        alt={`Page ${page.pageNumber}`}
+        loading={page.pageNumber <= 2 ? "eager" : "lazy"}
         className={`block w-full select-none transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
+          loaded ? "opacity-100" : "opacity-0 absolute inset-0"
         }`}
         onLoad={() => setLoaded(true)}
         onError={() => {

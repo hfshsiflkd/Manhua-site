@@ -34,6 +34,9 @@ export default function ChapterReaderPage() {
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [loading, setLoading] = useState(true);
   const [vipGateFromApi, setVipGateFromApi] = useState(false);
+  const [imagesLoading, setImagesLoading] = useState(true);
+  const [loadedPagesCount, setLoadedPagesCount] = useState(0);
+  const [totalPagesCount, setTotalPagesCount] = useState(0);
 
   const canRead = user?.isVIP === true;
   const showVipGate = !canRead || vipGateFromApi;
@@ -43,6 +46,9 @@ export default function ChapterReaderPage() {
     setLoading(true);
     setVipGateFromApi(false);
     setChapter(null);
+    setImagesLoading(true);
+    setLoadedPagesCount(0);
+    setTotalPagesCount(0);
   }, [slug, chapterNumber]);
 
   useEffect(() => {
@@ -82,6 +88,11 @@ export default function ChapterReaderPage() {
 
           setChapter(r2.data);
 
+          // Set total pages count
+          const pages = Array.isArray(r2.data?.pages) ? r2.data.pages : [];
+          setTotalPagesCount(pages.length);
+          setImagesLoading(pages.length > 0);
+
           // Mark chapter as read when successfully loaded
           if (r2.data && r2.data.chapterNumber) {
             markChapterAsRead(slug, r2.data.chapterNumber);
@@ -110,6 +121,17 @@ export default function ChapterReaderPage() {
     };
   }, [slug, chapterNumber]);
 
+  // Track when images finish loading
+  const handlePageLoad = () => {
+    setLoadedPagesCount((prev) => {
+      const newCount = prev + 1;
+      if (newCount >= totalPagesCount && totalPagesCount > 0) {
+        setImagesLoading(false);
+      }
+      return newCount;
+    });
+  };
+
   useEffect(() => {
     document.body.style.overflow = showVipGate ? "hidden" : "";
     return () => {
@@ -117,11 +139,15 @@ export default function ChapterReaderPage() {
     };
   }, [showVipGate]);
 
-  if (loading) return <LoadingState />;
+  // Show full loading state only when fetching initial data
+  if (loading && !chapter) return <LoadingState />;
   if (user === null)
     return <LoginRequired onLogin={() => router.push("/login")} />;
   if (!chapter && !vipGateFromApi)
     return <ChapterNotFound onBack={() => router.back()} />;
+
+  // Determine if we should show loading spinner (metadata loading OR images loading)
+  const showSpinner = loading || imagesLoading;
 
   return (
     <div className="w-full">
@@ -130,13 +156,15 @@ export default function ChapterReaderPage() {
         vipExpiresAt={user?.vipExpiresAt ?? null}
       />
 
-      {chapter && (
-        <ChapterHeader
-          slug={slug}
-          chapter={chapter}
-          onBack={() => router.back()}
-        />
-      )}
+      {/* Always show header, even when loading */}
+      <ChapterHeader
+        slug={slug}
+        chapter={chapter}
+        onBack={() => router.back()}
+        isLoading={showSpinner}
+        loadedCount={loadedPagesCount}
+        totalPages={totalPagesCount}
+      />
 
       {chapter && (
         <ChapterNav
@@ -148,7 +176,12 @@ export default function ChapterReaderPage() {
       )}
 
       <div className="relative">
-        {chapter && !showVipGate && <ChapterPages chapter={chapter} />}
+        {chapter && !showVipGate && (
+          <ChapterPages
+            chapter={chapter}
+            onPageLoad={handlePageLoad}
+          />
+        )}
 
         {showVipGate && (
           <VipGateOverlay
