@@ -10,6 +10,7 @@ const navItems = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/logs", label: "Activity Logs" },
   { href: "/admin/manhuas", label: "Manhuas" },
+  { href: "/admin/settings/vip", label: "VIP Settings" },
 ];
 
 type AdminShellProps = {

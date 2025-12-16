@@ -475,3 +475,144 @@ export async function updatePassword(
   });
   return res.data;
 }
+
+// VIP Plans
+export interface VipPlan {
+  id: string;
+  months: number;
+  priceTotal: number;
+  pricePerMonth: number;
+  discount: number | null;
+  active: boolean;
+}
+
+export interface VipPlansResponse {
+  plans: VipPlan[];
+}
+
+export interface VipPurchaseResponse {
+  success: boolean;
+  user: {
+    _id: string;
+    username: string;
+    email: string;
+    role: string;
+    isVIP: boolean;
+    vipExpiresAt?: string | null;
+    avatar?: string | null;
+  };
+  message: string;
+}
+
+export async function getVipPlans() {
+  const res = await api.get<VipPlansResponse>("/vip/plans");
+  return res.data;
+}
+
+export async function purchaseVip(planId: string) {
+  const res = await api.post<VipPurchaseResponse>("/vip/purchase", {
+    planId,
+  });
+  return res.data;
+}
+
+// Settings API
+export interface VipPlanSetting {
+  key: string;
+  title: string;
+  priceMnt: number;
+  durationDays: number;
+  badgeLabel: string | null;
+  isHighlighted: boolean;
+  features: string[];
+}
+
+export interface VipPaymentSetting {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  note: string;
+}
+
+export interface VipSettingsResponse {
+  success: boolean;
+  plans: VipPlanSetting[];
+  payment: VipPaymentSetting;
+}
+
+export async function getVipSettings() {
+  const res = await api.get<VipSettingsResponse>("/settings/vip");
+  return res.data;
+}
+
+// Admin Settings API
+export async function adminGetVipSettings() {
+  const res = await api.get<VipSettingsResponse>("/admin/settings/vip");
+  return res.data;
+}
+
+export async function adminUpdateVipSettings(payload: {
+  plans: VipPlanSetting[];
+  payment: VipPaymentSetting;
+}) {
+  const res = await api.put<VipSettingsResponse>("/admin/settings/vip", payload);
+  return res.data;
+}
+
+// Comments API
+export interface Comment {
+  _id: string;
+  user: string;
+  username: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommentsResponse {
+  success: boolean;
+  comments: Comment[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface CreateCommentResponse {
+  success: boolean;
+  comment: Comment;
+  message: string;
+}
+
+export async function getManhuaComments(
+  manhuaId: string,
+  page = 1,
+  limit = 20
+) {
+  const res = await api.get<CommentsResponse>(
+    `/comments/manhua/${manhuaId}`,
+    {
+      params: { page, limit },
+    }
+  );
+  return res.data;
+}
+
+export async function createManhuaComment(manhuaId: string, text: string) {
+  const res = await api.post<CreateCommentResponse>(
+    `/comments/manhua/${manhuaId}`,
+    { text }
+  );
+  return res.data;
+}
+
+export async function deleteComment(commentId: string) {
+  const res = await api.delete<{ success: boolean; message: string }>(
+    `/comments/${commentId}`
+  );
+  return res.data;
+}

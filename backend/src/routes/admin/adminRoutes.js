@@ -49,4 +49,12 @@ router.put("/chapters/:id", updateChapter);
 // Logs
 router.get("/logs", listLogs);
 
+// Settings
+const {
+  getVipSettings,
+  updateVipSettings,
+} = require("../../controllers/adminSettingsController");
+router.get("/settings/vip", getVipSettings);
+router.put("/settings/vip", updateVipSettings);
+
 module.exports = router;

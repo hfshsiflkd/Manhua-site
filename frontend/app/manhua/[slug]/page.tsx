@@ -8,6 +8,7 @@ import { api, getPublicChapters } from "@/lib/api";
 import type { Manhua, Chapter } from "@/types/manhua";
 import { ManhuaHero } from "./components/ManhuaHero";
 import { ManhuaChapters } from "./components/ManhuaChapters";
+import { CommentSection } from "./components/CommentSection";
 
 // 🔹 Дэлгэрэнгүй хуудсын LOADING
 function ManhuaDetailLoading() {
@@ -71,6 +72,7 @@ export default function ManhuaDetailPage() {
       <div className="w-full max-w-5xl  sm:px-4 space-y-6  sm:pt-10">
         <ManhuaHero manhua={manhua} chapters={chapters} />
         <ManhuaChapters slug={manhua.slug} chapters={chapters} />
+        <CommentSection manhuaId={manhua._id} />
       </div>
     </div>
   );

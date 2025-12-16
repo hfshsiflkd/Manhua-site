@@ -75,7 +75,7 @@ async function sendWithSMTP({ to, subject, html }) {
     const info = await transporter.sendMail({
       from:
         process.env.SMTP_FROM ||
-        (process.env.SMTP_USER ? `"Manhua.mn" <${process.env.SMTP_USER}>` : undefined),
+        (process.env.SMTP_USER ? `"Arc-Read.com" <${process.env.SMTP_USER}>` : undefined),
       to,
       subject,
       html,
@@ -110,7 +110,9 @@ async function sendWithResend({ to, subject, html }) {
   const from =
     process.env.RESEND_FROM ||
     process.env.SMTP_FROM ||
-    (process.env.SMTP_USER ? `"Manhua.mn" <${process.env.SMTP_USER}>` : undefined);
+    (process.env.SMTP_USER
+      ? `"Arc-Read.com" <${process.env.SMTP_USER}>`
+      : undefined);
 
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",

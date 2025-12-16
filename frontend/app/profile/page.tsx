@@ -10,6 +10,7 @@ import { ContinueReading } from "./components/ContinueReading";
 import { LibraryTabs } from "./components/LibraryTabs";
 import { Stats } from "./components/Stats";
 import { ProfileSettings } from "./components/ProfileSettings";
+import { VipPurchase } from "./components/VipPurchase";
 
 interface MeResponse {
   _id: string;
@@ -224,6 +225,9 @@ export default function ProfilePage() {
         readingStreak={stats.readingStreak}
         todayReadCount={stats.todayReadCount}
       />
+
+      {/* VIP Purchase */}
+      <VipPurchase />
 
       {/* Profile Settings */}
       <ProfileSettings />
