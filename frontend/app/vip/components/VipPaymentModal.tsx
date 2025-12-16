@@ -38,7 +38,7 @@ export function VipPaymentModal({
 
   const handleCopyAccount = async () => {
     try {
-      await navigator.clipboard.writeText(accountNumber);
+      await navigator.clipboard.writeText(payment.accountNumber);
       setCopiedAccount(true);
       setTimeout(() => setCopiedAccount(false), 2000);
     } catch (err) {

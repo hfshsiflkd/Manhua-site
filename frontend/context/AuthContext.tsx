@@ -10,6 +10,7 @@ interface User {
   isVIP: boolean;
   vipExpiresAt?: string;
   avatar?: string | null;
+  role?: string;
 }
 
 interface AuthContextType {
