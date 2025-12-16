@@ -3,10 +3,11 @@
 // app/manhuas/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { Manhua } from "@/types/manhua";
+import { ManhuaCard } from "./components/ManhuaCard";
+import { ManhuaSkeleton, ManhuaSkeletonHorizontal } from "./components/ManhuaSkeleton";
 
 interface ManhuaListResponse {
   items: Manhua[];
@@ -17,20 +18,39 @@ interface ManhuaListResponse {
 
 const GENRES = [
   { value: "all", label: "Бүгд" },
-  { value: "action", label: "Action" },
-  { value: "romance", label: "Romance" },
-  { value: "fantasy", label: "Fantasy" },
-  { value: "comedy", label: "Comedy" },
-  { value: "drama", label: "Drama" },
+  { value: "Romance", label: "Romance" },
+  { value: "Comedy", label: "Comedy" },
+  { value: "Drama", label: "Drama" },
+  { value: "Action", label: "Action" },
+  { value: "Fantasy", label: "Fantasy" },
+  { value: "Slice of Life", label: "Slice of Life" },
+  { value: "School", label: "School" },
+  { value: "Isekai", label: "Isekai" },
+  { value: "Adventure", label: "Adventure" },
 ];
 
-// 🔹 ЖАГСААЛТЫН LOADING КОМПОНЕНТ
-function ListLoading() {
-  return (
-    <div className="flex min-h-[40vh] items-center justify-center text-white">
-      <div className="loader scale-125" />
-    </div>
-  );
+const STATUS_OPTIONS = [
+  { value: "all", label: "Бүгд" },
+  { value: "ongoing", label: "Ongoing" },
+  { value: "completed", label: "Completed" },
+  { value: "hiatus", label: "Hiatus" },
+];
+
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 }
 
 export default function ManhuasPage() {
@@ -40,26 +60,34 @@ export default function ManhuasPage() {
   const limit = 20;
 
   const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
   const [genre, setGenre] = useState("all");
   const [status, setStatus] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Debounce search input (300ms)
+  const debouncedSearch = useDebounce(searchInput.trim(), 300);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(total / limit)),
     [total, limit]
   );
 
-  const load = async () => {
+  const hasActiveFilters = useMemo(
+    () => debouncedSearch !== "" || genre !== "all" || status !== "all",
+    [debouncedSearch, genre, status]
+  );
+
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const params: any = { page, limit };
 
-      if (search.trim()) params.q = search.trim();
+      if (debouncedSearch) params.q = debouncedSearch;
       if (genre !== "all") params.genre = genre;
       if (status !== "all") params.status = status;
 
@@ -75,168 +103,298 @@ export default function ManhuasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, genre, status, debouncedSearch, limit]);
+
+  useEffect(() => {
+    setPage(1); // Reset to page 1 when filters change
+  }, [debouncedSearch, genre, status]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, genre, status, search]);
+  }, [load]);
 
-  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const clearFilters = () => {
+    setSearchInput("");
+    setGenre("all");
+    setStatus("all");
     setPage(1);
-    setSearch(searchInput);
   };
 
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
 
   return (
-    <div className="space-y-6">
-      {/* Header + Filters */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3 sm:p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <h1 className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-lg font-bold text-transparent sm:text-xl">
-              Манхуа жагсаалт
-            </h1>
-            <p className="text-[11px] text-slate-400 sm:text-xs">
-              Бүх манхуа – нэрээр хайх, жанраар шүүх, статус харах.
-            </p>
+    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4 sm:py-6 lg:px-6 lg:py-8">
+      <div className="space-y-4 sm:space-y-6">
+        {/* Page Header - Compact on Mobile */}
+        <div className="space-y-1 sm:space-y-2">
+          <h1 className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-xl font-bold text-transparent sm:text-2xl lg:text-3xl">
+            Манхуа жагсаалт
+          </h1>
+          <p className="text-xs text-slate-400 sm:text-sm lg:text-base">
+            Нэрээр хайх • Жанраар шүүх • Статус
+          </p>
+        </div>
+
+        {/* Filter Bar - Mobile Optimized */}
+        <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3 sm:rounded-2xl sm:p-4 lg:p-6">
+          {/* Search Input - Always Visible */}
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <svg
+                className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Хайх..."
+              className="w-full rounded-lg border border-slate-700 bg-slate-950/70 pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 sm:rounded-xl sm:pl-10 sm:py-3"
+            />
           </div>
 
-          {/* Search + filters */}
-          <form
-            onSubmit={handleSearchSubmit}
-            className="flex flex-col gap-2 md:flex-row md:items-center md:justify-end"
-          >
-            {/* Search row */}
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 md:min-w-[260px]">
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Гарчиг, author гэх мэтээр хайх..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400"
-              />
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-cyan-400 sm:w-auto"
+          {/* Mobile: Collapsible Filters */}
+          <div className="sm:hidden">
+            <button
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              className="flex w-full items-center justify-between rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-900"
+            >
+              <span>Шүүлт</span>
+              <svg
+                className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Хайх
-              </button>
-            </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
 
-            {/* Filters row */}
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:gap-2 md:w-auto">
+            {filtersOpen && (
+              <div className="mt-3 space-y-3">
+                {/* Genre Filter */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-400">
+                    Жанр
+                  </label>
+                  <select
+                    value={genre}
+                    onChange={(e) => {
+                      setGenre(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  >
+                    {GENRES.map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter - Scrollable Pills */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-400">
+                    Статус
+                  </label>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {STATUS_OPTIONS.map((s) => (
+                      <button
+                        key={s.value}
+                        onClick={() => {
+                          setStatus(s.value);
+                          setPage(1);
+                        }}
+                        className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-all ${
+                          status === s.value
+                            ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-300"
+                            : "border-slate-700 bg-slate-950/70 text-slate-400 active:bg-slate-900"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Clear Filters Button */}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-300 transition active:bg-slate-900"
+                  >
+                    Цэвэрлэх
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop: Always Visible Filters */}
+          <div className="hidden sm:flex sm:items-center sm:gap-3 sm:justify-between">
+            {/* Genre Filter */}
+            <div className="flex-1 max-w-[200px]">
               <select
                 value={genre}
                 onChange={(e) => {
                   setGenre(e.target.value);
                   setPage(1);
                 }}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400 sm:w-auto"
+                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               >
                 {GENRES.map((g) => (
                   <option key={g.value} value={g.value}>
-                    Жанр: {g.label}
+                    {g.label}
                   </option>
                 ))}
               </select>
-
-              <select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-2 py-2 text-xs text-slate-100 outline-none focus:border-cyan-400 sm:w-auto"
-              >
-                <option value="all">Статус: Бүгд</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="completed">Completed</option>
-                <option value="hiatus">Hiatus</option>
-              </select>
             </div>
-          </form>
-        </div>
-      </section>
 
-      {/* Error */}
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-          {error}
-        </div>
-      )}
+            {/* Status Filter - Segmented Pills */}
+            <div className="flex gap-1 rounded-xl border border-slate-700 bg-slate-950/70 p-1">
+              {STATUS_OPTIONS.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => {
+                    setStatus(s.value);
+                    setPage(1);
+                  }}
+                  className={`rounded-lg px-4 py-2 text-xs font-medium transition-all sm:text-sm ${
+                    status === s.value
+                      ? "bg-cyan-500/20 text-cyan-300 shadow shadow-cyan-500/20"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
 
-      {/* Loading / List */}
-      {loading ? (
-        <ListLoading />
-      ) : (
-        <>
-          {/* List */}
-          <section>
-            {items.length === 0 ? (
-              <div className="flex min-h-[30vh] items-center justify-center text-sm text-slate-400">
-                Тохирох манхуа олдсонгүй.
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {items.map((m) => (
-                  <Link
-                    key={m._id}
-                    href={`/manhua/${m.slug}`}
-                    className="group overflow-hidden rounded-xl border border-slate-800 bg-slate-900/80 shadow-sm shadow-slate-900/70 transition hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-cyan-500/20"
-                  >
-                    <div className="aspect-[3/4] w-full overflow-hidden">
-                      <img
-                        src={
-                          m.coverImage || "https://via.placeholder.com/300x400"
-                        }
-                        alt={m.title}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="space-y-1 p-2">
-                      <p className="line-clamp-2 text-[11px] font-semibold text-slate-100 sm:text-xs">
-                        {m.title}
-                      </p>
-                      <p className="text-[10px] text-cyan-400 uppercase">
-                        {m.status}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        {m.genres?.slice(0, 2).join(", ")}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 sm:px-6"
+              >
+                Цэвэрлэх
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+
+        {/* Loading / List */}
+        {loading ? (
+          <>
+            {/* Mobile: Horizontal Skeletons */}
+            <div className="grid grid-cols-1 gap-3 sm:hidden">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ManhuaSkeletonHorizontal key={i} />
+              ))}
+            </div>
+            {/* Desktop: Grid Skeletons */}
+            <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <ManhuaSkeleton key={i} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Results Count */}
+            {items.length > 0 && (
+              <div className="text-xs text-slate-400 sm:text-sm">
+                Нийт <span className="font-semibold text-slate-300">{total}</span>{" "}
+                манхуа олдлоо
               </div>
             )}
-          </section>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-300">
-              <button
-                disabled={!hasPrev}
-                onClick={() => hasPrev && setPage((p) => p - 1)}
-                className="rounded-full border border-slate-700 px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40 hover:border-cyan-400"
-              >
-                ← Өмнөх
-              </button>
-              <span className="text-[11px] sm:text-xs">
-                Хуудас {page} / {totalPages}
-              </span>
-              <button
-                disabled={!hasNext}
-                onClick={() => hasNext && setPage((p) => p + 1)}
-                className="rounded-full border border-slate-700 px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40 hover:border-cyan-400"
-              >
-                Дараах →
-              </button>
-            </div>
-          )}
-        </>
-      )}
+            {/* Empty State */}
+            {items.length === 0 ? (
+              <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-12 text-center sm:rounded-2xl sm:px-6">
+                <div className="mb-4 text-4xl sm:text-5xl">📭</div>
+                <h3 className="mb-2 text-base font-semibold text-slate-100 sm:text-lg">
+                  Тохирох манхуа олдсонгүй
+                </h3>
+                <p className="mb-6 max-w-md text-xs text-slate-400 sm:text-sm">
+                  Filter-ээ арилгаад дахин хайна уу.
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 transition active:scale-95"
+                  >
+                    Filter цэвэрлэх
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Mobile: Horizontal Cards (1 column) */}
+                <div className="grid grid-cols-1 gap-3 sm:hidden">
+                  {items.map((m) => (
+                    <ManhuaCard key={m._id} manhua={m} variant="horizontal" />
+                  ))}
+                </div>
+
+                {/* Desktop: Grid Cards */}
+                <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4">
+                  {items.map((m) => (
+                    <ManhuaCard key={m._id} manhua={m} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-300 sm:text-sm">
+                <button
+                  disabled={!hasPrev}
+                  onClick={() => hasPrev && setPage((p) => p - 1)}
+                  className="min-h-[44px] rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 hover:border-cyan-500/60 hover:bg-slate-800 sm:px-6"
+                >
+                  ← Өмнөх
+                </button>
+                <span className="text-xs sm:text-sm">
+                  Хуудас <span className="font-semibold">{page}</span> /{" "}
+                  {totalPages}
+                </span>
+                <button
+                  disabled={!hasNext}
+                  onClick={() => hasNext && setPage((p) => p + 1)}
+                  className="min-h-[44px] rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 hover:border-cyan-500/60 hover:bg-slate-800 sm:px-6"
+                >
+                  Дараах →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
