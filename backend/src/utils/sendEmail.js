@@ -2,13 +2,15 @@
 const nodemailer = require("nodemailer");
 
 let transporterPromise = null;
+let transporterVerified = false; // Track if verification already done
 
 function getEnv() {
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM || (user ? `"Manhua.mn" <${user}>` : undefined);
+  const from =
+    process.env.SMTP_FROM || (user ? `"Manhua.mn" <${user}>` : undefined);
   const resendKey = process.env.RESEND_API_KEY || "";
   const resendFrom = process.env.RESEND_FROM || from;
   return { host, port, user, pass };
@@ -50,15 +52,17 @@ async function getTransporter() {
       },
     });
 
-    // One-time verification (optional but very helpful in prod logs)
-    if (process.env.NODE_ENV === "production") {
+    // One-time verification ONLY on first creation (not on every request)
+    // This prevents slow verification on every forgot password request
+    if (process.env.NODE_ENV === "production" && !transporterVerified) {
       try {
         await transporter.verify();
         console.log("✅ SMTP transporter verified");
+        transporterVerified = true; // Mark as verified so we don't verify again
       } catch (e) {
         console.error("❌ SMTP verify failed", e?.message || e);
-        // Let it throw so caller can retry / queue can backoff
-        throw e;
+        // Don't throw - allow transporter to be used anyway (verify is optional)
+        // Connection will be tested on first actual send
       }
     }
 
@@ -75,7 +79,9 @@ async function sendWithSMTP({ to, subject, html }) {
     const info = await transporter.sendMail({
       from:
         process.env.SMTP_FROM ||
-        (process.env.SMTP_USER ? `"Arc-Read.com" <${process.env.SMTP_USER}>` : undefined),
+        (process.env.SMTP_USER
+          ? `"Arc-Read.com" <${process.env.SMTP_USER}>`
+          : undefined),
       to,
       subject,
       html,
@@ -143,13 +149,19 @@ module.exports = async function sendEmail(payload) {
   try {
     return await sendWithSMTP({ to, subject, html });
   } catch (smtpErr) {
-    console.error("SMTP send failed, trying fallback provider if available:", smtpErr?.message || smtpErr);
+    console.error(
+      "SMTP send failed, trying fallback provider if available:",
+      smtpErr?.message || smtpErr
+    );
     // If fallback is configured, try Resend
     if (process.env.RESEND_API_KEY) {
       try {
         return await sendWithResend({ to, subject, html });
       } catch (fallbackErr) {
-        console.error("Fallback email provider failed:", fallbackErr?.message || fallbackErr);
+        console.error(
+          "Fallback email provider failed:",
+          fallbackErr?.message || fallbackErr
+        );
         throw fallbackErr;
       }
     }

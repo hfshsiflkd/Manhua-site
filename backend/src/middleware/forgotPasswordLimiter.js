@@ -1,27 +1,33 @@
 const rateLimit = require("express-rate-limit");
 
-// IP дээр: 10 удаа / 15 минут
+// IP дээр: 5 удаа / 15 минут
 const forgotPasswordIpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Хэт олон оролдлого. Түр хүлээгээд дахин оролдоно уу." },
+  message: {
+    ok: false,
+    message: "Дахин оролдоно уу. Түр хүлээнэ үү.",
+  },
 });
 
-// Email/username дээр: 2 удаа / 10 минут
-const forgotPasswordIdLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 2,
+// Email дээр: 3 удаа / 1 цаг
+const forgotPasswordEmailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const id = String(req.body?.emailOrUsername || req.body?.email || "")
+    const email = String(req.body?.email || req.body?.identifier || "")
       .trim()
       .toLowerCase();
-    return id ? `fp:${id}` : `fp:unknown`;
+    return email ? `fp:email:${email}` : `fp:email:unknown`;
   },
-  message: { message: "Түр хүлээгээд дахин оролдоно уу." },
+  message: {
+    ok: false,
+    message: "Дахин оролдоно уу. Түр хүлээнэ үү.",
+  },
 });
 
-module.exports = { forgotPasswordIpLimiter, forgotPasswordIdLimiter };
+module.exports = { forgotPasswordIpLimiter, forgotPasswordEmailLimiter };

@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const { enqueueEmail } = require("../queues/emailQueue");
 const { genSessionToken } = require("../utils/token");
+const { normalizeEmail } = require("../utils/normalize");
 
 // ✅ no-store helper
 function noStore(res) {
@@ -21,12 +22,6 @@ function noStore(res) {
 
 function sha256(input) {
   return crypto.createHash("sha256").update(String(input)).digest("hex");
-}
-
-function normalizeEmail(email) {
-  return String(email || "")
-    .trim()
-    .toLowerCase();
 }
 
 // Helper to send consistent error responses
@@ -213,100 +208,133 @@ exports.forgotPassword = async (req, res, next) => {
   try {
     noStore(res);
 
-    const identifier = String(
-      req.body.email || req.body.identifier || ""
-    ).trim();
-    if (!identifier) {
+    const emailInput = String(req.body.email || req.body.identifier || "").trim();
+    if (!emailInput) {
       return sendError(
         res,
         400,
-        "Имэйл эсвэл хэрэглэгчийн нэр шаардлагатай.",
-        "MISSING_IDENTIFIER"
+        "Имэйл шаардлагатай.",
+        "MISSING_EMAIL"
       );
     }
 
-    // Don't leak whether email exists - always return same response
-    const okResponse = () =>
-      res.json({
-        success: true,
-        message:
-          "Хэрэв энэ имэйл бүртгэлтэй бол нууц үг сэргээх холбоос илгээгдэнэ.",
+    // Normalize email: trim + lowercase
+    const normalizedEmail = normalizeEmail(emailInput);
+
+    // Validate email format
+    if (!normalizedEmail.includes("@")) {
+      return sendError(
+        res,
+        400,
+        "Зөв имэйл хаяг оруулна уу.",
+        "INVALID_EMAIL"
+      );
+    }
+
+    // Find user by email with minimal select for performance
+    // Email field has unique: true and index: true for fast lookup
+    const user = await User.findOne({ email: normalizedEmail })
+      .select("_id email username")
+      .lean();
+
+    // If user NOT found, return explicit 404 message
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        message: "Бүртгэлгүй хэрэглэгч байна.",
       });
+    }
 
-    // Try to find user by email or username
-    const identifierEmail = identifier.includes("@")
-      ? normalizeEmail(identifier)
-      : identifier.toLowerCase();
-
-    const user = await User.findOne({
-      $or: [{ email: identifierEmail }, { username: identifier }],
-    }).select(
-      "+resetPasswordRequestedAt +resetPasswordTokenHash +resetPasswordExpiresAt +email"
+    // Rate limiting: 1 request per minute per user (in addition to middleware)
+    const fullUser = await User.findById(user._id).select(
+      "+resetPasswordRequestedAt +resetPasswordTokenHash +resetPasswordExpiresAt"
     );
 
-    if (!user) return okResponse();
+    if (!fullUser) {
+      return res.status(404).json({
+        ok: false,
+        message: "Бүртгэлгүй хэрэглэгч байна.",
+      });
+    }
 
-    // Rate limiting: 1 request per minute
     const now = Date.now();
-    const last = user.resetPasswordRequestedAt
-      ? user.resetPasswordRequestedAt.getTime()
+    const last = fullUser.resetPasswordRequestedAt
+      ? new Date(fullUser.resetPasswordRequestedAt).getTime()
       : 0;
 
-    if (last && now - last < 60 * 1000) return okResponse();
+    if (last && now - last < 60 * 1000) {
+      return res.json({
+        ok: true,
+        message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ.",
+      });
+    }
 
-    // Use User model method to generate token (do not persist yet)
-    const rawToken = user.createPasswordResetToken();
+    // Generate reset token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+    // Set token fields (but don't save yet - only after email succeeds)
+    fullUser.resetPasswordTokenHash = tokenHash;
+    fullUser.resetPasswordExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    fullUser.resetPasswordRequestedAt = new Date();
 
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const resetLink = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(
-      user.email
-    )}`;
+    // Use userId in reset link
+    const resetLink = `${baseUrl}/reset-password?token=${rawToken}&id=${fullUser._id}`;
 
     try {
       await enqueueEmail({
-        to: user.email,
-        subject: "Нууц үг сэргээх холбоос",
+        to: fullUser.email,
+        subject: "Нууц үг сэргээх",
         html: `
         <div style="font-family:Arial,sans-serif;line-height:1.5">
           <h2>Нууц үг сэргээх хүсэлт</h2>
-          <p>Доорх товч дээр дарж нууц үгээ шинэчлээрэй (45 минут хүчинтэй).</p>
+          <p>Доорх товч дээр дарж нууц үгээ шинэчлээрэй (15 минут хүчинтэй).</p>
           <p>
             <a href="${resetLink}" style="display:inline-block;padding:10px 14px;background:#111;color:#fff;border-radius:8px;text-decoration:none">
               Нууц үг сэргээх
             </a>
           </p>
           <p>Эсвэл энэ холбоосыг copy хийнэ үү:</p>
-          <p>${resetLink}</p>
+          <p style="word-break:break-all">${resetLink}</p>
           <p style="color:#666;font-size:12px">Хэрэв та энэ хүсэлтийг гаргаагүй бол үл тооно уу.</p>
         </div>
       `,
-        text: `Нууц үг сэргээх холбоос (45 минут хүчинтэй): ${resetLink}`,
+        text: `Нууц үг сэргээх холбоос (15 минут хүчинтэй): ${resetLink}`,
       });
 
       // Persist token only after email succeeds
-      await user.save();
+      await fullUser.save();
+
+      return res.json({
+        ok: true,
+        message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ.",
+      });
     } catch (emailErr) {
       console.error(
         "Forgot password email failed:",
         emailErr?.message || emailErr
       );
       // Rollback token fields so token is not usable if email failed
-      user.resetPasswordTokenHash = undefined;
-      user.resetPasswordExpiresAt = undefined;
-      user.resetPasswordRequestedAt = undefined;
+      fullUser.resetPasswordTokenHash = undefined;
+      fullUser.resetPasswordExpiresAt = undefined;
+      fullUser.resetPasswordRequestedAt = undefined;
       try {
-        await user.save();
+        await fullUser.save();
       } catch (rollbackErr) {
         console.error(
           "Rollback reset token failed:",
           rollbackErr?.message || rollbackErr
         );
       }
-      // Always return generic success to avoid leaking existence
-      return okResponse();
+      // Return error but don't reveal email existence
+      return sendError(
+        res,
+        500,
+        "Имэйл илгээхэд алдаа гарлаа. Дахин оролдоно уу.",
+        "EMAIL_SEND_FAILED"
+      );
     }
-
-    return okResponse();
   } catch (err) {
     console.error("Forgot password error:", err);
     next(err);
@@ -317,17 +345,19 @@ exports.resetPassword = async (req, res, next) => {
   try {
     noStore(res);
 
-    const email = normalizeEmail(req.body.email);
+    // Support both email and userId for reset
+    const userId = req.body.id || req.body.userId;
+    const email = req.body.email ? normalizeEmail(req.body.email) : null;
     const token = String(req.body.token || "").trim();
     const newPassword = String(
       req.body.newPassword || req.body.password || ""
     ).trim();
 
-    if (!email || !token || !newPassword) {
+    if ((!userId && !email) || !token || !newPassword) {
       return sendError(
         res,
         400,
-        "email, token, newPassword шаардлагатай",
+        "id (эсвэл email), token, newPassword шаардлагатай",
         "MISSING_FIELDS"
       );
     }
@@ -344,11 +374,13 @@ exports.resetPassword = async (req, res, next) => {
     // Hash the token to compare with stored hash
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-    const user = await User.findOne({
-      email,
-      resetPasswordTokenHash: tokenHash,
-      resetPasswordExpiresAt: { $gt: new Date() },
-    }).select("+password");
+    // Build query - prefer userId if provided
+    const query = userId
+      ? { _id: userId, resetPasswordTokenHash: tokenHash }
+      : { email, resetPasswordTokenHash: tokenHash };
+    query.resetPasswordExpiresAt = { $gt: new Date() };
+
+    const user = await User.findOne(query).select("+password");
 
     if (!user) {
       return sendError(

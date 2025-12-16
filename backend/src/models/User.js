@@ -15,7 +15,7 @@ const preferenceStringArray = {
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
+    email: { type: String, required: true, unique: true, lowercase: true, index: true },
     phone: { type: String, default: "" },
 
     password: { type: String, required: true, minlength: 8, select: false },
