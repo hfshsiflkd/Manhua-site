@@ -26,11 +26,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.cloudflare.com",
       },
-    ],
-    // Also allow specific domains if needed
-    domains: [
-      "res.cloudinary.com",
-      "via.placeholder.com", // for placeholder images
+      // Placeholder images
+      {
+        protocol: "https",
+        hostname: "via.placeholder.com",
+      },
     ],
   },
 };

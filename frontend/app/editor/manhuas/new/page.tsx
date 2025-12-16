@@ -3,7 +3,6 @@
 
 import { useState, FormEvent, ChangeEvent, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import EditorShell from "../components/EditorShell";
 import { uploadImage, editorCreateManhua } from "@/lib/api";
 
 const GENRE_OPTIONS = [
@@ -33,7 +32,7 @@ export default function EditorNewManhuaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // title → автоматаар slug
+  // Auto-generate slug from title
   const autoSlug = useMemo(
     () =>
       title
@@ -77,7 +76,7 @@ export default function EditorNewManhuaPage() {
       let coverImageUrl: string | undefined;
 
       if (coverFile) {
-        const result = await uploadImage(coverFile); // { url }
+        const result = await uploadImage(coverFile);
         coverImageUrl = (result as any).url;
       }
 
@@ -92,11 +91,7 @@ export default function EditorNewManhuaPage() {
       };
 
       const manhua = await editorCreateManhua(payload);
-
-      // Editor → дууссаны дараа editor талын manage руу үсрэхийг хүсвэл:
-      router.push(`/admin/manhuas/${manhua._id}`);
-      // Хэрвээ admin manage руу үсрэх хэвээр байгааг хүсвэл дээрх мөрийг солиод:
-      // router.push(`/admin/manhuas/${manhua._id}`);
+      router.push(`/editor/manhuas/${manhua.slug || manhua._id}`);
     } catch (err: any) {
       console.error("[EditorNewManhua] create error:", err);
       setError(
@@ -108,28 +103,42 @@ export default function EditorNewManhuaPage() {
   };
 
   return (
-    <EditorShell
-      title="Шинэ манхуа (Editor)"
-      subtitle="Editor эрхтэй хэрэглэгч шинэ манхуа үүсгэнэ."
-    >
-      <div className="grid gap-6 pb-10 lg:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)]">
-        {/* LEFT – FORM */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-lg shadow-black/40">
-          {error && (
-            <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {error}
-            </div>
-          )}
+    <div className="space-y-6 pb-20 lg:pb-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-1">
+          Шинэ манхуа үүсгэх
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-400">
+          Шинэ манхуа-аа үүсгэж, үндсэн мэдээллээ оруулна уу.
+        </p>
+      </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Title + Slug */}
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
-                  Title<span className="text-red-400">*</span>
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {/* Form */}
+      <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
+        {/* Left - Form */}
+        <div className="space-y-6">
+          {/* Basic Info */}
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">
+              Үндсэн мэдээлэл
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Title */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Title <span className="text-red-400">*</span>
                 </label>
                 <input
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+                  type="text"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                   placeholder="Жишээ: Solo Leveling"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -137,47 +146,50 @@ export default function EditorNewManhuaPage() {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
+              {/* Slug */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
                   Slug
-                  <span className="ml-1 text-[10px] text-slate-500">
-                    (/manhua/slug)
+                  <span className="ml-2 text-xs text-slate-500">
+                    (автоматаар үүснэ)
                   </span>
                 </label>
                 <input
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+                  type="text"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 font-mono"
                   placeholder={autoSlug || "solo-leveling"}
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                 />
-                <p className="text-[10px] text-slate-500">
-                  Үр дүн:{" "}
-                  <span className="font-mono text-slate-200">
+                <p className="text-xs text-slate-500">
+                  URL:{" "}
+                  <span className="font-mono text-slate-300">
                     /manhua/{effectiveSlug || "<slug>"}
                   </span>
                 </p>
               </div>
-            </div>
 
-            {/* Description */}
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300">Тайлбар</label>
-              <textarea
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                placeholder="Товч агуулга, гол санаа, уншигчдад өгөх мэдрэмж гэх мэт..."
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+              {/* Description */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Тайлбар
+                </label>
+                <textarea
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 resize-none"
+                  placeholder="Товч агуулга, гол санаа, уншигчдад өгөх мэдрэмж гэх мэт..."
+                  rows={4}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
 
-            {/* Status + Genres */}
-            <div className="grid gap-3 md:grid-cols-[1.1fr,2fr]">
               {/* Status */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">Төлөв</label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Төлөв
+                </label>
                 <select
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                   value={status}
                   onChange={(e) =>
                     setStatus(
@@ -191,12 +203,12 @@ export default function EditorNewManhuaPage() {
                 </select>
               </div>
 
-              {/* Genre chips */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
-                  Genres (сонгох)
+              {/* Genres */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Genres
                 </label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {GENRE_OPTIONS.map((g) => {
                     const active = selectedGenres.includes(g);
                     return (
@@ -204,7 +216,7 @@ export default function EditorNewManhuaPage() {
                         key={g}
                         type="button"
                         onClick={() => toggleGenre(g)}
-                        className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                           active
                             ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
                             : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
@@ -216,7 +228,7 @@ export default function EditorNewManhuaPage() {
                   })}
                 </div>
                 {selectedGenres.length > 0 && (
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     Сонгосон:{" "}
                     <span className="text-slate-200">
                       {selectedGenres.join(", ")}
@@ -224,47 +236,75 @@ export default function EditorNewManhuaPage() {
                   </p>
                 )}
               </div>
-            </div>
+            </form>
+          </section>
 
-            {/* Submit */}
-            <div className="flex justify-end pt-2">
+          {/* Action Bar - Desktop Sticky, Mobile Fixed Bottom */}
+          <div className="hidden lg:flex sticky bottom-6 items-center justify-end gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => router.push("/editor/manhuas")}
+              className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-800 transition"
+            >
+              Цуцлах
+            </button>
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={saving}
+              className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
+            >
+              {saving ? "Хадгалж байна..." : "Манхуа үүсгэх"}
+            </button>
+          </div>
+          
+          {/* Mobile Action Bar - Fixed Bottom */}
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t border-slate-800 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm">
+            <div className="flex gap-3 max-w-7xl mx-auto">
+              <button
+                type="button"
+                onClick={() => router.push("/editor/manhuas")}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-slate-200 hover:bg-slate-800 transition"
+              >
+                Цуцлах
+              </button>
               <button
                 type="submit"
+                onClick={handleSubmit}
                 disabled={saving}
-                className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:opacity-60"
+                className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
               >
-                {saving ? "Хадгалж байна..." : "Манхуа үүсгэх"}
+                {saving ? "Хадгалж байна..." : "Үүсгэх"}
               </button>
             </div>
-          </form>
-        </section>
+          </div>
+        </div>
 
-        {/* RIGHT – COVER PREVIEW */}
-        <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/90 p-4">
+        {/* Right - Cover Preview */}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
           {coverPreview && (
-            <div className="pointer-events-none absolute inset-0 opacity-25">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+            <div className="pointer-events-none absolute inset-0 opacity-20">
               <img
                 src={coverPreview}
                 alt="Cover bg"
-                className="h-full w-full object-cover blur-xl"
+                className="h-full w-full object-cover blur-2xl scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
             </div>
           )}
 
-          <div className="relative z-10 space-y-3">
+          <div className="relative z-10 space-y-4">
             <div>
-              <p className="text-xs font-semibold text-slate-100">
+              <h3 className="text-sm font-semibold text-slate-100 mb-1">
                 Cover зураг
-              </p>
-              <p className="text-[11px] text-slate-400">
-                JPG / PNG сонгоод, upload хийгдээгүй бол default зураг
+              </h3>
+              <p className="text-xs text-slate-400">
+                JPG / PNG сонгоод upload хийгдээгүй бол default зураг
                 ашиглагдана.
               </p>
             </div>
 
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 shadow shadow-black/40 hover:bg-slate-800">
+            <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-2.5 text-sm font-medium text-slate-100 hover:bg-slate-800 transition">
               <input
                 type="file"
                 accept="image/*"
@@ -274,13 +314,12 @@ export default function EditorNewManhuaPage() {
               {coverFile ? "Файл солих" : "Файл сонгох"}
             </label>
 
-            <div className="mt-2 flex justify-center">
-              <div className="aspect-[3/4] w-40 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg shadow-black/50">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+            <div className="flex justify-center">
+              <div className="aspect-[3/4] w-full max-w-[192px] sm:w-48 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg">
                 <img
                   src={
                     coverPreview ||
-                    "https://via.placeholder.com/300x400?text=Cover"
+                    "https://via.placeholder.com/300x400?text=No+Cover"
                   }
                   alt="Cover preview"
                   className="h-full w-full object-cover"
@@ -289,7 +328,7 @@ export default function EditorNewManhuaPage() {
             </div>
 
             {coverFile && (
-              <p className="mt-1 text-center text-[11px] text-slate-400">
+              <p className="text-center text-xs text-slate-400">
                 Сонгосон файл:{" "}
                 <span className="font-medium text-slate-200">
                   {coverFile.name}
@@ -297,8 +336,8 @@ export default function EditorNewManhuaPage() {
               </p>
             )}
           </div>
-        </section>
+        </div>
       </div>
-    </EditorShell>
+    </div>
   );
 }

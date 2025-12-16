@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/admin/manhuas/[slug]/chapters/new/page.tsx
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
@@ -11,7 +10,7 @@ interface ChapterPageInput {
   imageUrl: string;
 }
 
-export default function AdminNewChapterPage() {
+export default function EditorNewChapterPage() {
   const params = useParams();
   const slug = params?.slug as string;
   const router = useRouter();
@@ -20,8 +19,8 @@ export default function AdminNewChapterPage() {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<"published" | "draft">("published");
   const [files, setFiles] = useState<FileList | null>(null);
-
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFiles(e.target.files);
@@ -29,53 +28,52 @@ export default function AdminNewChapterPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError(null);
 
     if (!slug) {
-      alert("Manhua slug олдсонгүй");
+      setError("Manhua slug олдсонгүй");
       return;
     }
     if (!files || files.length === 0) {
-      alert("Ядаж нэг зураг сонгоно уу");
+      setError("Ядаж нэг зураг сонгоно уу");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // 1) Бүх зургийг дарааллаар нь uploadImage() ашиглаж Cloudinary руу upload хийх
+      // Upload all images
       const uploadedUrls: string[] = [];
       for (const file of Array.from(files)) {
-        // uploadImage → POST /api/upload  (field name: "image")
-        const result = await uploadImage(file); // { url }
+        const result = await uploadImage(file);
         uploadedUrls.push((result as any).url);
       }
 
       if (!uploadedUrls.length) {
-        alert("Зураг upload болоогүй байна");
+        setError("Зураг upload болоогүй байна");
         return;
       }
 
-      // 2) Pages массив бэлдэх (1..N)
+      // Create pages array
       const pages: ChapterPageInput[] = uploadedUrls.map((url, idx) => ({
         pageNumber: idx + 1,
         imageUrl: url,
       }));
 
-     await api.post(`/editor/manhuas/${slug}/chapters`, {
-       chapterNumber,
-       title,
-       pages,
-       language: "mn",
-       status, // "published" эсвэл "draft"
-     });
+      await api.post(`/editor/manhuas/${slug}/chapters`, {
+        chapterNumber,
+        title,
+        pages,
+        language: "mn",
+        status,
+      });
 
-      // 4) Амжилттай бол chapter list рүү буцаах
       router.push(`/editor/manhuas/${slug}/chapters`);
     } catch (e: any) {
       console.error(e);
-      alert(
+      setError(
         e?.response?.data?.message ||
-          "Шинэ chapter үүсгэхэд алдаа гарлаа (admin)"
+          "Шинэ chapter үүсгэхэд алдаа гарлаа"
       );
     } finally {
       setSubmitting(false);
@@ -83,108 +81,189 @@ export default function AdminNewChapterPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-8 pt-3 text-xs text-slate-100 sm:px-4">
-      {/* HEADER */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/85 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-0.5">
-          <h1 className="text-sm font-semibold sm:text-base">
-            Шинэ chapter нэмэх
+    <div className="space-y-6 pb-20 lg:pb-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              type="button"
+              onClick={() => router.push(`/editor/manhuas/${slug}/chapters`)}
+              className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition"
+            >
+              ← Chapters
+            </button>
+            <span className="text-sm text-slate-400">/</span>
+            <span className="text-sm font-mono text-slate-300">{slug}</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-1">
+            Шинэ Chapter
           </h1>
-          <p className="text-[11px] text-slate-400 sm:text-xs">
-            Manhua:{" "}
-            <span className="font-mono text-slate-200">
-              {slug || "(slug байхгүй)"}
-            </span>
+          <p className="text-xs sm:text-sm text-slate-400">
+            Шинэ chapter үүсгэж, зургуудыг upload хийх.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push(`/editor/manhuas/${slug}/chapters`)}
-          className="self-start rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[10px] text-slate-200 hover:border-cyan-400 hover:text-cyan-300 sm:self-auto"
-        >
-          Chapter жагсаалт руу буцах
-        </button>
       </div>
 
-      {/* FORM CARD */}
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-lg shadow-black/50"
-      >
-        {/* row: chapter number + status */}
-        <div className="grid gap-3 sm:grid-cols-[0.9fr,1.1fr]">
-          <div className="space-y-1">
-            <label className="text-[11px] text-slate-400">Chapter number</label>
-            <input
-              type="number"
-              min={1}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={chapterNumber}
-              onChange={(e) => setChapterNumber(Number(e.target.value) || 1)}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-[11px] text-slate-400">Status</label>
-            <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as "published" | "draft")
-              }
-            >
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
-          </div>
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
+          {/* Left - Metadata */}
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">
+              Chapter мэдээлэл
+            </h2>
+            <div className="space-y-4">
+              {/* Chapter Number */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Chapter number
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  value={chapterNumber}
+                  onChange={(e) =>
+                    setChapterNumber(Number(e.target.value) || 1)
+                  }
+                />
+              </div>
+
+              {/* Title */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Chapter title
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  placeholder="Жишээ: First Encounter"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+
+              {/* Status */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Status
+                </label>
+                <select
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  value={status}
+                  onChange={(e) =>
+                    setStatus(e.target.value as "published" | "draft")
+                  }
+                >
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* Right - Images */}
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">
+              Зургийн файлууд
+            </h2>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Зургууд (олон сонгож болно)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full text-sm text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-cyan-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950 hover:file:bg-cyan-400 transition"
+                />
+                {files && files.length > 0 && (
+                  <p className="text-xs text-slate-400">
+                    Сонгосон {files.length} зураг – дарааллаар нь page 1..N
+                    болж орно.
+                  </p>
+                )}
+              </div>
+
+              {/* Preview */}
+              {files && files.length > 0 && (
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                  <p className="text-xs font-medium text-slate-300 mb-2">
+                    Сонгосон зургууд ({files.length}):
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {Array.from(files).slice(0, 8).map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="aspect-square overflow-hidden rounded-lg border border-slate-800 bg-slate-900"
+                      >
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Preview ${idx + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {files.length > 8 && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      +{files.length - 8} илүү зураг...
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
-        {/* title */}
-        <div className="space-y-1">
-          <label className="text-[11px] text-slate-400">Chapter title</label>
-          <input
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-            placeholder="Жишээ: First Encounter"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        {/* files */}
-        <div className="space-y-1">
-          <label className="text-[11px] text-slate-400">
-            Зургийн файлууд (олон сонгож болно)
-          </label>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFileChange}
-            className="w-full text-[11px] text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-500 file:px-3 file:py-1 file:text-[11px] file:font-semibold file:text-slate-950 hover:file:bg-cyan-400"
-          />
-          {files && files.length > 0 && (
-            <p className="text-[10px] text-slate-400">
-              Сонгосон {files.length} зураг – дарааллаар нь page 1..N болж орно.
-            </p>
-          )}
-        </div>
-
-        {/* submit */}
-        <div className="flex items-center justify-end gap-2 pt-2">
+        {/* Action Bar - Desktop Sticky, Mobile Fixed Bottom */}
+        <div className="hidden lg:flex sticky bottom-6 items-center justify-end gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm">
           <button
             type="button"
             disabled={submitting}
             onClick={() => router.push(`/editor/manhuas/${slug}/chapters`)}
-            className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+            className="rounded-xl border border-slate-700 bg-slate-900 px-5 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-60 transition"
           >
             Цуцлах
           </button>
           <button
             type="submit"
             disabled={submitting || !files?.length}
-            className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-1.5 text-[11px] font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:cursor-not-allowed disabled:bg-slate-700"
+            className="rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed transition"
           >
             {submitting ? "Үүсгэж байна..." : "Chapter үүсгэх"}
           </button>
+        </div>
+        
+        {/* Mobile Action Bar - Fixed Bottom */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t border-slate-800 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm">
+          <div className="flex gap-3 max-w-7xl mx-auto">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => router.push(`/editor/manhuas/${slug}/chapters`)}
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-60 transition"
+            >
+              Цуцлах
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !files?.length}
+              className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed transition"
+            >
+              {submitting ? "Үүсгэж байна..." : "Үүсгэх"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

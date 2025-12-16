@@ -1,74 +1,68 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/app/admin/manhuas/[slug]/page.tsx
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import AdminShell from "../components/EditorShell";
 import {
-  adminGetManhua,
-  adminUpdateManhua,
-  adminDeleteManhua,
+  editorGetMyManhuas,
+  editorUpdateManhua,
   uploadImage,
   Manhua,
 } from "@/lib/api";
 
-// ─────────────────────────────────────
-//  Туслах жижиг components
-// ─────────────────────────────────────
-function PanelShell({
-  title,
-  children,
-  right,
-}: {
-  title: string;
-  children: React.ReactNode;
-  right?: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-slate-800/80 bg-slate-950/85 p-3.5 text-xs text-slate-300 shadow-md shadow-black/40">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-50">{title}</h3>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
+const GENRE_OPTIONS = [
+  "Romance",
+  "Comedy",
+  "Drama",
+  "Action",
+  "Fantasy",
+  "Slice of Life",
+  "School",
+  "Isekai",
+  "Adventure",
+];
+
+// Slugify helper function (matches backend logic)
+function slugify(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-[11px] text-slate-400">{children}</label>;
-}
-
-function TextInput(
-  props: React.InputHTMLAttributes<HTMLInputElement> & { small?: boolean }
-) {
-  const { small, className, ...rest } = props;
+// Star Rating Display Component
+function StarRatingDisplay({ rating }: { rating: number }) {
+  const clampedRating = Math.min(5, Math.max(0, rating));
+  
   return (
-    <input
-      {...rest}
-      className={
-        "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 " +
-        (small ? "py-1 text-[11px]" : "py-1.5 text-xs") +
-        " text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 " +
-        (className || "")
-      }
-    />
-  );
-}
-
-function TextArea(
-  props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { rows?: number }
-) {
-  const { className, ...rest } = props;
-  return (
-    <textarea
-      {...rest}
-      className={
-        "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 " +
-        (className || "")
-      }
-    />
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const isFull = clampedRating >= star;
+        const isHalf = clampedRating >= star - 0.5 && clampedRating < star;
+        
+        if (isFull) {
+          return (
+            <span key={star} className="text-amber-400 text-lg">
+              ★
+            </span>
+          );
+        } else if (isHalf) {
+          return (
+            <span key={star} className="text-amber-400/50 text-lg">
+              ★
+            </span>
+          );
+        } else {
+          return (
+            <span key={star} className="text-slate-600 text-lg">
+              ★
+            </span>
+          );
+        }
+      })}
+    </div>
   );
 }
 
@@ -76,8 +70,7 @@ function TextArea(
 //  Үндсэн page component
 // ─────────────────────────────────────
 export default function AdminManhuaDetailPage() {
-  const { slug } = useParams() as { slug?: string };
-  const manhuaId = slug as string | undefined;
+  const { slug: routeSlug } = useParams() as { slug?: string };
   const router = useRouter();
 
   const [manhua, setManhua] = useState<Manhua | null>(null);
@@ -86,6 +79,7 @@ export default function AdminManhuaDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSlugLocked, setIsSlugLocked] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -94,13 +88,14 @@ export default function AdminManhuaDetailPage() {
     coverImage: "",
     status: "ongoing",
     genres: "",
+    rating: "",
   });
 
   // ─── LOAD DATA ─────────────────────
   useEffect(() => {
-    if (!manhuaId) {
+    if (!routeSlug) {
       setLoading(false);
-      setError("Manhua ID олдсонгүй.");
+      setError("Manhua slug олдсонгүй.");
       return;
     }
 
@@ -108,21 +103,39 @@ export default function AdminManhuaDetailPage() {
       try {
         setLoading(true);
         setError(null);
-        const data = await adminGetManhua(manhuaId);
-        setManhua(data);
+        // Fetch all my manhuas and find the one with matching slug
+        const manhuas = await editorGetMyManhuas();
+        const found = manhuas.find(
+          (m) => m.slug === routeSlug || m._id === routeSlug
+        );
+
+        if (!found) {
+          setError("Манхуа олдсонгүй эсвэл та энэ манхуа-д хандах эрхгүй байна.");
+          setManhua(null);
+          return;
+        }
+
+        setManhua(found);
+
+        // Determine if slug was custom (differs from auto-generated)
+        const autoSlug = slugify(found.title);
+        const wasCustom = Boolean(found.slug && found.slug !== autoSlug);
 
         setForm({
-          title: data.title,
-          slug: data.slug || "",
-          description: data.description || "",
-          coverImage: data.coverImage || data.coverImageUrl || "",
-          status: data.status || "ongoing",
-          genres: data.genres?.join(", ") || "",
+          title: found.title,
+          slug: found.slug || "",
+          description: found.description || "",
+          coverImage: found.coverImage || (found as any).coverImageUrl || "",
+          status: found.status || "ongoing",
+          genres: found.genres?.join(", ") || "",
+          rating: found.rating?.toString() || "0",
         });
+
+        setIsSlugLocked(wasCustom);
       } catch (e: any) {
-        console.error("[AdminManhuaDetail] load error:", e);
+        console.error("[EditorManhuaDetail] load error:", e);
         setError(
-          e?.response?.data?.message || "Манхуа ачаалж чадсангүй (admin view)"
+          e?.response?.data?.message || "Манхуа ачаалж чадсангүй"
         );
         setManhua(null);
       } finally {
@@ -131,12 +144,12 @@ export default function AdminManhuaDetailPage() {
     };
 
     fetchManhua();
-  }, [manhuaId]);
+  }, [routeSlug]);
 
   // ─── SAVE ─────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manhuaId || !manhua) return;
+    if (!manhua || !manhua._id) return;
 
     try {
       setSaving(true);
@@ -147,21 +160,52 @@ export default function AdminManhuaDetailPage() {
         .map((g) => g.trim())
         .filter(Boolean);
 
-      const updated = await adminUpdateManhua(manhuaId, {
+      // Parse and validate rating
+      const ratingValue = form.rating
+        ? Math.min(5, Math.max(0, parseFloat(form.rating) || 0))
+        : 0;
+
+      // Normalize and clean slug
+      const cleanedSlug = form.slug.trim() 
+        ? slugify(form.slug.trim())
+        : undefined;
+      
+      // Update form if slug was cleaned
+      if (cleanedSlug && cleanedSlug !== form.slug) {
+        setForm((f) => ({ ...f, slug: cleanedSlug }));
+      }
+
+      const payload: any = {
         title: form.title,
-        slug: form.slug || undefined,
+        slug: cleanedSlug,
         description: form.description || undefined,
         coverImage: form.coverImage || undefined,
         status: form.status,
         genres: genresArray,
-      });
+        rating: ratingValue,
+      };
+
+      const updated = await editorUpdateManhua(manhua._id, payload);
+
+      // If slug changed, update route
+      if (updated.slug && updated.slug !== routeSlug) {
+        router.replace(`/editor/manhuas/${updated.slug}`);
+      }
 
       setManhua(updated);
     } catch (e: any) {
-      console.error("[AdminManhuaDetail] save error:", e);
-      setError(
-        e?.response?.data?.message || "Манхуа хадгалах үед алдаа гарлаа"
-      );
+      console.error("[EditorManhuaDetail] save error:", e);
+      
+      // Handle uniqueness/conflict errors
+      if (e?.response?.status === 409 || 
+          e?.response?.data?.message?.toLowerCase().includes("slug") ||
+          e?.response?.data?.message?.toLowerCase().includes("unique")) {
+        setError("Slug давхцаж байна. Өөр slug сонгоно уу.");
+      } else {
+        setError(
+          e?.response?.data?.message || "Манхуа хадгалах үед алдаа гарлаа"
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -192,57 +236,61 @@ export default function AdminManhuaDetailPage() {
   };
 
   // ─── DELETE ───────────────────────
+  // Note: Editors may not have delete permission, so this might not work
+  // If delete is needed, implement editorDeleteManhua endpoint
   const handleDelete = async () => {
-    if (!manhuaId || !manhua) return;
+    if (!manhua || !manhua._id) return;
     const ok = window.confirm(
       `"${manhua.title}" манхуа-г үнэхээр устгах уу? Энэ үйлдлийг буцаах боломжгүй.`
     );
     if (!ok) return;
 
-    try {
-      setDeleting(true);
-      setError(null);
-      await adminDeleteManhua(manhuaId);
-      router.push("/admin/manhuas");
-    } catch (e: any) {
-      console.error("[AdminManhuaDetail] delete error:", e);
-      setError(e?.response?.data?.message || "Манхуа устгах үед алдаа гарлаа");
-      setDeleting(false);
-    }
+    setError("Editor эрхтэй хэрэглэгч манхуа устгах боломжгүй. Админ-тай холбогдоно уу.");
+    setDeleting(false);
   };
 
   // ─── STATE RENDER ─────────────────
   if (loading && !manhua && !error) {
     return (
-      <AdminShell title="Manhua manage" subtitle="Манхуа ачаалж байна...">
-        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-400">
-          Loading...
-        </div>
-      </AdminShell>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="text-sm text-slate-400">Манхуа ачаалж байна...</div>
+      </div>
     );
   }
 
   if (error && !manhua) {
     return (
-      <AdminShell title="Manhua manage" subtitle="Нэг манхуаны дэлгэрэнгүй.">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 mb-1">
+            Манхуа удирдах
+          </h1>
+          <p className="text-sm text-slate-400">Нэг манхуаны дэлгэрэнгүй.</p>
+        </div>
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
           <p className="mb-1">{error}</p>
           <p className="text-slate-300">
-            ID:{" "}
-            <span className="font-mono text-xs">{manhuaId ?? "(хоосон)"}</span>
+            Slug:{" "}
+            <span className="font-mono text-xs">{routeSlug ?? "(хоосон)"}</span>
           </p>
         </div>
-      </AdminShell>
+      </div>
     );
   }
 
   if (!manhua) {
     return (
-      <AdminShell title="Manhua manage" subtitle="Нэг манхуаны дэлгэрэнгүй.">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 mb-1">
+            Манхуа удирдах
+          </h1>
+          <p className="text-sm text-slate-400">Нэг манхуаны дэлгэрэнгүй.</p>
+        </div>
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
           Манхуа олдсонгүй.
         </div>
-      </AdminShell>
+      </div>
     );
   }
 
@@ -270,300 +318,382 @@ export default function AdminManhuaDetailPage() {
       ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/40"
       : "bg-amber-500/20 text-amber-200 border border-amber-500/40";
 
-  // ─── MAIN UI (cover as background) ─
+  // ─── MAIN UI ─
   return (
-    <AdminShell
-      title="Manhua manage"
-      subtitle="Манхуа мэдээлэл, cover, slug, жанр, эзэн гээд бүх зүйлийг эндээс удирдана."
-    >
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-2xl shadow-black/60">
-        {/* BACKGROUND – cover зураг blur-тай */}
-        <div className="pointer-events-none absolute inset-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverPreview}
-            alt={manhua.title}
-            className="h-full w-full object-cover blur-2xl scale-110 opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/90 via-slate-950/92 to-slate-950/98" />
-        </div>
-
-        {/* FOREGROUND CONTENT */}
-        <div className="relative z-10 p-4 sm:p-5 space-y-5">
-          {/* TOP BAR */}
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex gap-3">
-              <div className="relative h-16 w-12 overflow-hidden rounded-md bg-slate-900/80 shadow shadow-black/60">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={coverPreview}
-                  alt={manhua.title}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div className="space-y-1">
-                <h1 className="text-sm font-semibold text-slate-50 sm:text-base">
-                  {manhua.title}
-                </h1>
-                {manhua.slug && (
-                  <p className="text-[11px] text-slate-400">
-                    /manhua/
-                    <span className="font-mono text-slate-200">
-                      {manhua.slug}
-                    </span>
-                  </p>
-                )}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}
-                  >
-                    {manhua.status || "ongoing"}
-                  </span>
-                  {manhua.genres && manhua.genres.length > 0 && (
-                    <span className="line-clamp-1 text-[11px] text-slate-300">
-                      {manhua.genres.join(", ")}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-start gap-2 text-[11px] text-slate-400 md:items-end">
-              <div className="flex flex-wrap gap-2">
-                {createdAt && (
-                  <span>
-                    Created: <span className="text-slate-100">{createdAt}</span>
-                  </span>
-                )}
-                {updatedAt && (
-                  <span>
-                    Updated: <span className="text-slate-100">{updatedAt}</span>
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => router.push("/editor/manhuas")}
-                  className="rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-slate-900"
-                >
-                  ← Back
-                </button>
-                <a
-                  href={publicUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-lg bg-cyan-500/90 px-3 py-1.5 text-[11px] font-medium text-slate-950 hover:bg-cyan-400"
-                >
-                  Open public page
-                </a>
-              </div>
-            </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              type="button"
+              onClick={() => router.push("/editor/manhuas")}
+              className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition"
+            >
+              ← My Manhuas
+            </button>
           </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-1">
+            Манхуа удирдах
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400">
+            Манхуа мэдээлэл, cover, slug, жанр гээд бүх зүйлийг эндээс удирдана.
+          </p>
+        </div>
+        <a
+          href={publicUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center justify-center rounded-xl border border-cyan-500/60 bg-cyan-500/10 px-3 py-2 text-xs sm:text-sm font-medium text-cyan-200 hover:bg-cyan-500/20 transition w-full sm:w-auto"
+        >
+          <span className="hidden sm:inline">Public page</span>
+          <span className="sm:hidden">View</span>
+          <span className="ml-1">→</span>
+        </a>
+      </div>
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {error}
+        </div>
+      )}
 
-          {/* MAIN GRID */}
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr),minmax(0,1.3fr)]">
-            {/* LEFT – Cover + form */}
-            <div className="space-y-3">
-              {/* Cover change – зөвхөн товч, URL харагдэхгүй */}
-              <PanelShell
-                title="Cover image"
-                right={
-                  <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-slate-800">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleCoverFileChange}
-                    />
-                    {uploadingCover ? "Uploading..." : "Change cover"}
-                  </label>
-                }
-              >
-                <div className="flex gap-3">
-                  <div className="relative aspect-[3/4] w-24 overflow-hidden rounded-lg bg-slate-900">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverPreview}
-                      alt={form.title}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Энэ зургийг манхуагийн нүүр зураг болгон ашиглана.{" "}
-                    <span className="text-slate-200">Change cover</span> дарж
-                    шинэ файл сонгож upload хийнэ.
-                  </p>
-                </div>
-              </PanelShell>
+      {/* Main Content */}
+      <div className="space-y-6 pb-20 lg:pb-6">
 
-              {/* Edit form */}
-              <PanelShell title="Basic info">
+        {/* Main Grid */}
+        <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
+          {/* Left - Form */}
+          <div className="space-y-6">
+            {/* Basic Info */}
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+              <h2 className="text-lg font-semibold text-slate-100 mb-4">
+                Үндсэн мэдээлэл
+              </h2>
                 {error && (
                   <div className="mb-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[11px] text-red-200">
                     {error}
                   </div>
                 )}
 
-                <form onSubmit={handleSave} className="space-y-3">
-                  {/* Title */}
-                  <div className="space-y-1">
-                    <Label>
-                      Title<span className="text-red-400"> *</span>
-                    </Label>
-                    <TextInput
-                      value={form.title}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, title: e.target.value }))
-                      }
-                      required
-                    />
-                  </div>
+              <form onSubmit={handleSave} className="space-y-4">
+                {/* Title */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Title <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    value={form.title}
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      setForm((f) => {
+                        const newForm = { ...f, title: newTitle };
+                        // Auto-sync slug if not locked
+                        if (!isSlugLocked) {
+                          newForm.slug = slugify(newTitle);
+                        }
+                        return newForm;
+                      });
+                    }}
+                    required
+                  />
+                </div>
 
-                  {/* Slug */}
-                  <div className="space-y-1">
-                    <Label>
+                {/* Slug */}
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <label className="text-sm font-medium text-slate-300">
                       Slug
-                      <span className="ml-1 text-[10px] text-slate-500">
+                      <span className="ml-2 text-xs text-slate-500 hidden sm:inline">
                         (/manhua/slug – өөрчлөхдөө болгоомжтой)
                       </span>
-                    </Label>
-                    <TextInput
-                      value={form.slug}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, slug: e.target.value }))
-                      }
-                      placeholder="my-manhua-slug"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-1">
-                    <Label>Description</Label>
-                    <TextArea
-                      rows={3}
-                      value={form.description}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, description: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  {/* Status + Genres */}
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label>Status</Label>
-                      <select
-                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                        value={form.status}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, status: e.target.value }))
-                        }
-                      >
-                        <option value="ongoing">Ongoing</option>
-                        <option value="completed">Completed</option>
-                        <option value="hiatus">Hiatus</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Genres (comma separated)</Label>
-                      <TextInput
-                        value={form.genres}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, genres: e.target.value }))
-                        }
-                        placeholder="Romance, Comedy, Fantasy..."
-                      />
-                    </div>
-                  </div>
-
-                  {/* hidden cover url */}
-                  <input type="hidden" value={form.coverImage} readOnly />
-
-                  {/* Buttons */}
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                    </label>
                     <button
                       type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="rounded-lg border border-red-500/60 bg-red-500/10 px-3 py-1.5 text-[11px] font-medium text-red-200 hover:bg-red-500/20 transition disabled:opacity-60"
+                      onClick={() => {
+                        setIsSlugLocked(false);
+                        setForm((f) => ({ ...f, slug: slugify(f.title) }));
+                      }}
+                      className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition self-start sm:self-auto"
+                      title={isSlugLocked ? "Slug автоматаар үүсгэх" : "Slug гараар"}
                     >
-                      {deleting ? "Устгаж байна..." : "Устгах"}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-[11px] font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:opacity-60"
-                    >
-                      {saving ? "Хадгалж байна..." : "Хадгалах"}
+                      {isSlugLocked ? (
+                        <>
+                          <span>🔒</span>
+                          <span className="hidden sm:inline">Автоматаар</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>🔓</span>
+                          <span className="hidden sm:inline">Автоматаар</span>
+                        </>
+                      )}
                     </button>
                   </div>
-                </form>
-              </PanelShell>
-            </div>
-
-            {/* RIGHT – Owner + System */}
-            <div className="space-y-3">
-              <PanelShell
-                title="Owner"
-                right={
-                  manhua.createdBy && (
-                    <span className="inline-flex rounded-full bg-slate-800/90 px-2 py-0.5 text-[10px] text-slate-200">
-                      {(manhua.createdBy as any).role ?? "user"}
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 font-mono focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    value={form.slug}
+                    onChange={(e) => {
+                      setIsSlugLocked(true);
+                      const inputValue = e.target.value;
+                      // Apply slugify on input to keep it clean
+                      setForm((f) => ({ ...f, slug: slugify(inputValue) }));
+                    }}
+                    placeholder={slugify(form.title) || "my-manhua-slug"}
+                  />
+                  <p className="text-xs text-slate-500 break-all">
+                    URL:{" "}
+                    <span className="font-mono text-slate-300">
+                      /manhua/{form.slug || slugify(form.title) || "<slug>"}
                     </span>
-                  )
-                }
-              >
-                {manhua.createdBy ? (
-                  <div className="space-y-1">
-                    <p>
-                      Username:{" "}
-                      <span className="font-medium">
-                        {manhua.createdBy.username}
-                      </span>
-                    </p>
-                    {(manhua.createdBy as any).email && (
-                      <p className="text-slate-400">
-                        {(manhua.createdBy as any).email}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-500">
-                    Owner мэдээлэл байхгүй.
                   </p>
-                )}
-              </PanelShell>
+                </div>
 
-              <PanelShell title="System info">
-                <div className="space-y-1 font-mono text-[11px] text-slate-300">
-                  <p>
-                    ID: <span className="text-slate-100">{manhua._id}</span>
-                  </p>
-                  {manhua.slug && (
-                    <p>
-                      Slug:{" "}
-                      <span className="text-slate-100">{manhua.slug}</span>
-                    </p>
-                  )}
-                  {createdAt && (
-                    <p>
-                      Created:{" "}
-                      <span className="text-slate-200">{createdAt}</span>
-                    </p>
-                  )}
-                  {updatedAt && (
-                    <p>
-                      Updated:{" "}
-                      <span className="text-slate-200">{updatedAt}</span>
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Description
+                  </label>
+                  <textarea
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 resize-none focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, description: e.target.value }))
+                    }
+                  />
+                </div>
+
+                {/* Status */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Status
+                  </label>
+                  <select
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, status: e.target.value }))
+                    }
+                  >
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
+                    <option value="hiatus">Hiatus</option>
+                  </select>
+                </div>
+
+                {/* Genres - Pill selection */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Genres (сонгох)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {GENRE_OPTIONS.map((g) => {
+                      const selectedGenres = form.genres
+                        .split(",")
+                        .map((genre) => genre.trim())
+                        .filter(Boolean);
+                      const active = selectedGenres.includes(g);
+                      return (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => {
+                            const current = form.genres
+                              .split(",")
+                              .map((genre) => genre.trim())
+                              .filter(Boolean);
+                            const exists = current.includes(g);
+                            const next = exists
+                              ? current.filter((genre) => genre !== g)
+                              : [...current, g];
+                            setForm((f) => ({
+                              ...f,
+                              genres: next.join(", "),
+                            }));
+                          }}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
+                              : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {form.genres
+                    .split(",")
+                    .map((g) => g.trim())
+                    .filter(Boolean).length > 0 && (
+                    <p className="text-xs text-slate-500">
+                      Сонгосон:{" "}
+                      <span className="text-slate-200">
+                        {form.genres
+                          .split(",")
+                          .map((g) => g.trim())
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
                     </p>
                   )}
                 </div>
-              </PanelShell>
+
+                {/* Rating */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Rating / Star (0.0 – 5.0)
+                  </label>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                    <input
+                      type="number"
+                      min={0}
+                      max={5}
+                      step={0.1}
+                      className="w-full sm:w-24 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                      value={form.rating}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          setForm((f) => ({ ...f, rating: "" }));
+                          return;
+                        }
+                        const num = parseFloat(val);
+                        if (!isNaN(num)) {
+                          const clamped = Math.min(5, Math.max(0, num));
+                          setForm((f) => ({ ...f, rating: clamped.toString() }));
+                        }
+                      }}
+                      placeholder="0.0"
+                    />
+                    <div className="flex items-center gap-3">
+                      <StarRatingDisplay
+                        rating={form.rating ? parseFloat(form.rating) || 0 : 0}
+                      />
+                      <span className="text-sm text-slate-400 whitespace-nowrap">
+                        {form.rating ? parseFloat(form.rating).toFixed(1) : "0.0"} / 5
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Манхуа-ны үнэлгээ (0.0-5.0 хооронд, 0.1-ийн алхамтай)
+                  </p>
+                </div>
+
+                <input type="hidden" value={form.coverImage} readOnly />
+              </form>
+            </section>
+
+            {/* Cover Image Section */}
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-100">
+                  Cover зураг
+                </h2>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800 transition w-full sm:w-auto">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleCoverFileChange}
+                  />
+                  {uploadingCover ? "Uploading..." : "Change cover"}
+                </label>
+              </div>
+              <div className="flex justify-center">
+                <div className="relative aspect-[3/4] w-full max-w-[192px] sm:w-48 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg">
+                  <img
+                    src={coverPreview}
+                    alt={form.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-slate-400 text-center">
+                Энэ зургийг манхуагийн нүүр зураг болгон ашиглана.
+              </p>
+            </section>
+          </div>
+
+          {/* Right - Info & Actions */}
+          <div className="space-y-6">
+            {/* Action Bar - Desktop sticky, hidden on mobile */}
+            <div className="hidden lg:block sticky top-6 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 sm:p-6 shadow-xl backdrop-blur-sm">
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
+                >
+                  {saving ? "Хадгалж байна..." : "Хадгалах"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-200 hover:bg-red-500/20 disabled:opacity-60 transition"
+                >
+                  {deleting ? "Устгаж байна..." : "Устгах"}
+                </button>
+              </div>
             </div>
+            
+            {/* Mobile Action Bar - Fixed at bottom */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t border-slate-800 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm lg:hidden">
+              <div className="flex gap-3 max-w-7xl mx-auto">
+                <button
+                  type="submit"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
+                >
+                  {saving ? "Хадгалж байна..." : "Хадгалах"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200 hover:bg-red-500/20 disabled:opacity-60 transition"
+                >
+                  {deleting ? "Устгах..." : "Устгах"}
+                </button>
+              </div>
+            </div>
+
+            {/* System Info */}
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+              <h2 className="text-lg font-semibold text-slate-100 mb-4">
+                System мэдээлэл
+              </h2>
+              <div className="space-y-2 font-mono text-xs text-slate-300">
+                <p>
+                  ID: <span className="text-slate-100">{manhua._id}</span>
+                </p>
+                {manhua.slug && (
+                  <p>
+                    Slug: <span className="text-slate-100">{manhua.slug}</span>
+                  </p>
+                )}
+                {createdAt && (
+                  <p>
+                    Created: <span className="text-slate-200">{createdAt}</span>
+                  </p>
+                )}
+                {updatedAt && (
+                  <p>
+                    Updated: <span className="text-slate-200">{updatedAt}</span>
+                  </p>
+                )}
+              </div>
+            </section>
           </div>
         </div>
       </div>
-    </AdminShell>
+    </div>
   );
 }
