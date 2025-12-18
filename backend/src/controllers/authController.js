@@ -142,18 +142,23 @@ exports.register = async (req, res, next) => {
 };
 
 exports.login = async (req, res, next) => {
+  // Declare identifier at function scope so it's accessible in catch block
+  let identifier = "";
+
   try {
     noStore(res);
 
+    // Destructure request body - support both identifier and legacy email/emailOrUsername fields
     const {
+      identifier: bodyIdentifier,
       email,
       emailOrUsername,
       password,
       deviceId: bodyDeviceId,
     } = req.body;
 
-    // Validate input
-    const identifier = (emailOrUsername || email || "").trim();
+    // Validate input - prioritize identifier field, fallback to emailOrUsername or email
+    identifier = (bodyIdentifier || emailOrUsername || email || "").trim();
     if (!identifier) {
       return sendError(
         res,
@@ -217,14 +222,20 @@ exports.login = async (req, res, next) => {
   } catch (err) {
     // Handle known errors with statusCode
     if (err.statusCode) {
-      // Log failed login
+      // Log failed login (safe logging - no passwords, masked identifier)
+      const maskedIdentifier = identifier
+        ? identifier.length > 3
+          ? identifier.substring(0, 3) + "***"
+          : "***"
+        : null;
+
       logAudit(req, {
         level: "WARN",
         category: "auth",
         action: "login_fail",
         message: `Login failed: ${err.message}`,
         meta: {
-          identifier: identifier ? identifier.substring(0, 3) + "***" : null,
+          identifier: maskedIdentifier,
           errorCode: err.code,
         },
       });
@@ -237,8 +248,12 @@ exports.login = async (req, res, next) => {
       if (err.code) response.code = err.code;
       return res.status(err.statusCode).json(response);
     }
-    // Log unexpected errors for debugging
-    console.error("Login error:", err);
+    // Log unexpected errors for debugging (safe logging)
+    console.error("Login error:", {
+      message: err.message,
+      stack: err.stack,
+      identifier: identifier ? identifier.substring(0, 3) + "***" : "none",
+    });
     return next(err);
   }
 };
