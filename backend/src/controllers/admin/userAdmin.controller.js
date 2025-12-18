@@ -157,24 +157,47 @@ exports.resetPassword = async (req, res) => {
   const user = await User.findById(req.params.id).select("+password");
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
-  // ✅ FIX: Ensure password is always hashed by pre-save hook
-  // Problem: If password isn't detected as modified, pre-save hook won't hash it
-  // Solution: Set plain password and explicitly mark it as modified to guarantee the hook runs
-  // The pre-save hook checks isModified("password") - by calling markModified we ensure it's detected
-  // This prevents storing plain text passwords when admin resets user passwords
-  user.password = plainPassword;
-  user.markModified("password"); // Force Mongoose to detect password as modified
+  // ✅ FIX: Ensure password is always hashed correctly
+  // Problem: Pre-save hook might not run if password isn't detected as modified
+  // Solution: Use updateOne to bypass hooks and manually hash the password
+  // This guarantees the password is always hashed, regardless of hook behavior
   
-  user.tokenVersion += 1;
-  user.sessionToken = null;
-  await user.save();
+  // Hash the password manually using bcrypt (same as pre-save hook)
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(plainPassword, salt);
+  
+  // Use updateOne to bypass pre-save hook and set hashed password directly
+  // This ensures the password is always hashed correctly
+  const newTokenVersion = (user.tokenVersion || 0) + 1;
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        password: hashedPassword,
+        tokenVersion: newTokenVersion,
+        sessionToken: null,
+      },
+    }
+  );
+
+  // Verify password was saved correctly (safety check)
+  const verifyUser = await User.findById(user._id).select("+password");
+  if (!verifyUser || !verifyUser.password.startsWith("$2")) {
+    console.error("[SECURITY ERROR] Password was not hashed after admin reset!", {
+      userId: user._id,
+      username: user.username,
+    });
+    return res.status(500).json({ 
+      message: "Password reset failed - security error. Please try again." 
+    });
+  }
 
   await writeAudit({
     adminId: req.user.id || req.user._id,
     targetUserId: user._id,
     action: "RESET_PASSWORD",
     before: {},
-    after: { tokenVersion: user.tokenVersion },
+    after: { tokenVersion: newTokenVersion },
     req,
   });
 
