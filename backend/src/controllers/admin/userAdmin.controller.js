@@ -203,7 +203,7 @@ exports.resetPassword = async (req, res) => {
 
   return res.json({
     message: "Password reset successfully",
-    temporaryPassword: generateRandom ? password : undefined,
+    temporaryPassword: generateRandom ? plainPassword : undefined,
   });
 };
 
