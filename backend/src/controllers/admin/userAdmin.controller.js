@@ -150,14 +150,21 @@ exports.resetPassword = async (req, res) => {
       .status(400)
       .json({ message: "Password must be at least 8 characters" });
   }
-  const password = generateRandom
+  const plainPassword = generateRandom
     ? crypto.randomBytes(6).toString("hex")
     : newPassword;
 
   const user = await User.findById(req.params.id).select("+password");
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
-  user.password = password;
+  // ✅ FIX: Ensure password is always hashed by pre-save hook
+  // Problem: If password isn't detected as modified, pre-save hook won't hash it
+  // Solution: Set plain password and explicitly mark it as modified to guarantee the hook runs
+  // The pre-save hook checks isModified("password") - by calling markModified we ensure it's detected
+  // This prevents storing plain text passwords when admin resets user passwords
+  user.password = plainPassword;
+  user.markModified("password"); // Force Mongoose to detect password as modified
+  
   user.tokenVersion += 1;
   user.sessionToken = null;
   await user.save();
