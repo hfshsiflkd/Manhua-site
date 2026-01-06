@@ -7,7 +7,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import LockModal from "./components/LockModal";
 
 export const metadata: Metadata = {
-  title: "Manhua.mn",
+  title: "ARC•READ",
   description: "Монгол хэл дээр манхуа унших платформ",
 };
 

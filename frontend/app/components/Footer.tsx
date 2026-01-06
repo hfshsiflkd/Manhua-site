@@ -12,7 +12,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 py-10 space-y-10 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-12">
         {/* Logo */}
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-bold text-white mb-2">Manhua.mn</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">ARC•READ</h2>
           <p className="text-sm text-gray-400">
             Монгол уншигчдад зориулсан манхуа унших платформ.
           </p>
