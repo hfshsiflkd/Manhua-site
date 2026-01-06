@@ -83,9 +83,7 @@ export default function HomePage() {
       <PopularToday />
       <LatestUpdates
         updates={data.latestUpdates}
-        limitMobile={4}
         limitDesktop={6}
-        seeAllHref="/manhuas?sort=latest"
       />
       <TrialSurprise />
     </div>
