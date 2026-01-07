@@ -17,6 +17,13 @@ function getTodayDateKey() {
   return `${year}-${month}-${day}`;
 }
 
+function getMonthKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
 function trackView({ chapterId, manhuaId }) {
   if (chapterId) inc(chapterCounts, chapterId);
   if (manhuaId) inc(manhuaCounts, manhuaId);
@@ -24,12 +31,20 @@ function trackView({ chapterId, manhuaId }) {
 
 async function flush() {
   if (chapterCounts.size) {
+    const todayKey = getTodayDateKey();
+    const monthKey = getMonthKey();
     const ops = [];
     for (const [id, n] of chapterCounts.entries()) {
       ops.push({
         updateOne: {
           filter: { _id: id },
-          update: { $inc: { views: n } },
+          update: {
+            $inc: {
+              views: n,
+              [`dailyViews.${todayKey}`]: n,
+              [`monthlyViews.${monthKey}`]: n,
+            },
+          },
         },
       });
     }

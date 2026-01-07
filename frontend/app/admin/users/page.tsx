@@ -134,6 +134,11 @@ export default function AdminUsersPage() {
           user={selected}
           onClose={() => setSelected(null)}
           onSave={handleSaveUser}
+          onUserUpdated={(u) => {
+            setSelected(u);
+            // refresh list to reflect new VIP expiration immediately
+            load(page);
+          }}
         />
 
         <ResetPasswordModal

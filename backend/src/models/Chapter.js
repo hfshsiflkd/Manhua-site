@@ -43,6 +43,20 @@ const chapterSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Daily views tracking for monthly finance: { "2026-01-05": 10, ... }
+    dailyViews: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+
+    // Monthly views tracking: { "2026-01": 123, ... }
+    monthlyViews: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

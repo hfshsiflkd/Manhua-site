@@ -1,6 +1,7 @@
 // src/controllers/vipController.js
 const VipPlan = require("../models/VipPlan");
 const User = require("../models/User");
+const FinanceMonth = require("../models/FinanceMonth");
 const { computeIsVIP } = require("../utils/vip");
 
 // GET /api/vip/plans - Get active VIP plans
@@ -83,6 +84,32 @@ exports.purchaseVip = async (req, res, next) => {
     user.vipExpiresAt = newVipExpiresAt;
     user.isVIP = true; // Will be recomputed, but set explicitly
     await user.save();
+
+    // Record revenue for user leaderboard + finance distribution
+    // (treating purchase as paid immediately)
+    const paidAt = new Date();
+    const monthKey = `${paidAt.getUTCFullYear()}-${String(
+      paidAt.getUTCMonth() + 1
+    ).padStart(2, "0")}`;
+    await FinanceMonth.findOneAndUpdate(
+      { monthKey },
+      {
+        $inc: { totalRevenue: plan.priceTotal },
+        $push: {
+          revenueEvents: {
+            userId: user._id,
+            adminId: null,
+            amount: plan.priceTotal,
+            currency: "MNT",
+            paidAt,
+            monthsGranted: plan.months,
+            note: "vip_purchase",
+          },
+        },
+        $setOnInsert: { currency: "MNT" },
+      },
+      { upsert: true, new: false }
+    );
 
     // Recompute VIP status
     const isVIP = computeIsVIP(user);

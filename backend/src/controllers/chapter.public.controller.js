@@ -1,7 +1,6 @@
 // src/controllers/chapter.public.controller.js
 const Chapter = require("../models/Chapter");
 const { logAudit } = require("../utils/auditLogger");
-const { trackView } = require("../utils/viewCounter");
 const { getManhuaIdBySlug } = require("../services/manhua.service");
 const { chapterCache } = require("../cache/chapterCache");
 
@@ -73,11 +72,6 @@ exports.getChapter = async (req, res, next) => {
 
     const prev = result.prev?.[0] || null;
     const next = result.next?.[0] || null;
-
-    // ✅ view count
-    if (process.env.DISABLE_VIEWS !== "1") {
-      trackView({ chapterId: chapter._id, manhuaId });
-    }
 
     // Log chapter view
     if (req.audit) {

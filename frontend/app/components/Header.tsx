@@ -131,6 +131,10 @@ export default function Header() {
             Жагсаалт
           </Link>
 
+          <Link href="/leaderboard" className={isActive("/leaderboard")}>
+            Leaderboard
+          </Link>
+
           <Link href="/profile" className={isActive("/profile")}>
             Профайл
           </Link>
@@ -270,6 +274,14 @@ export default function Header() {
               onClick={() => setIsOpen(false)}
             >
               Профайл
+            </Link>
+
+            <Link
+              href="/leaderboard"
+              className={`${isActive("/leaderboard")} w-full text-left`}
+              onClick={() => setIsOpen(false)}
+            >
+              Leaderboard
             </Link>
 
             {user && (

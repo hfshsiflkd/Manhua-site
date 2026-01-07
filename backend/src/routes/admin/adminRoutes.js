@@ -25,6 +25,7 @@ const {
 router.use(protect, adminOnly);
 router.use("/trial", require("./trialRoutes"));
 router.use("/users", require("./userAdminRoutes"));
+router.use("/finance", require("./financeRoutes"));
 
 
 // Stats

@@ -97,3 +97,17 @@ export async function adminUnlockUser(id: string) {
   const res = await api.post<AdminUser>(`/admin/users/${id}/unlock`);
   return res.data;
 }
+
+export async function adminGrantVip(
+  id: string,
+  payload: {
+    months: number;
+    amount?: number;
+    paidAt?: string; // ISO or yyyy-mm-dd
+    note?: string;
+    vipLevel?: number;
+  }
+) {
+  const res = await api.post<{ user: AdminUser }>(`/admin/users/${id}/vip`, payload);
+  return res.data.user;
+}

@@ -3,11 +3,13 @@ const express = require("express");
 const router = express.Router();
 
 const { protect } = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authMiddleware");
 const {
   getMyManhuas,
   createManhua,
   updateManhua,
 } = require("../controllers/editorController");
+const { getEditorLeaderboard } = require("../controllers/editorLeaderboardController");
 
 const {
   editorListChaptersOfManhua,
@@ -18,6 +20,12 @@ const {
 
 // бүх editor route-ууд auth шаардлагатай
 router.use(protect);
+
+// Leaderboard should be visible to editors + admins (NOT translators)
+router.get("/leaderboard", requireRole("admin", "editor"), getEditorLeaderboard);
+
+// The rest of the editor area can be used by admin/editor/translator
+router.use(requireRole("admin", "editor", "translator"));
 
 // өөрийнхөө манхуа жагсаалт
 router.get("/manhuas/mine", getMyManhuas);
