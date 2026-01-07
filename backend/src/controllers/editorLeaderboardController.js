@@ -67,8 +67,8 @@ exports.getEditorLeaderboard = async (req, res) => {
   const siteShare = totalRevenue * 0.3;
   const editorsPool = totalRevenue * 0.7;
 
-  // include translators if they upload chapters; treat them as editors for leaderboard
-  const editors = await User.find({ role: { $in: ["editor", "translator"] } })
+  // Leaderboard is for editors only (translators excluded)
+  const editors = await User.find({ role: "editor" })
     .select("_id username email role")
     .lean();
   const editorIds = editors.map((e) => e._id);
