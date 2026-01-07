@@ -21,16 +21,16 @@ const Footer = () => {
 
         {/* Support */}
         <div className="text-center sm:text-left">
-          <h3 className="text-white font-semibold mb-3 text-lg">Support</h3>
+          <h3 className="text-white font-semibold mb-3 text-lg">Тусламж</h3>
           <ul className="space-y-2 text-sm">
-            <li className="hover:text-white cursor-pointer">About Us</li>
-            <li className="hover:text-white cursor-pointer">Contact</li>
+            <li className="hover:text-white cursor-pointer">Бидний тухай</li>
+            <li className="hover:text-white cursor-pointer">Холбоо барих</li>
           </ul>
         </div>
 
         {/* Social Icons */}
         <div className="text-center sm:text-left">
-          <h3 className="text-white font-semibold mb-3 text-lg">Follow Us</h3>
+          <h3 className="text-white font-semibold mb-3 text-lg">Биднийг дагах</h3>
 
           <div className="flex justify-center sm:justify-start gap-6 text-3xl">
             <a
@@ -66,7 +66,7 @@ const Footer = () => {
 
         {/* Feedback */}
         <div className="text-center sm:text-left">
-          <h3 className="text-white font-semibold mb-3 text-lg">Feedback</h3>
+          <h3 className="text-white font-semibold mb-3 text-lg">Санал хүсэлт</h3>
           <FeedbackFooterForm />
         </div>
       </div>

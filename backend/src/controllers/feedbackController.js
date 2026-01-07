@@ -30,12 +30,12 @@ exports.submitFeedback = [
     const type = String(req.body?.type || "").trim();
     const description = String(req.body?.description || "").trim();
 
-    if (!name) return res.status(400).json({ message: "name is required" });
+    if (!name) return res.status(400).json({ message: "Нэрээ оруулна уу." });
     if (!description) {
-      return res.status(400).json({ message: "description is required" });
+      return res.status(400).json({ message: "Дэлгэрэнгүй тайлбар оруулна уу." });
     }
     if (!["suggestion_request", "complaint"].includes(type)) {
-      return res.status(400).json({ message: "type is invalid" });
+      return res.status(400).json({ message: "Төрөл буруу байна." });
     }
 
     let imageUrl = "";
