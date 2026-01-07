@@ -24,12 +24,18 @@ function trackView({ chapterId, manhuaId }) {
 
 async function flush() {
   if (chapterCounts.size) {
+    const todayKey = getTodayDateKey();
     const ops = [];
     for (const [id, n] of chapterCounts.entries()) {
       ops.push({
         updateOne: {
           filter: { _id: id },
-          update: { $inc: { views: n } },
+          update: {
+            $inc: {
+              views: n,
+              [`dailyViews.${todayKey}`]: n,
+            },
+          },
         },
       });
     }

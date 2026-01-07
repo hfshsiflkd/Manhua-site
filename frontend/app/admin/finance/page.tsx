@@ -131,7 +131,7 @@ export default function AdminFinancePage() {
                 <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1">
                   Monthly views:{" "}
                   <b className="text-slate-50">
-                    {data.totals.manhuaMonthlyViews.toLocaleString("en-US")}
+                    {data.totals.chapterMonthlyViews.toLocaleString("en-US")}
                   </b>
                 </span>
               </div>
@@ -145,7 +145,7 @@ export default function AdminFinancePage() {
                       <th className="px-4 py-3">Editor</th>
                       <th className="px-4 py-3">Chapters (month)</th>
                       <th className="px-4 py-3">Manhuas (month)</th>
-                      <th className="px-4 py-3">Views (month)</th>
+                      <th className="px-4 py-3">Chapter views (month)</th>
                       <th className="px-4 py-3">Payout</th>
                     </tr>
                   </thead>
@@ -167,7 +167,7 @@ export default function AdminFinancePage() {
                           {r.manhuasUploaded.toLocaleString("en-US")}
                         </td>
                         <td className="px-4 py-3 text-slate-200">
-                          {r.manhuaMonthlyViews.toLocaleString("en-US")}
+                          {r.chapterMonthlyViews.toLocaleString("en-US")}
                         </td>
                         <td className="px-4 py-3 font-semibold text-emerald-200">
                           {formatMoney(r.payout, currency)}
@@ -191,7 +191,7 @@ export default function AdminFinancePage() {
 
             <section className="space-y-3">
               <h2 className="text-sm font-semibold text-slate-100">
-                Per-editor manhwa views (month)
+                Per-editor manhwa totals (from chapter views, month)
               </h2>
               <div className="grid gap-4 lg:grid-cols-2">
                 {rows.map((r) => (
@@ -204,7 +204,7 @@ export default function AdminFinancePage() {
                         {r.editor.username}
                       </div>
                       <div className="text-xs text-slate-400">
-                        {r.manhuaMonthlyViews.toLocaleString("en-US")} views
+                        {r.chapterMonthlyViews.toLocaleString("en-US")} chapter views
                       </div>
                     </div>
                     <div className="mt-3 space-y-2">
@@ -232,8 +232,8 @@ export default function AdminFinancePage() {
                 ))}
               </div>
               <div className="text-[11px] text-slate-500">
-                Note: the “views (month)” number is summed from `dailyViews` for
-                the selected month; the right-side number is lifetime views.
+                Note: “chapter views (month)” is summed from `Chapter.dailyViews`
+                for the selected month; the right-side number is the manhwa lifetime views.
               </div>
             </section>
           </>

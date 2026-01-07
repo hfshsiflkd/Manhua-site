@@ -12,7 +12,7 @@ export type FinanceEditorRow = {
   editor: { _id: string; username: string; email?: string };
   chaptersUploaded: number;
   manhuasUploaded: number;
-  manhuaMonthlyViews: number;
+  chapterMonthlyViews: number;
   manhuas: FinanceManhuaRow[];
   score: number;
   payout: number;
@@ -27,7 +27,7 @@ export type FinanceMonthResponse = {
   totals: {
     chaptersUploaded: number;
     manhuasUploaded: number;
-    manhuaMonthlyViews: number;
+    chapterMonthlyViews: number;
   };
   editors: FinanceEditorRow[];
 };

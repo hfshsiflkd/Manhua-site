@@ -94,7 +94,10 @@ async function main() {
   }
 
   // 1) Increment all chapters
-  const chRes = await Chapter.updateMany({}, { $inc: { views: perChapter } });
+  const chRes = await Chapter.updateMany(
+    {},
+    { $inc: { views: perChapter, [`dailyViews.${dateKey}`]: perChapter } }
+  );
   console.log(
     `Updated chapters: matched=${chRes.matchedCount} modified=${chRes.modifiedCount}`
   );
