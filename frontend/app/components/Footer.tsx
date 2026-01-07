@@ -5,11 +5,12 @@ import {
   FaXTwitter,
   FaYoutube,
 } from "react-icons/fa6";
+import FeedbackFooterForm from "./FeedbackFooterForm";
 
 const Footer = () => {
   return (
     <footer className="bg-[#0B0D17] text-gray-300 mt-16">
-      <div className="max-w-7xl mx-auto px-4 py-10 space-y-10 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-12">
+      <div className="max-w-7xl mx-auto px-4 py-10 space-y-10 lg:grid lg:grid-cols-4 lg:gap-12 lg:space-y-0">
         {/* Logo */}
         <div className="text-center sm:text-left">
           <h2 className="text-2xl font-bold text-white mb-2">ARC•READ</h2>
@@ -61,6 +62,12 @@ const Footer = () => {
               <FaYoutube />
             </a>
           </div>
+        </div>
+
+        {/* Feedback */}
+        <div className="text-center sm:text-left">
+          <h3 className="text-white font-semibold mb-3 text-lg">Feedback</h3>
+          <FeedbackFooterForm />
         </div>
       </div>
 
