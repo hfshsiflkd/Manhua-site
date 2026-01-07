@@ -50,7 +50,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
     manhua.coverImage ||
     "https://via.placeholder.com/300x400";
 
-  const rating = Number(manhua.ratingAverage || 0);
+  const rating = Number((manhua as any).ratingAverage || (manhua as any).rating || 0);
   const hasRating = Number.isFinite(rating) && rating > 0;
 
   const views = Number((manhua as any).views || 0);

@@ -13,7 +13,9 @@ export default function RatingStars({
   size?: number;
   showValue?: boolean;
 }) {
-  const id = useId();
+  // React useId() can contain ":" which may break SVG url(#id) in some browsers.
+  const rawId = useId();
+  const id = rawId.replace(/[:]/g, "");
   const v = Number.isFinite(value) ? Math.max(0, Math.min(5, value)) : 0;
 
   return (
