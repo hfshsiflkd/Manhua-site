@@ -99,7 +99,16 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
 
             <div className="mt-2 flex items-center justify-between gap-2">
               {hasRating ? (
-                <RatingStars value={rating} size={14} showValue={false} />
+                <div className="flex items-center gap-1.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/star.svg"
+                    alt=""
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  />
+                  <RatingStars value={rating} size={13} showValue={false} />
+                </div>
               ) : (
                 <span className="text-[11px] text-slate-400">Үнэлгээ байхгүй</span>
               )}
@@ -119,7 +128,9 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
                 <span className="text-[11px] font-semibold text-amber-200">
                   {rating.toFixed(1)}
                 </span>
-              ) : null}
+              ) : (
+                <span className="text-[11px] text-slate-500">—</span>
+              )}
             </div>
           </div>
         </div>
@@ -156,6 +167,20 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
             {manhua.title}
           </h3>
 
+          {/* Rating */}
+          {hasRating && (
+            <div className="flex items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/star.svg"
+                alt=""
+                className="h-3.5 w-3.5"
+                aria-hidden="true"
+              />
+              <RatingStars value={rating} size={12} />
+            </div>
+          )}
+
           {/* Genres */}
           {genres.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
@@ -175,13 +200,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
 
           {/* Footer Info */}
           <div className="flex items-center justify-between gap-2">
-            {lastUpdate ? (
-              <span className="text-[10px] text-slate-400">{lastUpdate}</span>
-            ) : hasRating ? (
-              <RatingStars value={rating} size={12} />
-            ) : (
-              <span className="text-[10px] text-slate-600">-</span>
-            )}
+            <span className="text-[10px] text-slate-400">{lastUpdate || "—"}</span>
             {manhua.lastChapterNumber && (
               <span className="text-[10px] font-medium text-cyan-400">
                 Ch. {manhua.lastChapterNumber}
@@ -223,6 +242,20 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
           {manhua.title}
         </h3>
 
+        {/* Rating */}
+        {hasRating && (
+          <div className="flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/star.svg"
+              alt=""
+              className="h-4 w-4"
+              aria-hidden="true"
+            />
+            <RatingStars value={rating} size={13} />
+          </div>
+        )}
+
         {/* Genres */}
         {genres.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -246,15 +279,9 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
 
         {/* Footer Info */}
         <div className="flex items-center justify-between border-t border-slate-800 pt-2">
-          {lastUpdate ? (
-            <span className="text-[10px] text-slate-400 sm:text-xs">
-              {lastUpdate}
-            </span>
-          ) : hasRating ? (
-            <RatingStars value={rating} size={12} />
-          ) : (
-            <span className="text-[10px] text-slate-600 sm:text-xs">-</span>
-          )}
+          <span className="text-[10px] text-slate-400 sm:text-xs">
+            {lastUpdate || "—"}
+          </span>
           {manhua.lastChapterNumber && (
             <span className="text-[10px] text-cyan-400 sm:text-xs">
               Ch. {manhua.lastChapterNumber}
