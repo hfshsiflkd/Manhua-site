@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
+const FinanceMonth = require("../../models/FinanceMonth");
 const { writeAudit } = require("../../utils/audit");
 
 function buildSafeUser(user) {
@@ -50,6 +51,12 @@ function parseBool(val) {
   if (val === "true") return true;
   if (val === "false") return false;
   return undefined;
+}
+
+function getMonthKeyFromDate(d) {
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 exports.listUsers = async (req, res) => {
@@ -133,6 +140,100 @@ exports.updateUser = async (req, res) => {
   });
 
   res.json(after);
+};
+
+// POST /api/admin/users/:id/vip
+// body: { months: number, amount?: number, paidAt?: string|Date, note?: string, vipLevel?: number }
+// Extends VIP and (optionally) records revenue into monthly finance ledger based on paidAt month.
+exports.grantVip = async (req, res) => {
+  const { months, amount, paidAt, note, vipLevel } = req.body || {};
+  const monthsNum = Number(months ?? 1);
+
+  if (!Number.isFinite(monthsNum) || monthsNum <= 0 || monthsNum > 120) {
+    return res
+      .status(400)
+      .json({ message: "months нь 1-120 хооронд тоо байх ёстой" });
+  }
+
+  let amountNum = undefined;
+  if (amount !== undefined) {
+    amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum < 0) {
+      return res.status(400).json({ message: "amount must be a number >= 0" });
+    }
+  }
+
+  let paidAtDate = null;
+  if (paidAt !== undefined && paidAt !== null && String(paidAt).trim() !== "") {
+    const d = new Date(paidAt);
+    if (Number.isNaN(d.getTime())) {
+      return res.status(400).json({ message: "paidAt must be a valid date" });
+    }
+    paidAtDate = d;
+  } else {
+    paidAtDate = new Date();
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
+
+  const before = buildSafeUser(user);
+  const now = new Date();
+  const base =
+    user.vipExpiresAt && new Date(user.vipExpiresAt) > now
+      ? new Date(user.vipExpiresAt)
+      : now;
+  const newExp = new Date(base.getTime());
+  newExp.setMonth(newExp.getMonth() + monthsNum);
+
+  user.vipExpiresAt = newExp;
+  user.isVIP = true;
+  if (vipLevel !== undefined) user.vipLevel = Number(vipLevel) || 0;
+  await user.save();
+
+  let financeUpdated = null;
+  if (amountNum !== undefined && amountNum > 0) {
+    const monthKey = getMonthKeyFromDate(paidAtDate);
+    financeUpdated = await FinanceMonth.findOneAndUpdate(
+      { monthKey },
+      {
+        $inc: { totalRevenue: amountNum },
+        $push: {
+          revenueEvents: {
+            userId: user._id,
+            adminId: req.user.id || req.user._id,
+            amount: amountNum,
+            currency: "MNT",
+            paidAt: paidAtDate,
+            monthsGranted: monthsNum,
+            note: typeof note === "string" ? note : "",
+          },
+        },
+        $setOnInsert: { currency: "MNT" },
+      },
+      { new: true, upsert: true }
+    ).lean();
+  }
+
+  await writeAudit({
+    adminId: req.user.id || req.user._id,
+    targetUserId: user._id,
+    action: "GRANT_VIP",
+    before,
+    after: buildSafeUser(user),
+    req,
+  });
+
+  return res.json({
+    user: buildSafeUser(user),
+    financeMonth: financeUpdated
+      ? {
+          monthKey: financeUpdated.monthKey,
+          totalRevenue: financeUpdated.totalRevenue,
+          currency: financeUpdated.currency,
+        }
+      : null,
+  });
 };
 
 exports.resetPassword = async (req, res) => {

@@ -6,4 +6,5 @@ module.exports = {
   ...require("./vipController"),
   ...require("./manhuaController"),
   ...require("./logController"),
+  ...require("./financeController"),
 };

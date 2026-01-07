@@ -6,6 +6,7 @@ const {
   listUsers,
   getUser,
   updateUser,
+  grantVip,
   resetPassword,
   forceLogout,
   blockUser,
@@ -19,6 +20,7 @@ router.use(requireAdmin);
 router.get("/", listUsers);
 router.get("/:id", getUser);
 router.patch("/:id", updateUser);
+router.post("/:id/vip", grantVip);
 router.post("/:id/reset-password", resetPassword);
 router.post("/:id/force-logout", forceLogout);
 router.post("/:id/block", blockUser);

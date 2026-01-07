@@ -1,21 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AdminUser } from "@/lib/adminUsers";
+import { AdminUser, adminGrantVip } from "@/lib/adminUsers";
 
 export default function UserDetailDrawer({
   user,
   onClose,
   onSave,
+  onUserUpdated,
 }: {
   user: AdminUser | null;
   onClose: () => void;
   onSave: (id: string, payload: Partial<AdminUser>) => Promise<void>;
+  onUserUpdated?: (user: AdminUser) => void;
 }) {
   const [draft, setDraft] = useState<Partial<AdminUser> | null>(null);
+  const [vipAmount, setVipAmount] = useState<string>("");
+  const [vipPaidAt, setVipPaidAt] = useState<string>(() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  });
+  const [vipNote, setVipNote] = useState<string>("");
+  const [vipBusy, setVipBusy] = useState(false);
+  const [vipError, setVipError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(user || null);
+    setVipError(null);
   }, [user]);
 
   if (!user || !draft) return null;
@@ -26,15 +37,25 @@ export default function UserDetailDrawer({
 
   function addMonths(months: number) {
     if (!draft || !user) return;
-    const base =
-      draft.vipExpiresAt && new Date(draft.vipExpiresAt) > now
-        ? new Date(draft.vipExpiresAt)
-        : now;
-    const newDate = new Date(base);
-    newDate.setMonth(newDate.getMonth() + months);
-    const iso = newDate.toISOString();
-    setDraft((prev) => ({ ...prev, vipExpiresAt: iso }));
-    onSave(user._id, { vipExpiresAt: iso });
+    setVipBusy(true);
+    setVipError(null);
+    const amountNum = vipAmount.trim() ? Number(vipAmount) : undefined;
+    const paidAt = vipPaidAt ? new Date(vipPaidAt).toISOString() : undefined;
+
+    adminGrantVip(user._id, {
+      months,
+      amount: amountNum,
+      paidAt,
+      note: vipNote || undefined,
+    })
+      .then((updated) => {
+        setDraft(updated);
+        onUserUpdated?.(updated);
+      })
+      .catch((e: any) => {
+        setVipError(e?.response?.data?.message || "Failed to grant VIP");
+      })
+      .finally(() => setVipBusy(false));
   }
 
   return (
@@ -127,16 +148,66 @@ export default function UserDetailDrawer({
                   : "VIP байхгүй"}
               </span>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <label className="text-[11px] text-amber-200/80">
+                  Payment amount (MNT)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={vipAmount}
+                  onChange={(e) => setVipAmount(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full rounded-xl border border-amber-500/30 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-amber-200/80">
+                  Paid at
+                </label>
+                <input
+                  type="date"
+                  value={vipPaidAt}
+                  onChange={(e) => setVipPaidAt(e.target.value)}
+                  className="w-full rounded-xl border border-amber-500/30 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-amber-200/80">
+                  Note
+                </label>
+                <input
+                  type="text"
+                  value={vipNote}
+                  onChange={(e) => setVipNote(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full rounded-xl border border-amber-500/30 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                />
+              </div>
+            </div>
+
+            {vipError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+                {vipError}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {[1, 3, 6].map((m) => (
                 <button
                   key={m}
                   onClick={() => addMonths(m)}
+                  disabled={vipBusy}
                   className="rounded-full border border-amber-400/70 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-50 hover:bg-amber-500/20 transition"
                 >
                   +{m} month{m > 1 ? "s" : ""}
                 </button>
               ))}
+            </div>
+            <div className="text-[11px] text-amber-200/70">
+              If you fill “amount” + “paid at”, the monthly site balance is increased for that month.
             </div>
           </div>
 
