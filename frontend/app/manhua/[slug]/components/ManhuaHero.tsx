@@ -8,6 +8,7 @@ import type { Manhua, Chapter } from "@/types/manhua";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useBookmarks } from "@/lib/hooks/useBookmarks";
 import { useAuth } from "@/context/AuthContext";
+import RatingStars from "../../../manhuas/components/RatingStars";
 
 type ManhuaHeroProps = {
   manhua: Manhua;
@@ -44,7 +45,12 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   const bookmarks = useBookmarks(manhuaId);
 
   const coverSrc =
-    manhua.coverImage || "https://via.placeholder.com/450x600?text=No+Cover";
+    (manhua as any).coverImageUrl ||
+    manhua.coverImage ||
+    "https://via.placeholder.com/450x600?text=No+Cover";
+
+  const rating = Number((manhua as any).ratingAverage ?? (manhua as any).rating ?? 0);
+  const hasRating = Number.isFinite(rating) && rating > 0;
 
   const totalChapters = chapters.length;
   const latestChapter = totalChapters > 0 ? chapters[0] : null;
@@ -159,25 +165,30 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
 
                 {/* Small meta row: rating, chapters, last update */}
                 <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
-                  {typeof manhua.ratingAverage === "number" && (
-                    <span className="flex items-center gap-1">
-                      <span>⭐</span>
-                      <span className="font-medium text-slate-100">
-                        {manhua.ratingAverage.toFixed(1)}
-                      </span>
-                      <span className="text-slate-500">/ 5</span>
+                  {hasRating ? (
+                    <span className="flex items-center gap-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src="/star.svg"
+                        alt=""
+                        className="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      />
+                      <RatingStars value={rating} size={12} />
                     </span>
+                  ) : (
+                    <span className="text-slate-500">Үнэлгээ байхгүй</span>
                   )}
 
-                  {totalChapters > 0 && <span>{totalChapters} chapters</span>}
+                  {totalChapters > 0 && <span>{totalChapters} бүлэг</span>}
 
                   {manhua.views != null && (
-                    <span>{manhua.views.toLocaleString()} views</span>
+                    <span>{manhua.views.toLocaleString()} үзэлт</span>
                   )}
 
                   {lastUpdateText && (
                     <span className="text-slate-500">
-                      Last update:{" "}
+                      Сүүлд шинэчлэгдсэн:{" "}
                       <span className="text-slate-200">{lastUpdateText}</span>
                     </span>
                   )}
