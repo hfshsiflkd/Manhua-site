@@ -121,6 +121,40 @@ export default function ChapterReaderPage() {
     };
   }, [slug, chapterNumber]);
 
+  // ✅ Count a view ONLY after the user stayed 8+ seconds on the reader (and only once ever per user/device).
+  useEffect(() => {
+    if (!chapter?._id) return;
+    if (showVipGate) return;
+    if (loading) return;
+
+    let stopped = false;
+    let startToken: string | null = null;
+
+    const timer = setTimeout(async () => {
+      if (stopped) return;
+      try {
+        // Step 1: start token
+        const startRes = await api.post<{ token: string }>(
+          `/chapters/${chapter._id}/read/start`
+        );
+        startToken = startRes.data?.token;
+        if (!startToken || stopped) return;
+
+        // Step 2: confirm (server enforces >=8 seconds by token age)
+        await api.post(`/chapters/${chapter._id}/read/confirm`, {
+          token: startToken,
+        });
+      } catch {
+        // ignore (dedupe, missing device id, etc.)
+      }
+    }, 8000);
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [chapter?._id, showVipGate, loading]);
+
   // Track when images finish loading
   const handlePageLoad = () => {
     setLoadedPagesCount((prev) => {

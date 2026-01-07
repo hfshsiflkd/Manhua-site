@@ -50,6 +50,13 @@ const chapterSchema = new mongoose.Schema(
       default: {},
     },
 
+    // Monthly views tracking: { "2026-01": 123, ... }
+    monthlyViews: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

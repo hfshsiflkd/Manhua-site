@@ -27,6 +27,12 @@ function getMonthKeyFromDate(d) {
   return `${year}-${month}`;
 }
 
+function getMonthlyViewsFromMonthlyMap(monthlyViewsObj, monthKey) {
+  if (!monthlyViewsObj || typeof monthlyViewsObj !== "object") return 0;
+  const n = Number(monthlyViewsObj[monthKey] || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function sumMonthlyViewsFromDailyViews(dailyViewsObj, monthKey) {
   if (!dailyViewsObj || typeof dailyViewsObj !== "object") return 0;
   let sum = 0;
@@ -86,7 +92,7 @@ exports.getMonthlyFinance = async (req, res) => {
     ]),
     // For payout: use chapter views (monthly) only
     Chapter.find({ uploadedBy: { $in: editorIds } })
-      .select("_id manhua chapterNumber title uploadedBy views dailyViews")
+      .select("_id manhua chapterNumber title uploadedBy views dailyViews monthlyViews")
       .lean(),
     Manhua.find({ createdBy: { $in: editorIds } })
       .select("_id title slug createdBy views dailyViews")
@@ -103,8 +109,11 @@ exports.getMonthlyFinance = async (req, res) => {
   for (const ch of chapters) {
     const editorId = String(ch.uploadedBy || "");
     if (!editorId) continue;
+    const mv = normalizeToObjectMaybeMap(ch.monthlyViews);
     const dv = normalizeToObjectMaybeMap(ch.dailyViews);
-    const monthly = sumMonthlyViewsFromDailyViews(dv, monthKey);
+    const monthly =
+      getMonthlyViewsFromMonthlyMap(mv, monthKey) ||
+      sumMonthlyViewsFromDailyViews(dv, monthKey);
     if (!monthly) continue;
     chapterMonthlyViewsByEditor.set(
       editorId,

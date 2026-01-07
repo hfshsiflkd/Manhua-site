@@ -2,12 +2,14 @@
 const express = require("express");
 const router = express.Router();
 
-const {
-  getChaptersOfManhua,
-  getChapter,
-} = require("../controllers/chapterController");
 const { optionalProtect } = require("../middleware/optionalProtect");
 
+const {
+  startRead,
+  confirmRead,
+} = require("../controllers/chapterReadController");
 
+router.post("/:id/read/start", optionalProtect, startRead);
+router.post("/:id/read/confirm", optionalProtect, confirmRead);
 
 module.exports = router;

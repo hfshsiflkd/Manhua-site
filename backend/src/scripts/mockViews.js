@@ -43,6 +43,11 @@ function isValidDateKey(s) {
   return typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+function dateToMonthKey(dateKey) {
+  // dateKey: YYYY-MM-DD
+  return String(dateKey).slice(0, 7);
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   if (args.help) {
@@ -79,6 +84,7 @@ async function main() {
     console.error("Invalid --date. Use YYYY-MM-DD");
     process.exit(1);
   }
+  const monthKey = dateToMonthKey(dateKey);
 
   await mongoose.connect(mongoUri, {
     maxPoolSize: 10,
@@ -96,7 +102,13 @@ async function main() {
   // 1) Increment all chapters
   const chRes = await Chapter.updateMany(
     {},
-    { $inc: { views: perChapter, [`dailyViews.${dateKey}`]: perChapter } }
+    {
+      $inc: {
+        views: perChapter,
+        [`dailyViews.${dateKey}`]: perChapter,
+        [`monthlyViews.${monthKey}`]: perChapter,
+      },
+    }
   );
   console.log(
     `Updated chapters: matched=${chRes.matchedCount} modified=${chRes.modifiedCount}`
