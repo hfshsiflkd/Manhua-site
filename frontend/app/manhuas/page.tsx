@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { Manhua } from "@/types/manhua";
 import { ManhuaCard } from "./components/ManhuaCard";
-import { ManhuaSkeleton, ManhuaSkeletonHorizontal } from "./components/ManhuaSkeleton";
+import { ManhuaSkeleton } from "./components/ManhuaSkeleton";
 
 interface ManhuaListResponse {
   items: Manhua[];
@@ -309,10 +309,10 @@ export default function ManhuasPage() {
         {/* Loading / List */}
         {loading ? (
           <>
-            {/* Mobile: Horizontal Skeletons */}
-            <div className="grid grid-cols-1 gap-3 sm:hidden">
+            {/* Mobile: Modern grid skeletons */}
+            <div className="grid grid-cols-2 gap-3 sm:hidden">
               {Array.from({ length: 6 }).map((_, i) => (
-                <ManhuaSkeletonHorizontal key={i} />
+                <ManhuaSkeleton key={i} />
               ))}
             </div>
             {/* Desktop: Grid Skeletons */}
@@ -353,10 +353,10 @@ export default function ManhuasPage() {
               </div>
             ) : (
               <>
-                {/* Mobile: Horizontal Cards (1 column) */}
-                <div className="grid grid-cols-1 gap-3 sm:hidden">
+                {/* Mobile: Modern grid cards (2 columns) */}
+                <div className="grid grid-cols-2 gap-3 sm:hidden">
                   {items.map((m) => (
-                    <ManhuaCard key={m._id} manhua={m} variant="horizontal" />
+                    <ManhuaCard key={m._id} manhua={m} variant="mobile" />
                   ))}
                 </div>
 
