@@ -154,21 +154,6 @@ export default function FeedbackPage() {
 
           <div className="lg:col-span-2 space-y-4">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-              <div className="text-sm font-semibold text-slate-100">Жишээ</div>
-              <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                <li className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
-                  <b>Санал:</b> “Уншигч дээр харанхуй горим нэмбэл гоё.”
-                </li>
-                <li className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
-                  <b>Хүсэлт:</b> “Дараагийн бүлгийг автоматаар ачаалдаг болгох.”
-                </li>
-                <li className="rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2">
-                  <b>Гомдол:</b> “Chapter 12 дээр зураг цагаан болж харагдаж байна.”
-                </li>
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
               <div className="text-sm font-semibold text-slate-100">Тайлбар</div>
               <p className="mt-2 text-sm text-slate-300">
                 Илгээсэн мэдээлэл админ хэсэгт очиж, тус бүрээр нь шалгагдана.

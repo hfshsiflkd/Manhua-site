@@ -124,8 +124,14 @@ export default function AdminFeedbackPage() {
                         {f.name}
                       </td>
                       <td className="px-4 py-3 text-slate-400">
-                        {f.description.slice(0, 60)}
-                        {f.description.length > 60 ? "…" : ""}
+                        {f.description ? (
+                          <>
+                            {f.description.slice(0, 60)}
+                            {f.description.length > 60 ? "…" : ""}
+                          </>
+                        ) : (
+                          <span className="text-slate-500 italic">No description</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <Link
