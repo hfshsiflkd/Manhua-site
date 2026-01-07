@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import {
   FaFacebook,
   FaInstagram,
@@ -23,8 +24,16 @@ const Footer = () => {
         <div className="text-center sm:text-left">
           <h3 className="text-white font-semibold mb-3 text-lg">Тусламж</h3>
           <ul className="space-y-2 text-sm">
-            <li className="hover:text-white cursor-pointer">Бидний тухай</li>
-            <li className="hover:text-white cursor-pointer">Холбоо барих</li>
+            <li>
+              <Link href="/term" className="hover:text-white transition">
+                Үйлчилгээний нөхцөл
+              </Link>
+            </li>
+            <li>
+              <Link href="/feedback" className="hover:text-white transition">
+                Санал хүсэлт
+              </Link>
+            </li>
           </ul>
         </div>
 
