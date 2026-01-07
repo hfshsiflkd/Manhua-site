@@ -10,8 +10,10 @@ const navItems = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/finance", label: "Finance" },
   { href: "/admin/leaderboard", label: "Leaderboard" },
+  { href: "/admin/feedback", label: "Feedback" },
   { href: "/admin/logs", label: "Activity Logs" },
   { href: "/admin/manhuas", label: "Manhuas" },
+  { href: "/admin/settings/trial", label: "Trial Settings" },
   { href: "/admin/settings/vip", label: "VIP Settings" },
 ];
 

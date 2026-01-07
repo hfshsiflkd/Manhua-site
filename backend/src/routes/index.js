@@ -14,6 +14,7 @@ const editorRoutes = require("./editorRoutes");
 const adminRoutes = require("./admin/adminRoutes");
 const vipRoutes = require("./vipRoutes");
 const leaderboardRoutes = require("./leaderboardRoutes");
+const feedbackRoutes = require("./feedbackRoutes");
 const userController = require("../controllers/userController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -45,6 +46,7 @@ router.use("/editor", editorRoutes);
 router.use("/vip", vipRoutes);
 
 router.use("/leaderboard", leaderboardRoutes);
+router.use("/feedback", feedbackRoutes);
 
 router.use("/admin", adminRoutes);
 
