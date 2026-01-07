@@ -20,13 +20,15 @@ const {
 
 // бүх editor route-ууд auth шаардлагатай
 router.use(protect);
+
+// Leaderboard should be visible to editors + admins (NOT translators)
+router.get("/leaderboard", requireRole("admin", "editor"), getEditorLeaderboard);
+
+// The rest of the editor area can be used by admin/editor/translator
 router.use(requireRole("admin", "editor", "translator"));
 
 // өөрийнхөө манхуа жагсаалт
 router.get("/manhuas/mine", getMyManhuas);
-
-// Leaderboard (chapters + payout)
-router.get("/leaderboard", getEditorLeaderboard);
 
 // шинэ манхуа үүсгэх
 router.post("/manhuas", createManhua);

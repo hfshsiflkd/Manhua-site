@@ -24,18 +24,24 @@ export default function EditorSidebar({
 }: EditorSidebarProps) {
   const { user } = useAuth();
 
+  const roleNorm = String(user?.role || "").toLowerCase().trim();
+  const isAdmin = roleNorm === "admin";
+  const isEditor = roleNorm === "editor"; // translators should NOT see leaderboard
+
   const navItems = [
     {
       href: "/editor/manhuas",
       label: "My Manhuas",
       icon: "📚",
     },
-    {
+  ];
+  if (isAdmin || isEditor) {
+    navItems.push({
       href: "/editor/leaderboard",
       label: "Leaderboard",
       icon: "🏆",
-    },
-  ];
+    });
+  }
 
   const isActive = (href: string) => {
     if (href === "/editor/manhuas") {
@@ -84,7 +90,7 @@ export default function EditorSidebar({
           })}
         </nav>
 
-        <LeaderboardPanel />
+        {(isAdmin || isEditor) && <LeaderboardPanel />}
 
         {/* Footer */}
         <div className="border-t border-slate-800 p-4">
@@ -145,9 +151,11 @@ export default function EditorSidebar({
           })}
         </nav>
 
-        <div className="px-3 pb-4">
-          <LeaderboardPanel />
-        </div>
+        {(isAdmin || isEditor) && (
+          <div className="px-3 pb-4">
+            <LeaderboardPanel />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="border-t border-slate-800 p-4">

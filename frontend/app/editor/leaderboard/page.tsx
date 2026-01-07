@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { editorGetLeaderboard, EditorLeaderboardResponse } from "@/lib/editorLeaderboard";
+import { useAuth } from "@/context/AuthContext";
 
 function formatMoney(n: number, currency: string) {
   const v = Number(n || 0);
@@ -9,6 +10,10 @@ function formatMoney(n: number, currency: string) {
 }
 
 export default function EditorLeaderboardPage() {
+  const { user } = useAuth();
+  const roleNorm = String(user?.role || "").toLowerCase().trim();
+  const canSee = roleNorm === "admin" || roleNorm === "editor";
+
   const now = new Date();
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
@@ -32,9 +37,9 @@ export default function EditorLeaderboardPage() {
   };
 
   useEffect(() => {
-    load(month);
+    if (canSee) load(month);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month]);
+  }, [month, canSee]);
 
   const currency = data?.currency || "MNT";
   const rows = useMemo(() => data?.editors || [], [data]);
@@ -67,15 +72,21 @@ export default function EditorLeaderboardPage() {
         </div>
       </div>
 
-      {error && (
+      {!canSee ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 text-sm text-slate-300">
+          Leaderboard is available for <b>editors</b> and <b>admins</b> only.
+        </div>
+      ) : null}
+
+      {error && canSee && (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
           {error}
         </div>
       )}
 
-      {loading && !data ? (
+      {canSee && loading && !data ? (
         <div className="text-sm text-slate-400">Loading leaderboard...</div>
-      ) : !data ? null : (
+      ) : !canSee || !data ? null : (
         <>
           <section className="grid gap-3 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">

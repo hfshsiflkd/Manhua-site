@@ -9,6 +9,7 @@ const navItems = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/finance", label: "Finance" },
+  { href: "/admin/leaderboard", label: "Leaderboard" },
   { href: "/admin/logs", label: "Activity Logs" },
   { href: "/admin/manhuas", label: "Manhuas" },
   { href: "/admin/settings/vip", label: "VIP Settings" },
