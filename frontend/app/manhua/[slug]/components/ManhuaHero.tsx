@@ -49,8 +49,21 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
     manhua.coverImage ||
     "https://via.placeholder.com/450x600?text=No+Cover";
 
-  const rating = Number((manhua as any).ratingAverage ?? (manhua as any).rating ?? 0);
-  const hasRating = Number.isFinite(rating) && rating > 0;
+  const ratingAverage = Number((manhua as any).ratingAverage || 0);
+  const ratingLegacy = Number((manhua as any).rating || 0);
+  const ratingCount = Number((manhua as any).ratingCount || 0);
+  const displayRating =
+    Number.isFinite(ratingAverage) && ratingAverage > 0
+      ? ratingAverage
+      : Number.isFinite(ratingLegacy) && ratingLegacy > 0
+      ? ratingLegacy
+      : Number.isFinite(ratingCount) && ratingCount > 0 && Number.isFinite(ratingAverage)
+      ? ratingAverage
+      : 0;
+  const hasRating =
+    (Number.isFinite(ratingAverage) && ratingAverage > 0) ||
+    (Number.isFinite(ratingLegacy) && ratingLegacy > 0) ||
+    (Number.isFinite(ratingCount) && ratingCount > 0);
 
   const totalChapters = chapters.length;
   const latestChapter = totalChapters > 0 ? chapters[0] : null;
@@ -174,7 +187,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
                         className="h-3.5 w-3.5"
                         aria-hidden="true"
                       />
-                      <RatingStars value={rating} size={12} />
+                      <RatingStars value={displayRating} size={12} />
                     </span>
                   ) : (
                     <span className="text-slate-500">Үнэлгээ байхгүй</span>

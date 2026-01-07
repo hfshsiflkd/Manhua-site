@@ -3,6 +3,7 @@ export interface Manhua {
   chapters: never[];
   ratingAverage: number;
   rating?: number;
+  ratingCount?: number;
   updatedAt: string | number | Date;
   lastChapter: string | null | undefined;
   latestChapterAt: string | null | undefined;
