@@ -1,25 +1,30 @@
 const jwt = require("jsonwebtoken");
 const Chapter = require("../models/Chapter");
 const Manhua = require("../models/Manhua");
-const ChapterRead = require("../models/ChapterRead");
+const ChapterReadMonth = require("../models/ChapterReadMonth");
 const hashToken = require("../utils/hashToken");
 
 const MIN_READ_SECONDS = 8;
 const START_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
-function getTodayDateKey() {
+function getTodayDateKeyUtc() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function getMonthKey() {
+function getMonthKeyUtc() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
+}
+
+function getExpireAt(daysToKeep = 180) {
+  const ms = Number(daysToKeep) * 24 * 60 * 60 * 1000;
+  return new Date(Date.now() + ms);
 }
 
 function getViewerKey(req) {
@@ -108,25 +113,28 @@ exports.confirmRead = async (req, res, next) => {
     const chapter = await Chapter.findById(chapterId).select("_id manhua").lean();
     if (!chapter) return res.status(404).json({ message: "Chapter not found" });
 
-    // Deduplicate: count only first-ever read for this viewerKey.
+    // Count views for editor salary/leaderboard:
+    // Deduplicate per (chapterId, viewerKey, monthKey) so the same person can count again next month.
+    const todayKey = getTodayDateKeyUtc();
+    const monthKey = getMonthKeyUtc();
+
     try {
-      await ChapterRead.create({
+      await ChapterReadMonth.create({
         chapterId: chapter._id,
         viewerKey,
+        monthKey,
         firstReadAt: new Date(),
+        expireAt: getExpireAt(180),
       });
     } catch (err) {
       // Duplicate key => already counted before
       if (err && err.code === 11000) {
-        return res.json({ counted: false, reason: "already_read" });
+        return res.json({ counted: false, reason: "already_read_this_month" });
       }
       throw err;
     }
 
     // Count view into lifetime + daily + monthly
-    const todayKey = getTodayDateKey();
-    const monthKey = getMonthKey();
-
     await Chapter.updateOne(
       { _id: chapter._id },
       {
