@@ -4,7 +4,8 @@ const Manhua = require("../models/Manhua");
 const ChapterReadMonth = require("../models/ChapterReadMonth");
 const hashToken = require("../utils/hashToken");
 
-const MIN_READ_SECONDS = 8;
+// Set to 0 to disable "must read N seconds" gating
+const MIN_READ_SECONDS = 0;
 const START_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
 function getTodayDateKeyUtc() {
@@ -37,7 +38,7 @@ function getViewerKey(req) {
 }
 
 // POST /api/chapters/:id/read/start
-// Returns a signed token that must be confirmed after >= 8 seconds.
+// Returns a signed token. (No minimum read time enforced.)
 exports.startRead = async (req, res) => {
   const viewerKey = getViewerKey(req);
   if (!viewerKey) {
@@ -98,16 +99,7 @@ exports.confirmRead = async (req, res, next) => {
       return res.status(400).json({ message: "Token viewer mismatch" });
     }
 
-    const issuedAtSec = Number(decoded?.iat || 0);
-    const ageSec = Math.floor(Date.now() / 1000) - issuedAtSec;
-    if (!Number.isFinite(ageSec) || ageSec < MIN_READ_SECONDS) {
-      return res.status(409).json({
-        message: `Must read at least ${MIN_READ_SECONDS} seconds`,
-        code: "READ_TOO_SHORT",
-        requiredSeconds: MIN_READ_SECONDS,
-        elapsedSeconds: Math.max(0, ageSec),
-      });
-    }
+    // No minimum read duration check (previously required >= MIN_READ_SECONDS)
 
     // Ensure chapter exists (and use its manhua id)
     const chapter = await Chapter.findById(chapterId).select("_id manhua").lean();
