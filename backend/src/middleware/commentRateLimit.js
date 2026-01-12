@@ -1,12 +1,21 @@
 // src/middleware/commentRateLimit.js
 // Rate limiter: max 1 comment per 10 seconds per user
 const rateLimit = require("express-rate-limit");
+const { getRedisClient } = require("../config/redis");
+const { createRedisRateLimitStore } = require("../utils/rateLimitRedisStore");
+
+const redisStore = createRedisRateLimitStore({
+  client: getRedisClient(),
+  prefix: "rl:",
+});
 
 const commentRateLimiter = rateLimit({
   windowMs: 10 * 1000, // 10 seconds
   max: 1, // 1 comment per window
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisStore ? { store: redisStore } : {}),
   keyGenerator: (req, res) => {
     // Rate limit per user (req.user should always exist since route is protected)
     if (req.user && req.user._id) {

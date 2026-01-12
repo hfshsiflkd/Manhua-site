@@ -1,6 +1,10 @@
 // backend/src/middleware/chapterReadRateLimit.js
 const rateLimit = require("express-rate-limit");
 const hashToken = require("../utils/hashToken");
+const { getRedisClient } = require("../config/redis");
+const { createRedisRateLimitStore } = require("../utils/rateLimitRedisStore");
+
+const redisClient = getRedisClient();
 
 function getViewerKeyForRateLimit(req, res) {
   const userId = req.user?._id || req.user?.id;
@@ -20,6 +24,10 @@ const chapterReadStartLimiter = rateLimit({
   max: 240, // allow many starts (client retries / prefetch etc.)
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
   keyGenerator: (req, res) => `read:start:${getViewerKeyForRateLimit(req, res)}`,
   message: {
     ok: false,
@@ -33,6 +41,10 @@ const chapterReadConfirmLimiter = rateLimit({
   max: 120, // ~2 confirms/sec max per viewer/ip
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
   keyGenerator: (req, res) => `read:confirm:${getViewerKeyForRateLimit(req, res)}`,
   message: {
     ok: false,
