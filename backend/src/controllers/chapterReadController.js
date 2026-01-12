@@ -2,6 +2,8 @@ const jwt = require("jsonwebtoken");
 const Chapter = require("../models/Chapter");
 const Manhua = require("../models/Manhua");
 const ChapterReadMonth = require("../models/ChapterReadMonth");
+const EditorMonthStat = require("../models/EditorMonthStat");
+const EditorManhuaMonthStat = require("../models/EditorManhuaMonthStat");
 const hashToken = require("../utils/hashToken");
 
 // Set to 0 to disable "must read N seconds" gating
@@ -102,7 +104,9 @@ exports.confirmRead = async (req, res, next) => {
     // No minimum read duration check (previously required >= MIN_READ_SECONDS)
 
     // Ensure chapter exists (and use its manhua id)
-    const chapter = await Chapter.findById(chapterId).select("_id manhua").lean();
+    const chapter = await Chapter.findById(chapterId)
+      .select("_id manhua uploadedBy")
+      .lean();
     if (!chapter) return res.status(404).json({ message: "Chapter not found" });
 
     // Count views for editor salary/leaderboard:
@@ -150,6 +154,27 @@ exports.confirmRead = async (req, res, next) => {
           },
         }
       );
+    }
+
+    // Fast-path aggregates for editor payouts/leaderboard (best-effort; don't fail the request)
+    try {
+      const editorId = chapter.uploadedBy;
+      if (editorId) {
+        await EditorMonthStat.updateOne(
+          { monthKey, editorId },
+          { $inc: { chapterMonthlyViews: 1 } },
+          { upsert: true }
+        );
+        if (chapter.manhua) {
+          await EditorManhuaMonthStat.updateOne(
+            { monthKey, editorId, manhuaId: chapter.manhua },
+            { $inc: { monthlyViews: 1 } },
+            { upsert: true }
+          );
+        }
+      }
+    } catch {
+      // ignore
     }
 
     return res.json({ counted: true });
