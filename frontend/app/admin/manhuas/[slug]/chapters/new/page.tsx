@@ -9,6 +9,7 @@ import { api, uploadImage } from "@/lib/api";
 interface ChapterPageInput {
   pageNumber: number;
   imageUrl: string;
+  originalName?: string;
 }
 
 export default function AdminNewChapterPage() {
@@ -43,8 +44,9 @@ export default function AdminNewChapterPage() {
       setSubmitting(true);
 
       // 1) Бүх зургийг дарааллаар нь uploadImage() ашиглаж Cloudinary руу upload хийх
+      const fileArr = Array.from(files);
       const uploadedUrls: string[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of fileArr) {
         // uploadImage → POST /api/upload  (field name: "image")
         const result = await uploadImage(file); // { url }
         uploadedUrls.push((result as any).url);
@@ -59,6 +61,7 @@ export default function AdminNewChapterPage() {
       const pages: ChapterPageInput[] = uploadedUrls.map((url, idx) => ({
         pageNumber: idx + 1,
         imageUrl: url,
+        originalName: fileArr[idx]?.name || undefined,
       }));
 
       // 3) ADMIN chapter create endpoint руу POST

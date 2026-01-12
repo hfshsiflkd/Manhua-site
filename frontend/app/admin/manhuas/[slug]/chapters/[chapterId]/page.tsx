@@ -8,6 +8,7 @@ import { api, uploadImage } from "@/lib/api";
 interface ChapterPage {
   pageNumber: number;
   imageUrl: string;
+  originalName?: string;
 }
 
 interface Chapter {
@@ -148,11 +149,13 @@ export default function AdminEditChapterPage() {
       const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
         pageNumber: currentLen + idx + 1,
         imageUrl: url,
+        originalName: fileArr[idx]?.name || undefined,
       }));
 
       const merged = [...pages, ...newPages].map((p, idx) => ({
         pageNumber: idx + 1,
         imageUrl: p.imageUrl,
+        originalName: p.originalName,
       }));
 
       await saveChapterPages(merged);
@@ -174,6 +177,7 @@ export default function AdminEditChapterPage() {
       .map((p, idx) => ({
         pageNumber: idx + 1,
         imageUrl: p.imageUrl,
+        originalName: p.originalName,
       }));
 
     await saveChapterPages(remaining);
@@ -198,6 +202,7 @@ export default function AdminEditChapterPage() {
     const reIndexed = updated.map((p, idx) => ({
       pageNumber: idx + 1,
       imageUrl: p.imageUrl,
+      originalName: p.originalName,
     }));
 
     setDragIndex(null);
@@ -351,6 +356,11 @@ export default function AdminEditChapterPage() {
                   <span className="font-medium text-slate-100">
                     Page {idx + 1}
                   </span>
+                  {p.originalName && (
+                    <span className="text-[10px] text-slate-500 truncate" title={p.originalName}>
+                      {p.originalName}
+                    </span>
+                  )}
                 </div>
 
                 {/* delete */}

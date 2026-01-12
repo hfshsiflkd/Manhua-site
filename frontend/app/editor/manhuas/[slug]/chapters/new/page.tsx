@@ -8,6 +8,7 @@ import { api, uploadImage } from "@/lib/api";
 interface ChapterPageInput {
   pageNumber: number;
   imageUrl: string;
+  originalName?: string;
 }
 
 export default function EditorNewChapterPage() {
@@ -43,8 +44,9 @@ export default function EditorNewChapterPage() {
       setSubmitting(true);
 
       // Upload all images
+      const fileArr = Array.from(files);
       const uploadedUrls: string[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of fileArr) {
         const result = await uploadImage(file);
         uploadedUrls.push((result as any).url);
       }
@@ -58,6 +60,7 @@ export default function EditorNewChapterPage() {
       const pages: ChapterPageInput[] = uploadedUrls.map((url, idx) => ({
         pageNumber: idx + 1,
         imageUrl: url,
+        originalName: fileArr[idx]?.name || undefined,
       }));
 
       await api.post(`/editor/manhuas/${slug}/chapters`, {

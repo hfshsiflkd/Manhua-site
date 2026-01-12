@@ -18,6 +18,7 @@ exports.createChapter = async (req, res, next) => {
     const formattedPages = pages.map((p, idx) => ({
       pageNumber: p.pageNumber ?? idx + 1,
       imageUrl: p.imageUrl,
+      originalName: p.originalName || null,
     }));
 
     const chapter = await Chapter.create({

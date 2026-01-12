@@ -9,6 +9,7 @@ import { api, uploadImage } from "@/lib/api";
 interface ChapterPage {
   pageNumber: number;
   imageUrl: string;
+  originalName?: string;
 }
 
 interface Chapter {
@@ -33,6 +34,7 @@ export default function EditorEditChapterPage() {
   const [savingMeta, setSavingMeta] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const [chapterNumber, setChapterNumber] = useState<number>(1);
   const [title, setTitle] = useState("");
@@ -148,11 +150,13 @@ export default function EditorEditChapterPage() {
       const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
         pageNumber: currentLen + idx + 1,
         imageUrl: url,
+        originalName: fileArr[idx]?.name || undefined,
       }));
 
       const merged = [...pages, ...newPages].map((p, idx) => ({
         pageNumber: idx + 1,
         imageUrl: p.imageUrl,
+        originalName: p.originalName,
       }));
 
       await saveChapterPages(merged);
@@ -173,6 +177,7 @@ export default function EditorEditChapterPage() {
       .map((p, idx) => ({
         pageNumber: idx + 1,
         imageUrl: p.imageUrl,
+        originalName: p.originalName,
       }));
 
     await saveChapterPages(remaining);
@@ -197,6 +202,7 @@ export default function EditorEditChapterPage() {
     const reIndexed = updated.map((p, idx) => ({
       pageNumber: idx + 1,
       imageUrl: p.imageUrl,
+      originalName: p.originalName,
     }));
 
     setDragIndex(null);
@@ -308,6 +314,29 @@ export default function EditorEditChapterPage() {
 
         {/* Right - Pages */}
         <div className="space-y-6">
+          {/* Preview Toggle */}
+          {pages.length > 0 && (
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-100">
+                  Preview
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(!showPreview)}
+                  className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 transition"
+                >
+                  {showPreview ? "Харуулахгүй" : "Харуулах"}
+                </button>
+              </div>
+              {showPreview && (
+                <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950 p-4">
+                  <ChapterPreview pages={pages} title={title} chapterNumber={chapterNumber} />
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Add Images */}
           <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
             <h2 className="text-lg font-semibold text-slate-100 mb-4">
@@ -375,9 +404,16 @@ export default function EditorEditChapterPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-slate-100">
-                        Page {idx + 1}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-slate-100">
+                          Page {idx + 1}
+                        </span>
+                        {p.originalName && (
+                          <span className="text-xs text-slate-500 truncate" title={p.originalName}>
+                            {p.originalName}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Delete */}
@@ -394,6 +430,53 @@ export default function EditorEditChapterPage() {
               </ul>
             )}
           </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Chapter Preview Component
+function ChapterPreview({
+  pages,
+  title,
+  chapterNumber,
+}: {
+  pages: ChapterPage[];
+  title: string;
+  chapterNumber: number;
+}) {
+  return (
+    <div className="w-full max-h-[600px] overflow-y-auto bg-slate-900 rounded-lg">
+      <div className="mx-auto max-w-3xl">
+        {/* Chapter Title Preview */}
+        {title && (
+          <div className="w-full px-4 py-4 sm:px-6 border-b border-slate-800">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wide">
+                Chapter {chapterNumber}
+              </span>
+            </div>
+            <h2 className="text-base sm:text-lg md:text-xl font-semibold text-slate-100 leading-relaxed">
+              <span className="text-slate-400">(</span>
+              {title}
+              <span className="text-slate-400">)</span>
+            </h2>
+          </div>
+        )}
+
+        {/* Pages Preview */}
+        <div className="space-y-0">
+          {pages.map((p, idx) => (
+            <div key={`preview-${p.pageNumber}-${idx}`} className="w-full">
+              <img
+                src={p.imageUrl}
+                alt={`Page ${p.pageNumber}`}
+                className="w-full h-auto block"
+                loading="lazy"
+              />
+            </div>
+          ))}
         </div>
       </div>
     </div>
