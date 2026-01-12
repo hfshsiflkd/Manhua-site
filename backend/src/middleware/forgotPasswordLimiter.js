@@ -1,4 +1,8 @@
 const rateLimit = require("express-rate-limit");
+const { getRedisClient } = require("../config/redis");
+const { createRedisRateLimitStore } = require("../utils/rateLimitRedisStore");
+
+const redisClient = getRedisClient();
 
 // IP дээр: 5 удаа / 15 минут
 const forgotPasswordIpLimiter = rateLimit({
@@ -6,6 +10,10 @@ const forgotPasswordIpLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
   message: {
     ok: false,
     message: "Дахин оролдоно уу. Түр хүлээнэ үү.",
@@ -18,6 +26,10 @@ const forgotPasswordEmailLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
   keyGenerator: (req) => {
     const email = String(req.body?.email || req.body?.identifier || "")
       .trim()

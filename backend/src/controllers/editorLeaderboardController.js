@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Chapter = require("../models/Chapter");
 const FinanceMonth = require("../models/FinanceMonth");
+const EditorMonthStat = require("../models/EditorMonthStat");
 
 function parseMonthKey(monthKey) {
   const m = String(monthKey || "").match(/^(\d{4})-(\d{2})$/);
@@ -73,29 +74,45 @@ exports.getEditorLeaderboard = async (req, res) => {
     .lean();
   const editorIds = editors.map((e) => e._id);
 
-  const [chapCounts, chapters] = await Promise.all([
+  const [chapCounts, statsRows] = await Promise.all([
     Chapter.aggregate([
       { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
       { $group: { _id: "$uploadedBy", count: { $sum: 1 } } },
     ]),
-    Chapter.find({ uploadedBy: { $in: editorIds } })
-      .select("_id uploadedBy monthlyViews dailyViews")
+    // Pre-aggregated monthly stats (fast path)
+    EditorMonthStat.find({ monthKey, editorId: { $in: editorIds } })
+      .select("editorId chapterMonthlyViews")
       .lean(),
   ]);
 
   const chaptersByEditor = new Map(chapCounts.map((x) => [String(x._id), x.count]));
 
   const chapterViewsByEditor = new Map(); // editorId -> monthly views
-  for (const ch of chapters) {
-    const editorId = String(ch.uploadedBy || "");
-    if (!editorId) continue;
-    const mv = normalizeToObjectMaybeMap(ch.monthlyViews);
-    const dv = normalizeToObjectMaybeMap(ch.dailyViews);
-    const monthly =
-      getMonthlyViewsFromMonthlyMap(mv, monthKey) ||
-      sumMonthlyViewsFromDailyViews(dv, monthKey);
-    if (!monthly) continue;
-    chapterViewsByEditor.set(editorId, (chapterViewsByEditor.get(editorId) || 0) + monthly);
+  if (statsRows.length) {
+    for (const row of statsRows) {
+      const editorId = String(row.editorId || "");
+      if (!editorId) continue;
+      const n = Number(row.chapterMonthlyViews || 0);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      chapterViewsByEditor.set(editorId, n);
+    }
+  } else {
+    // Fallback (older months before we started tracking EditorMonthStat)
+    const chapters = await Chapter.find({ uploadedBy: { $in: editorIds } })
+      .select("_id uploadedBy monthlyViews dailyViews")
+      .lean();
+
+    for (const ch of chapters) {
+      const editorId = String(ch.uploadedBy || "");
+      if (!editorId) continue;
+      const mv = normalizeToObjectMaybeMap(ch.monthlyViews);
+      const dv = normalizeToObjectMaybeMap(ch.dailyViews);
+      const monthly =
+        getMonthlyViewsFromMonthlyMap(mv, monthKey) ||
+        sumMonthlyViewsFromDailyViews(dv, monthKey);
+      if (!monthly) continue;
+      chapterViewsByEditor.set(editorId, (chapterViewsByEditor.get(editorId) || 0) + monthly);
+    }
   }
 
   const totalChapterViews = editors.reduce(

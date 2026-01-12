@@ -1,25 +1,33 @@
 const jwt = require("jsonwebtoken");
 const Chapter = require("../models/Chapter");
 const Manhua = require("../models/Manhua");
-const ChapterRead = require("../models/ChapterRead");
+const ChapterReadMonth = require("../models/ChapterReadMonth");
+const EditorMonthStat = require("../models/EditorMonthStat");
+const EditorManhuaMonthStat = require("../models/EditorManhuaMonthStat");
 const hashToken = require("../utils/hashToken");
 
-const MIN_READ_SECONDS = 8;
+// Set to 0 to disable "must read N seconds" gating
+const MIN_READ_SECONDS = 0;
 const START_TOKEN_TTL_SECONDS = 10 * 60; // 10 minutes
 
-function getTodayDateKey() {
+function getTodayDateKeyUtc() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
-function getMonthKey() {
+function getMonthKeyUtc() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
+}
+
+function getExpireAt(daysToKeep = 180) {
+  const ms = Number(daysToKeep) * 24 * 60 * 60 * 1000;
+  return new Date(Date.now() + ms);
 }
 
 function getViewerKey(req) {
@@ -32,7 +40,7 @@ function getViewerKey(req) {
 }
 
 // POST /api/chapters/:id/read/start
-// Returns a signed token that must be confirmed after >= 8 seconds.
+// Returns a signed token. (No minimum read time enforced.)
 exports.startRead = async (req, res) => {
   const viewerKey = getViewerKey(req);
   if (!viewerKey) {
@@ -93,40 +101,36 @@ exports.confirmRead = async (req, res, next) => {
       return res.status(400).json({ message: "Token viewer mismatch" });
     }
 
-    const issuedAtSec = Number(decoded?.iat || 0);
-    const ageSec = Math.floor(Date.now() / 1000) - issuedAtSec;
-    if (!Number.isFinite(ageSec) || ageSec < MIN_READ_SECONDS) {
-      return res.status(409).json({
-        message: `Must read at least ${MIN_READ_SECONDS} seconds`,
-        code: "READ_TOO_SHORT",
-        requiredSeconds: MIN_READ_SECONDS,
-        elapsedSeconds: Math.max(0, ageSec),
-      });
-    }
+    // No minimum read duration check (previously required >= MIN_READ_SECONDS)
 
     // Ensure chapter exists (and use its manhua id)
-    const chapter = await Chapter.findById(chapterId).select("_id manhua").lean();
+    const chapter = await Chapter.findById(chapterId)
+      .select("_id manhua uploadedBy")
+      .lean();
     if (!chapter) return res.status(404).json({ message: "Chapter not found" });
 
-    // Deduplicate: count only first-ever read for this viewerKey.
+    // Count views for editor salary/leaderboard:
+    // Deduplicate per (chapterId, viewerKey, monthKey) so the same person can count again next month.
+    const todayKey = getTodayDateKeyUtc();
+    const monthKey = getMonthKeyUtc();
+
     try {
-      await ChapterRead.create({
+      await ChapterReadMonth.create({
         chapterId: chapter._id,
         viewerKey,
+        monthKey,
         firstReadAt: new Date(),
+        expireAt: getExpireAt(180),
       });
     } catch (err) {
       // Duplicate key => already counted before
       if (err && err.code === 11000) {
-        return res.json({ counted: false, reason: "already_read" });
+        return res.json({ counted: false, reason: "already_read_this_month" });
       }
       throw err;
     }
 
     // Count view into lifetime + daily + monthly
-    const todayKey = getTodayDateKey();
-    const monthKey = getMonthKey();
-
     await Chapter.updateOne(
       { _id: chapter._id },
       {
@@ -150,6 +154,27 @@ exports.confirmRead = async (req, res, next) => {
           },
         }
       );
+    }
+
+    // Fast-path aggregates for editor payouts/leaderboard (best-effort; don't fail the request)
+    try {
+      const editorId = chapter.uploadedBy;
+      if (editorId) {
+        await EditorMonthStat.updateOne(
+          { monthKey, editorId },
+          { $inc: { chapterMonthlyViews: 1 } },
+          { upsert: true }
+        );
+        if (chapter.manhua) {
+          await EditorManhuaMonthStat.updateOne(
+            { monthKey, editorId, manhuaId: chapter.manhua },
+            { $inc: { monthlyViews: 1 } },
+            { upsert: true }
+          );
+        }
+      }
+    } catch {
+      // ignore
     }
 
     return res.json({ counted: true });

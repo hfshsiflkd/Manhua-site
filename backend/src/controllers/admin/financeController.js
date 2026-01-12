@@ -2,6 +2,8 @@ const User = require("../../models/User");
 const Chapter = require("../../models/Chapter");
 const Manhua = require("../../models/Manhua");
 const FinanceMonth = require("../../models/FinanceMonth");
+const EditorMonthStat = require("../../models/EditorMonthStat");
+const EditorManhuaMonthStat = require("../../models/EditorManhuaMonthStat");
 
 function parseMonthKey(monthKey) {
   // Expected: YYYY-MM
@@ -81,7 +83,7 @@ exports.getMonthlyFinance = async (req, res) => {
 
   const editorIds = editors.map((e) => e._id);
 
-  const [chapCounts, manhuaCounts, chapters, manhuas] = await Promise.all([
+  const [chapCounts, manhuaCounts, statsRows, manhuaStatsRows, manhuas] = await Promise.all([
     Chapter.aggregate([
       { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
       { $group: { _id: "$uploadedBy", count: { $sum: 1 } } },
@@ -90,13 +92,16 @@ exports.getMonthlyFinance = async (req, res) => {
       { $match: { createdBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
       { $group: { _id: "$createdBy", count: { $sum: 1 } } },
     ]),
-    // For payout: use chapter views (monthly) only
-    Chapter.find({ uploadedBy: { $in: editorIds } })
-      .select("_id manhua chapterNumber title uploadedBy views dailyViews monthlyViews")
+    // Fast path: pre-aggregated editor monthly views
+    EditorMonthStat.find({ monthKey, editorId: { $in: editorIds } })
+      .select("editorId chapterMonthlyViews")
       .lean(),
-    Manhua.find({ createdBy: { $in: editorIds } })
-      .select("_id title slug createdBy views dailyViews")
+    // Fast path: per-editor per-manhua monthly views (breakdown)
+    EditorManhuaMonthStat.find({ monthKey, editorId: { $in: editorIds } })
+      .select("editorId manhuaId monthlyViews")
       .lean(),
+    // For display lookup
+    Manhua.find({ createdBy: { $in: editorIds } }).select("_id title slug createdBy views").lean(),
   ]);
 
   const chaptersByEditor = new Map(chapCounts.map((x) => [String(x._id), x.count]));
@@ -104,30 +109,55 @@ exports.getMonthlyFinance = async (req, res) => {
 
   // Chapter monthly views by editor (this drives payout)
   const chapterMonthlyViewsByEditor = new Map(); // editorId -> sum
-  // Also keep a manhua breakdown computed from chapter views (informational)
-  const chapterViewsByEditorManhua = new Map(); // `${editorId}:${manhuaId}` -> sum
-  for (const ch of chapters) {
-    const editorId = String(ch.uploadedBy || "");
+  for (const row of statsRows) {
+    const editorId = String(row.editorId || "");
     if (!editorId) continue;
-    const mv = normalizeToObjectMaybeMap(ch.monthlyViews);
-    const dv = normalizeToObjectMaybeMap(ch.dailyViews);
-    const monthly =
-      getMonthlyViewsFromMonthlyMap(mv, monthKey) ||
-      sumMonthlyViewsFromDailyViews(dv, monthKey);
-    if (!monthly) continue;
-    chapterMonthlyViewsByEditor.set(
-      editorId,
-      (chapterMonthlyViewsByEditor.get(editorId) || 0) + monthly
-    );
-    const key = `${editorId}:${String(ch.manhua)}`;
-    chapterViewsByEditorManhua.set(key, (chapterViewsByEditorManhua.get(key) || 0) + monthly);
+    const n = Number(row.chapterMonthlyViews || 0);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    chapterMonthlyViewsByEditor.set(editorId, n);
+  }
+
+  // Per-editor per-manhua monthly views breakdown (informational)
+  const chapterViewsByEditorManhua = new Map(); // `${editorId}:${manhuaId}` -> sum
+  for (const row of manhuaStatsRows) {
+    const editorId = String(row.editorId || "");
+    const manhuaId = String(row.manhuaId || "");
+    if (!editorId || !manhuaId) continue;
+    const n = Number(row.monthlyViews || 0);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    chapterViewsByEditorManhua.set(`${editorId}:${manhuaId}`, n);
+  }
+
+  // Fallback if no stats exist yet for this month (older data / before stats deployment)
+  if (!statsRows.length) {
+    const chapters = await Chapter.find({ uploadedBy: { $in: editorIds } })
+      .select("_id manhua uploadedBy dailyViews monthlyViews")
+      .lean();
+
+    chapterMonthlyViewsByEditor.clear();
+    chapterViewsByEditorManhua.clear();
+
+    for (const ch of chapters) {
+      const editorId = String(ch.uploadedBy || "");
+      if (!editorId) continue;
+      const mv = normalizeToObjectMaybeMap(ch.monthlyViews);
+      const dv = normalizeToObjectMaybeMap(ch.dailyViews);
+      const monthly =
+        getMonthlyViewsFromMonthlyMap(mv, monthKey) ||
+        sumMonthlyViewsFromDailyViews(dv, monthKey);
+      if (!monthly) continue;
+      chapterMonthlyViewsByEditor.set(
+        editorId,
+        (chapterMonthlyViewsByEditor.get(editorId) || 0) + monthly
+      );
+      const key = `${editorId}:${String(ch.manhua)}`;
+      chapterViewsByEditorManhua.set(key, (chapterViewsByEditorManhua.get(key) || 0) + monthly);
+    }
   }
 
   // Map manhuas for display lookup
   const manhuaLookup = new Map();
-  for (const m of manhuas) {
-    manhuaLookup.set(String(m._id), m);
-  }
+  for (const m of manhuas) manhuaLookup.set(String(m._id), m);
 
   // Build per-editor manhua list using chapter views (monthly)
   const manhuasGrouped = new Map(); // editorId -> array
