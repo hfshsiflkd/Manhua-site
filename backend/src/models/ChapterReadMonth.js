@@ -24,7 +24,7 @@ const chapterReadMonthSchema = new mongoose.Schema(
     firstReadAt: { type: Date, default: Date.now },
 
     // TTL cleanup: MongoDB will delete documents after expireAt
-    expireAt: { type: Date, required: true, index: true },
+    expireAt: { type: Date, required: true },
   },
   { timestamps: true }
 );
