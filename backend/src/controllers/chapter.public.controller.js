@@ -21,7 +21,7 @@ exports.getChapter = async (req, res, next) => {
     const { slug, chapterNumber } = req.params;
     const chNum = Number(chapterNumber);
 
-    if (!Number.isFinite(chNum) || chNum <= 0) {
+    if (!Number.isFinite(chNum) || chNum < 0) {
       return res.status(400).json({ message: "Invalid chapterNumber" });
     }
 

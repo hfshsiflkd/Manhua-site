@@ -94,7 +94,7 @@ export default function ChapterReaderPage() {
           setImagesLoading(pages.length > 0);
 
           // Mark chapter as read when successfully loaded
-          if (r2.data && r2.data.chapterNumber) {
+          if (Number.isFinite(r2.data?.chapterNumber)) {
             markChapterAsRead(slug, r2.data.chapterNumber);
           }
 
