@@ -9,6 +9,11 @@ import LockModal from "./components/LockModal";
 export const metadata: Metadata = {
   title: "ARC•READ",
   description: "Монгол хэл дээр манхуа унших платформ",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
