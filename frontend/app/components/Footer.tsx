@@ -43,14 +43,14 @@ const Footer = () => {
 
           <div className="flex justify-center sm:justify-start gap-6 text-3xl">
             <a
-              href="https://facebook.com"
+              href="https://facebook.com/arcread"
               target="_blank"
               className="hover:text-white transition"
             >
               <FaFacebook />
             </a>
             <a
-              href="https://instagram.com"
+              href="https://instagram.com/arcread"
               target="_blank"
               className="hover:text-white transition"
             >
