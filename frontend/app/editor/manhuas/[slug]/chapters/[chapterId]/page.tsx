@@ -271,7 +271,10 @@ export default function EditorEditChapterPage() {
                 min={0}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                 value={chapterNumber}
-                onChange={(e) => setChapterNumber(Number(e.target.value) || 1)}
+                onChange={(e) => {
+                  const next = e.currentTarget.valueAsNumber;
+                  setChapterNumber(Number.isNaN(next) ? 0 : next);
+                }}
               />
             </div>
 

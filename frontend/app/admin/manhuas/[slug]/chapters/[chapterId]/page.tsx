@@ -250,10 +250,13 @@ export default function AdminEditChapterPage() {
             <label className="text-[11px] text-slate-400">Chapter number</label>
             <input
               type="number"
-              min={1}
+              min={0}
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
               value={chapterNumber}
-              onChange={(e) => setChapterNumber(Number(e.target.value) || 1)}
+              onChange={(e) => {
+                const next = e.currentTarget.valueAsNumber;
+                setChapterNumber(Number.isNaN(next) ? 0 : next);
+              }}
             />
           </div>
           <div className="space-y-1 sm:col-span-2">
