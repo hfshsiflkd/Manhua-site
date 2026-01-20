@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getMonthKey, readRequests, writeRequests } from "../../_store";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await context.params;
   const deviceId = request.headers.get("x-device-id") || "";
   if (!deviceId) {
     return NextResponse.json(
@@ -16,7 +17,7 @@ export async function POST(
   }
 
   const items = await readRequests();
-  const item = items.find((i) => i.id === params.id);
+  const item = items.find((i) => i.id === id);
   if (!item) {
     return NextResponse.json({ message: "Хүсэлт олдсонгүй." }, { status: 404 });
   }
