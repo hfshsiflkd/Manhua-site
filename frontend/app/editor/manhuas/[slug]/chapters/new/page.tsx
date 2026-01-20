@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, uploadImage } from "@/lib/api";
+import { useToast } from "@/app/components/ToastProvider";
 
 interface ChapterPageInput {
   pageNumber: number;
@@ -22,6 +24,13 @@ export default function EditorNewChapterPage() {
   const [files, setFiles] = useState<FileList | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadingIndex, setUploadingIndex] = useState<number>(0);
+  const [uploadTotal, setUploadTotal] = useState<number>(0);
+  const [uploadPhase, setUploadPhase] = useState<
+    "idle" | "uploading" | "creating"
+  >("idle");
+  const toast = useToast();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFiles(e.target.files);
@@ -32,27 +41,45 @@ export default function EditorNewChapterPage() {
     setError(null);
 
     if (!slug) {
-      setError("Manhua slug олдсонгүй");
+      const message = "Manhua slug олдсонгүй";
+      setError(message);
+      toast.error(message);
       return;
     }
     if (!files || files.length === 0) {
-      setError("Ядаж нэг зураг сонгоно уу");
+      const message = "Ядаж нэг зураг сонгоно уу";
+      setError(message);
+      toast.error(message);
       return;
     }
 
     try {
       setSubmitting(true);
+      setUploadProgress(0);
+      setUploadPhase("uploading");
 
       // Upload all images
       const fileArr = Array.from(files);
+      setUploadingIndex(0);
+      setUploadTotal(fileArr.length);
       const uploadedUrls: string[] = [];
-      for (const file of fileArr) {
-        const result = await uploadImage(file);
+      for (const [index, file] of fileArr.entries()) {
+        setUploadingIndex(index + 1);
+        const result = await uploadImage(file, (percent) => {
+          const overall = Math.round(
+            ((index + percent / 100) / fileArr.length) * 100
+          );
+          setUploadProgress(Math.min(100, Math.max(0, overall)));
+        });
         uploadedUrls.push((result as any).url);
       }
+      setUploadProgress(100);
+      setUploadPhase("creating");
 
       if (!uploadedUrls.length) {
-        setError("Зураг upload болоогүй байна");
+        const message = "Зураг upload болоогүй байна";
+        setError(message);
+        toast.error(message);
         return;
       }
 
@@ -71,20 +98,57 @@ export default function EditorNewChapterPage() {
         status,
       });
 
+      toast.success("Chapter амжилттай үүслээ");
       router.push(`/editor/manhuas/${slug}/chapters`);
     } catch (e: any) {
       console.error(e);
-      setError(
+      const message =
         e?.response?.data?.message ||
           "Шинэ chapter үүсгэхэд алдаа гарлаа"
-      );
+      setError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
+      setUploadingIndex(0);
+      setUploadTotal(0);
+      setUploadPhase("idle");
     }
   };
 
   return (
     <div className="space-y-6 pb-20 lg:pb-6">
+      {submitting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-xl shadow-black/50">
+            <div className="flex items-center justify-between text-slate-300">
+              <span className="font-medium">
+                {uploadPhase === "creating"
+                  ? "Chapter үүсгэж байна..."
+                  : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}
+              </span>
+              <span className="font-mono text-slate-100">
+                {uploadPhase === "creating"
+                  ? "100%"
+                  : `${uploadProgress ?? 0}%`}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
+                style={{
+                  width:
+                    uploadPhase === "creating"
+                      ? "100%"
+                      : `${uploadProgress ?? 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

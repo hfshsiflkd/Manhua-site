@@ -10,6 +10,8 @@ import {
   uploadImage,
   Manhua,
 } from "@/lib/api";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 
 const GENRE_OPTIONS = [
   "Romance",
@@ -80,6 +82,8 @@ export default function AdminManhuaDetailPage() {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSlugLocked, setIsSlugLocked] = useState(false);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [form, setForm] = useState({
     title: "",
@@ -193,6 +197,7 @@ export default function AdminManhuaDetailPage() {
       }
 
       setManhua(updated);
+      toast.success("Манхуа хадгалагдлаа");
     } catch (e: any) {
       console.error("[EditorManhuaDetail] save error:", e);
       
@@ -200,11 +205,14 @@ export default function AdminManhuaDetailPage() {
       if (e?.response?.status === 409 || 
           e?.response?.data?.message?.toLowerCase().includes("slug") ||
           e?.response?.data?.message?.toLowerCase().includes("unique")) {
-        setError("Slug давхцаж байна. Өөр slug сонгоно уу.");
+        const message = "Slug давхцаж байна. Өөр slug сонгоно уу.";
+        setError(message);
+        toast.error(message);
       } else {
-        setError(
+        const message =
           e?.response?.data?.message || "Манхуа хадгалах үед алдаа гарлаа"
-        );
+        setError(message);
+        toast.error(message);
       }
     } finally {
       setSaving(false);
@@ -225,11 +233,13 @@ export default function AdminManhuaDetailPage() {
       const result = await uploadImage(file);
       const url = (result as any).url;
       setForm((f) => ({ ...f, coverImage: url }));
+      toast.success("Cover зураг шинэчлэгдлээ");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] upload error:", e);
-      setError(
+      const message =
         e?.response?.data?.message || "Cover зураг upload хийх үед алдаа гарлаа"
-      );
+      setError(message);
+      toast.error(message);
     } finally {
       setUploadingCover(false);
     }
@@ -240,12 +250,18 @@ export default function AdminManhuaDetailPage() {
   // If delete is needed, implement editorDeleteManhua endpoint
   const handleDelete = async () => {
     if (!manhua || !manhua._id) return;
-    const ok = window.confirm(
-      `"${manhua.title}" манхуа-г үнэхээр устгах уу? Энэ үйлдлийг буцаах боломжгүй.`
-    );
+    const ok = await confirm({
+      title: "Манхуа устгах уу?",
+      description: `"${manhua.title}" манхуа-г үнэхээр устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
     if (!ok) return;
 
-    setError("Editor эрхтэй хэрэглэгч манхуа устгах боломжгүй. Админ-тай холбогдоно уу.");
+    const message =
+      "Editor эрхтэй хэрэглэгч манхуа устгах боломжгүй. Админ-тай холбогдоно уу.";
+    setError(message);
+    toast.error(message);
     setDeleting(false);
   };
 

@@ -355,7 +355,10 @@ export async function adminDeleteManhua(id: string) {
   return res.data;
 }
 
-export async function uploadImage(file: File) {
+export async function uploadImage(
+  file: File,
+  onProgress?: (percent: number) => void
+) {
   const formData = new FormData();
 
   formData.append("file", file);
@@ -363,6 +366,16 @@ export async function uploadImage(file: File) {
   const res = await api.post<{ url: string }>("/upload", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
+    },
+    onUploadProgress: (event) => {
+      if (!onProgress) return;
+      const total = event.total ?? 0;
+      if (!total) {
+        onProgress(0);
+        return;
+      }
+      const percent = Math.round((event.loaded * 100) / total);
+      onProgress(percent);
     },
   });
 

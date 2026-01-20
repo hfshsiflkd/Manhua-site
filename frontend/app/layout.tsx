@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Header from "./components/Header";
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
+import AppProviders from "./components/AppProviders";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import LockModal from "./components/LockModal";
@@ -32,14 +32,14 @@ export default function RootLayout({
     to-[#090910]
   "
       >
-        <AuthProvider>
+        <AppProviders>
           <Header />
 
           {children}
           <Footer />
           <ScrollToTop />
           <LockModal />
-        </AuthProvider>
+        </AppProviders>
       </body>
     </html>
   );

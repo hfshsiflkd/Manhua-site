@@ -5,6 +5,8 @@
 import { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, uploadImage } from "@/lib/api";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 
 interface ChapterPage {
   pageNumber: number;
@@ -33,6 +35,13 @@ export default function EditorEditChapterPage() {
   const [savingPages, setSavingPages] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
+  const [addingImages, setAddingImages] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadingIndex, setUploadingIndex] = useState<number>(0);
+  const [uploadTotal, setUploadTotal] = useState<number>(0);
+  const [uploadPhase, setUploadPhase] = useState<
+    "idle" | "uploading" | "saving"
+  >("idle");
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -41,6 +50,8 @@ export default function EditorEditChapterPage() {
   const [status, setStatus] = useState<"published" | "draft">("published");
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   // Load chapter
   useEffect(() => {
@@ -95,12 +106,14 @@ export default function EditorEditChapterPage() {
         status,
         pages,
       });
+      toast.success("Meta мэдээлэл хадгалагдлаа");
     } catch (err: any) {
       console.error(err);
-      setError(
+      const message =
         err?.response?.data?.message ||
           "Chapter-ийн мэдээллийг хадгалах үед алдаа гарлаа"
-      );
+      setError(message);
+      toast.error(message);
     } finally {
       setSavingMeta(false);
     }
@@ -131,20 +144,36 @@ export default function EditorEditChapterPage() {
   // Add images
   const handleAddImages = async () => {
     if (!files || !chapter) {
-      setError("Файл сонгоно уу");
+      const message = "Файл сонгоно уу";
+      setError(message);
+      toast.error(message);
       return;
     }
     try {
       setError(null);
+      setAddingImages(true);
       const fileArr = Array.from(files);
       if (fileArr.length === 0) return;
 
-      const uploaded = await Promise.all(
-        fileArr.map(async (f) => {
-          const r = await uploadImage(f);
-          return (r as any).url || (r as any).secure_url || r.url;
-        })
-      );
+      setUploadProgress(0);
+      setUploadingIndex(0);
+      setUploadTotal(fileArr.length);
+      setUploadPhase("uploading");
+
+      const uploaded: string[] = [];
+      for (const [index, file] of fileArr.entries()) {
+        setUploadingIndex(index + 1);
+        const r = await uploadImage(file, (percent) => {
+          const overall = Math.round(
+            ((index + percent / 100) / fileArr.length) * 100
+          );
+          setUploadProgress(Math.min(100, Math.max(0, overall)));
+        });
+        const url = (r as any).url || (r as any).secure_url || r.url;
+        uploaded.push(url);
+      }
+      setUploadProgress(100);
+      setUploadPhase("saving");
 
       const currentLen = pages.length;
       const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
@@ -161,16 +190,32 @@ export default function EditorEditChapterPage() {
 
       await saveChapterPages(merged);
       setFiles(null);
+      toast.success("Шинэ page-үүд нэмэгдлээ");
     } catch (e: any) {
       console.error(e);
-      setError(e.response?.data?.message || "Page нэмэхэд алдаа гарлаа");
+      const message =
+        e.response?.data?.message || "Page нэмэхэд алдаа гарлаа";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setAddingImages(false);
+      setUploadProgress(null);
+      setUploadingIndex(0);
+      setUploadTotal(0);
+      setUploadPhase("idle");
     }
   };
 
   // Remove page
   const handleRemovePage = async (index: number) => {
     if (!chapter) return;
-    if (!confirm("Энэ page-ийг устгах уу?")) return;
+    const ok = await confirm({
+      title: "Page устгах уу?",
+      description: "Энэ page-ийг устгавал буцаах боломжгүй.",
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
+    if (!ok) return;
 
     const remaining = pages
       .filter((_, i) => i !== index)
@@ -224,6 +269,38 @@ export default function EditorEditChapterPage() {
 
   return (
     <div className="space-y-6">
+      {addingImages && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-xl shadow-black/50">
+            <div className="flex items-center justify-between text-slate-300">
+              <span className="font-medium">
+                {uploadPhase === "saving"
+                  ? "Page-үүд хадгалж байна..."
+                  : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}
+              </span>
+              <span className="font-mono text-slate-100">
+                {uploadPhase === "saving"
+                  ? "100%"
+                  : `${uploadProgress ?? 0}%`}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
+                style={{
+                  width:
+                    uploadPhase === "saving"
+                      ? "100%"
+                      : `${uploadProgress ?? 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.
+            </p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -360,7 +437,7 @@ export default function EditorEditChapterPage() {
                 </p>
               )}
               <button
-                disabled={savingPages || !files?.length}
+                disabled={savingPages || addingImages || !files?.length}
                 onClick={handleAddImages}
                 className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed transition"
               >

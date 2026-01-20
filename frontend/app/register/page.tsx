@@ -6,10 +6,12 @@ import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
+import { useToast } from "@/app/components/ToastProvider";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const toast = useToast();
 
   const [form, setForm] = useState({
     username: "",
@@ -24,13 +26,13 @@ export default function RegisterPage() {
 
     // Validate inputs
     if (!form.username || !form.email || !form.password) {
-      alert("Бүх талбарыг бөглөнө үү.");
+      toast.error("Бүх талбарыг бөглөнө үү.");
       setLoading(false);
       return;
     }
 
     if (form.password.length < 8) {
-      alert("Нууц үг хамгийн багадаа 8 тэмдэгт байх ёстой.");
+      toast.error("Нууц үг хамгийн багадаа 8 тэмдэгт байх ёстой.");
       setLoading(false);
       return;
     }
@@ -38,7 +40,7 @@ export default function RegisterPage() {
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(form.email)) {
-      alert("Зөв имэйл хаяг оруулна уу.");
+      toast.error("Зөв имэйл хаяг оруулна уу.");
       setLoading(false);
       return;
     }
@@ -63,6 +65,7 @@ export default function RegisterPage() {
       }
 
       await login(res.data.token);
+      toast.success("Бүртгэл амжилттай үүслээ");
       router.push("/");
     } catch (e: any) {
       const errorMsg =
@@ -70,7 +73,7 @@ export default function RegisterPage() {
         (e?.code === "ECONNREFUSED" || e?.message?.includes("Network Error")
           ? "Сервертэй холбогдох боломжгүй байна."
           : "Алдаа гарлаа. Дахин оролдоно уу.");
-      alert(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

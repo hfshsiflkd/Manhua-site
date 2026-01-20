@@ -12,6 +12,8 @@ import {
   uploadImage,
   Manhua,
 } from "@/lib/api";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 
 import { ManhuaTopBar } from "./components/ManhuaTopBar";
 import { CoverImagePanel } from "./components/CoverImagePanel";
@@ -33,6 +35,8 @@ export default function AdminManhuaDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [form, setForm] = useState<ManhuaFormState>({
     title: "",
@@ -107,11 +111,13 @@ export default function AdminManhuaDetailPage() {
       });
 
       setManhua(updated);
+      toast.success("Манхуа мэдээлэл хадгалагдлаа");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] save error:", e);
-      setError(
+      const message =
         e?.response?.data?.message || "Манхуа хадгалах үед алдаа гарлаа"
-      );
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -131,11 +137,13 @@ export default function AdminManhuaDetailPage() {
       const result = await uploadImage(file);
       const url = (result as any).url;
       setForm((f) => ({ ...f, coverImage: url }));
+      toast.success("Cover зураг шинэчлэгдлээ");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] upload error:", e);
-      setError(
+      const message =
         e?.response?.data?.message || "Cover зураг upload хийх үед алдаа гарлаа"
-      );
+      setError(message);
+      toast.error(message);
     } finally {
       setUploadingCover(false);
     }
@@ -144,19 +152,26 @@ export default function AdminManhuaDetailPage() {
   // ─── DELETE ───────────────────────
   const handleDelete = async () => {
     if (!manhuaId || !manhua) return;
-    const ok = window.confirm(
-      `"${manhua.title}" манхуа-г үнэхээр устгах уу? Энэ үйлдлийг буцаах боломжгүй.`
-    );
+    const ok = await confirm({
+      title: "Манхуа устгах уу?",
+      description: `"${manhua.title}" манхуа-г үнэхээр устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
     if (!ok) return;
 
     try {
       setDeleting(true);
       setError(null);
       await adminDeleteManhua(manhuaId);
+      toast.success("Манхуа устгагдлаа");
       router.push("/admin/manhuas");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] delete error:", e);
-      setError(e?.response?.data?.message || "Манхуа устгах үед алдаа гарлаа");
+      const message =
+        e?.response?.data?.message || "Манхуа устгах үед алдаа гарлаа";
+      setError(message);
+      toast.error(message);
       setDeleting(false);
     }
   };

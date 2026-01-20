@@ -1,9 +1,12 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api, uploadImage } from "@/lib/api";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 
 interface ChapterPage {
   pageNumber: number;
@@ -33,12 +36,21 @@ export default function AdminEditChapterPage() {
   const [savingPages, setSavingPages] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
+  const [addingImages, setAddingImages] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadingIndex, setUploadingIndex] = useState<number>(0);
+  const [uploadTotal, setUploadTotal] = useState<number>(0);
+  const [uploadPhase, setUploadPhase] = useState<
+    "idle" | "uploading" | "saving"
+  >("idle");
 
   const [chapterNumber, setChapterNumber] = useState<number>(1);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<"published" | "draft">("published");
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   // ---------- LOAD ----------
   useEffect(() => {
@@ -94,10 +106,10 @@ export default function AdminEditChapterPage() {
         pages,
       });
 
-      alert("Meta мэдээлэл хадгалагдлаа");
+      toast.success("Meta мэдээлэл хадгалагдлаа");
     } catch (err: any) {
       console.error(err);
-      alert(
+      toast.error(
         err?.response?.data?.message ||
           "Chapter-ийн мэдээллийг хадгалах үед алдаа гарлаа"
       );
@@ -121,7 +133,7 @@ export default function AdminEditChapterPage() {
       setPages(updatedPages);
     } catch (e: any) {
       console.error(e);
-      alert(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа");
+      toast.error(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа");
     } finally {
       setSavingPages(false);
     }
@@ -130,20 +142,33 @@ export default function AdminEditChapterPage() {
   // ---------- ADD IMAGES (uploadImage helper ашиглана) ----------
   const handleAddImages = async () => {
     if (!files || !chapter) {
-      alert("Файл сонгоно уу");
+      toast.error("Файл сонгоно уу");
       return;
     }
     try {
+      setAddingImages(true);
       const fileArr = Array.from(files);
       if (fileArr.length === 0) return;
 
-      const uploaded = await Promise.all(
-        fileArr.map(async (f) => {
-          const r = await uploadImage(f); // { url }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (r as any).url || (r as any).secure_url || r.url;
-        })
-      );
+      setUploadProgress(0);
+      setUploadingIndex(0);
+      setUploadTotal(fileArr.length);
+      setUploadPhase("uploading");
+
+      const uploaded: string[] = [];
+      for (const [index, file] of fileArr.entries()) {
+        setUploadingIndex(index + 1);
+        const r = await uploadImage(file, (percent) => {
+          const overall = Math.round(
+            ((index + percent / 100) / fileArr.length) * 100
+          );
+          setUploadProgress(Math.min(100, Math.max(0, overall)));
+        });
+        const url = (r as any).url || (r as any).secure_url || r.url;
+        uploaded.push(url);
+      }
+      setUploadProgress(100);
+      setUploadPhase("saving");
 
       const currentLen = pages.length;
       const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
@@ -160,17 +185,29 @@ export default function AdminEditChapterPage() {
 
       await saveChapterPages(merged);
       setFiles(null);
-      alert("Шинэ page-үүд нэмэгдлээ");
+      toast.success("Шинэ page-үүд нэмэгдлээ");
     } catch (e: any) {
       console.error(e);
-      alert(e.response?.data?.message || "Page нэмэхэд алдаа гарлаа");
+      toast.error(e.response?.data?.message || "Page нэмэхэд алдаа гарлаа");
+    } finally {
+      setAddingImages(false);
+      setUploadProgress(null);
+      setUploadingIndex(0);
+      setUploadTotal(0);
+      setUploadPhase("idle");
     }
   };
 
   // ---------- REMOVE PAGE ----------
   const handleRemovePage = async (index: number) => {
     if (!chapter) return;
-    if (!confirm("Энэ page-ийг устгах уу?")) return;
+    const ok = await confirm({
+      title: "Page устгах уу?",
+      description: "Энэ page-ийг устгавал буцаах боломжгүй.",
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
+    if (!ok) return;
 
     const remaining = pages
       .filter((_, i) => i !== index)
@@ -216,6 +253,38 @@ export default function AdminEditChapterPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-8 pt-3 text-xs text-slate-100 sm:px-4">
+      {addingImages && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-xl shadow-black/50">
+            <div className="flex items-center justify-between text-slate-300">
+              <span className="font-medium">
+                {uploadPhase === "saving"
+                  ? "Page-үүд хадгалж байна..."
+                  : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}
+              </span>
+              <span className="font-mono text-slate-100">
+                {uploadPhase === "saving"
+                  ? "100%"
+                  : `${uploadProgress ?? 0}%`}
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
+                style={{
+                  width:
+                    uploadPhase === "saving"
+                      ? "100%"
+                      : `${uploadProgress ?? 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-500">
+              Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.
+            </p>
+          </div>
+        </div>
+      )}
       {/* HEADER */}
       <div className="flex flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/85 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-0.5">
@@ -312,7 +381,7 @@ export default function AdminEditChapterPage() {
           </p>
         )}
         <button
-          disabled={savingPages || !files?.length}
+          disabled={savingPages || addingImages || !files?.length}
           onClick={handleAddImages}
           className="mt-2 rounded-full bg-cyan-500 px-4 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700"
         >

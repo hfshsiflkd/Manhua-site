@@ -9,6 +9,8 @@ import {
   type Comment,
   type CommentsResponse,
 } from "@/lib/api";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 
 interface CommentSectionProps {
   manhuaId: string;
@@ -51,6 +53,8 @@ export function CommentSection({ manhuaId }: CommentSectionProps) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   // Check if user has active access
   const hasActiveAccess =
@@ -168,16 +172,24 @@ export function CommentSection({ manhuaId }: CommentSectionProps) {
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!confirm("Are you sure you want to delete this comment?")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Сэтгэгдэл устгах уу?",
+      description: "Энэ сэтгэгдлийг устгавал буцаах боломжгүй.",
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
+    if (!ok) return;
 
     try {
       await deleteComment(commentId);
       setComments((prev) => prev.filter((c) => c._id !== commentId));
+      toast.success("Сэтгэгдэл устгагдлаа");
     } catch (err: any) {
       console.error("Failed to delete comment:", err);
-      setError(err?.response?.data?.message || "Failed to delete comment");
+      const message =
+        err?.response?.data?.message || "Failed to delete comment";
+      setError(message);
+      toast.error(message);
     }
   };
 
