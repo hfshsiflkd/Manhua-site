@@ -9,7 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-/data
+
 
 # testing
 /coverage
@@ -20,6 +20,8 @@
 
 # production
 /build
+
+data/
 
 # misc
 .DS_Store
