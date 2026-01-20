@@ -15,6 +15,7 @@ api.interceptors.request.use((config) => {
   // Axios v1: headers нь AxiosHeaders байж болно
   const headers: any = config.headers ?? (config.headers = {} as any);
 
+  let hasToken = false;
   if (typeof window !== "undefined") {
     // device id
     const key = "device_id";
@@ -32,6 +33,7 @@ api.interceptors.request.use((config) => {
 
     const token = localStorage.getItem("token");
     if (token) {
+      hasToken = true;
       if (headers.set) headers.set("Authorization", `Bearer ${token}`);
       else headers.Authorization = `Bearer ${token}`;
     }
@@ -39,12 +41,13 @@ api.interceptors.request.use((config) => {
 
   const method = (config.method || "get").toLowerCase();
   const url = config.url || "";
-  const isPublicChapterRequest =
+  const isPublicGetRequest =
     method === "get" &&
-    (/\/manhuas\/[^/]+\/chapters(\/|$)/.test(url) ||
-      /\/chapters(\/|$)/.test(url));
+    (/^\/manhuas\/home\/sections(\/|$)/.test(url) ||
+      /^\/manhuas(\/|$)/.test(url) ||
+      /^\/chapters(\/|$)/.test(url));
 
-  if (isPublicChapterRequest) {
+  if (isPublicGetRequest && !hasToken) {
     // Ensure no credentials/authorization for cacheable public endpoints
     if (headers.set) headers.set("Authorization", "");
     delete headers.Authorization;

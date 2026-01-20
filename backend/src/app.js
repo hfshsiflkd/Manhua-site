@@ -30,13 +30,15 @@ app.use(compression());
 app.use(morgan("dev"));
 
 // CORS (public API: allow known origins, no credentials)
-const corsOrigins = process.env.CORS_ORIGIN
+const defaultCorsOrigins = [
+  "https://www.arc-read.com",
+  "https://arcread.vercel.app",
+  "http://localhost:3000",
+];
+const envOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
-  : [
-      "https://www.arc-read.com",
-      "https://arcread.vercel.app",
-      "http://localhost:3000",
-    ];
+  : [];
+const corsOrigins = Array.from(new Set([...defaultCorsOrigins, ...envOrigins]));
 
 app.use(
   cors({
