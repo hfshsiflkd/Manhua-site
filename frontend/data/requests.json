@@ -1,0 +1,49 @@
+[
+  {
+    "id": "422675ce-4ed3-479d-be47-e1be67c56ddf",
+    "title": "hello",
+    "imageUrl": "https://pub-ba25c8821ce848339baeee07d1a23c08.r2.dev/manhua_pages/1768905328600-985436303.webp",
+    "createdAt": "2026-01-20T10:35:29.757Z",
+    "monthKey": "2026-01",
+    "votes": 1,
+    "monthlyVotes": {
+      "2026-01": 1
+    },
+    "votersByMonth": {
+      "2026-01": [
+        "d2db25bc-95f9-4faa-8356-e16b114e6746"
+      ]
+    }
+  },
+  {
+    "id": "7c18eb81-1e46-4127-8bb6-390305b6da3f",
+    "title": "helloo",
+    "createdAt": "2026-01-20T10:10:16.115Z",
+    "monthKey": "2026-01",
+    "votes": 1,
+    "monthlyVotes": {
+      "2026-01": 1
+    },
+    "votersByMonth": {
+      "2026-01": [
+        "d2db25bc-95f9-4faa-8356-e16b114e6746"
+      ]
+    }
+  },
+  {
+    "id": "b4ee1283-de1d-4aab-9fe2-11e2994a6d61",
+    "title": "Solo leveling",
+    "imageUrl": "https://pub-ba25c8821ce848339baeee07d1a23c08.r2.dev/manhua_pages/1768903787862-855417770.webp",
+    "createdAt": "2026-01-20T10:09:48.874Z",
+    "monthKey": "2026-01",
+    "votes": 1,
+    "monthlyVotes": {
+      "2026-01": 1
+    },
+    "votersByMonth": {
+      "2026-01": [
+        "d2db25bc-95f9-4faa-8356-e16b114e6746"
+      ]
+    }
+  }
+]

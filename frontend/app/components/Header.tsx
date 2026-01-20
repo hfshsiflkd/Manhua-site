@@ -135,6 +135,10 @@ export default function Header() {
             Leaderboard
           </Link>
 
+          <Link href="/requests" className={isActive("/requests")}>
+            Хүсэлт
+          </Link>
+
           <Link href="/profile" className={isActive("/profile")}>
             Профайл
           </Link>
@@ -282,6 +286,14 @@ export default function Header() {
               onClick={() => setIsOpen(false)}
             >
               Leaderboard
+            </Link>
+
+            <Link
+              href="/requests"
+              className={`${isActive("/requests")} w-full text-left`}
+              onClick={() => setIsOpen(false)}
+            >
+              Хүсэлт
             </Link>
 
             {user && (
