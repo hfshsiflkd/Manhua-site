@@ -401,6 +401,11 @@ export async function adminGetChapters(slug: string) {
   return res.data;
 }
 
+export async function adminDeleteChapter(id: string) {
+  const res = await api.delete<{ message: string }>(`/admin/chapters/${id}`);
+  return res.data;
+}
+
 // EDITOR – list chapters for my manhua
 export async function editorGetChapters(slug: string) {
   const res = await api.get<Chapter[]>(`/editor/manhuas/${slug}/chapters`);
@@ -419,6 +424,11 @@ export async function editorUpdateChapter(
   payload: Partial<Chapter>
 ) {
   const res = await api.put<Chapter>(`/editor/chapters/${id}`, payload);
+  return res.data;
+}
+
+export async function editorDeleteChapter(id: string) {
+  const res = await api.delete<{ message: string }>(`/editor/chapters/${id}`);
   return res.data;
 }
 export async function adminUnlockUser(id: string) {

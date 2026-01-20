@@ -16,6 +16,7 @@ const {
   editorGetChapterById,
   editorUpdateChapter,
   editorCreateChapter,
+  editorDeleteChapter,
 } = require("../controllers/chapterController");
 
 // бүх editor route-ууд auth шаардлагатай
@@ -45,5 +46,6 @@ router.post("/manhuas/:slug/chapters", editorCreateChapter);
 // ✅ EDITOR: chapter one by id
 router.get("/chapters/:id", editorGetChapterById);
 router.put("/chapters/:id", editorUpdateChapter);
+router.delete("/chapters/:id", editorDeleteChapter);
 
 module.exports = router;

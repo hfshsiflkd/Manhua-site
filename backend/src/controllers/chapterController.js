@@ -25,6 +25,15 @@ function cacheSet(key, data, ttlMs = 60_000) {
   });
 }
 
+function invalidateChapterCache(manhuaId) {
+  if (!manhuaId) return;
+  for (const key of chapterCache.keys()) {
+    if (key.startsWith(String(manhuaId))) {
+      chapterCache.delete(key);
+    }
+  }
+}
+
 /* =====================================================
    slug -> manhuaId CACHE
 ===================================================== */
@@ -224,11 +233,7 @@ exports.createChapter = async (req, res, next) => {
     });
 
     // 🔥 cache invalidate (энэ манхуатай холбоотой)
-    for (const key of chapterCache.keys()) {
-      if (key.startsWith(String(manhua._id))) {
-        chapterCache.delete(key);
-      }
-    }
+    invalidateChapterCache(manhua._id);
 
     res.status(201).json(chapter);
   } catch (err) {
@@ -276,6 +281,27 @@ exports.updateChapter = async (req, res, next) => {
 
     await chapter.save();
     res.json(chapter);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/admin/chapters/:id
+ * – Admin: chapter устгах (ID-гаар)
+ */
+exports.adminDeleteChapter = async (req, res, next) => {
+  try {
+    const chapter = await Chapter.findById(req.params.id);
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    const manhuaId = chapter.manhua;
+    await chapter.deleteOne();
+    invalidateChapterCache(manhuaId);
+
+    res.json({ message: "Chapter deleted" });
   } catch (err) {
     next(err);
   }
@@ -372,6 +398,39 @@ exports.editorUpdateChapter = async (req, res, next) => {
 
     await chapter.save();
     res.json(chapter);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * EDITOR: DELETE /api/editor/chapters/:id
+ * - Chapter устгах (owner + admin)
+ */
+exports.editorDeleteChapter = async (req, res, next) => {
+  try {
+    const chapter = await Chapter.findById(req.params.id).populate(
+      "manhua",
+      "createdBy"
+    );
+
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    // admin биш бол зөвхөн өөрийнхөө manhua-ны chapter
+    if (
+      req.user.role !== "admin" &&
+      String(chapter.manhua.createdBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ message: "No permission" });
+    }
+
+    const manhuaId = chapter.manhua?._id || chapter.manhua;
+    await chapter.deleteOne();
+    invalidateChapterCache(manhuaId);
+
+    res.json({ message: "Chapter deleted" });
   } catch (err) {
     next(err);
   }

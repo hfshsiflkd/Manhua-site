@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import AdminShell from "../../../components/AdminShell";
-import { adminGetChapters,  } from "@/lib/api";
+import { adminDeleteChapter, adminGetChapters } from "@/lib/api";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 import type { Chapter } from "@/types/manhua";
 
 export default function AdminChaptersPage() {
@@ -14,7 +16,10 @@ export default function AdminChaptersPage() {
   const slug = params?.slug as string;
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   useEffect(() => {
     if (!slug) return;
@@ -35,6 +40,30 @@ export default function AdminChaptersPage() {
     }
     load();
   }, [slug, router]);
+
+  const handleDelete = async (chapter: Chapter) => {
+    const ok = await confirm({
+      title: "Chapter устгах уу?",
+      description: `Ch. ${chapter.chapterNumber} ${chapter.title ? `– ${chapter.title}` : ""} устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
+    if (!ok) return;
+
+    try {
+      setDeletingId(chapter._id);
+      await adminDeleteChapter(chapter._id);
+      setChapters((prev) => prev.filter((ch) => ch._id !== chapter._id));
+      toast.success("Chapter устгагдлаа");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(
+        e?.response?.data?.message || "Chapter устгах үед алдаа гарлаа"
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -97,12 +126,22 @@ export default function AdminChaptersPage() {
                     </td>
                     <td className="px-3 py-2">{ch.views || 0}</td>
                     <td className="px-3 py-2 text-right">
-                      <Link
-                        href={`/admin/manhuas/${slug}/chapters/${ch._id}`}
-                        className="text-[11px] text-cyan-300 hover:text-cyan-200"
-                      >
-                        Edit pages
-                      </Link>
+                      <div className="flex items-center justify-end gap-3">
+                        <Link
+                          href={`/admin/manhuas/${slug}/chapters/${ch._id}`}
+                          className="text-[11px] text-cyan-300 hover:text-cyan-200"
+                        >
+                          Edit pages
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(ch)}
+                          disabled={deletingId === ch._id}
+                          className="text-[11px] text-rose-300 hover:text-rose-200 disabled:opacity-60"
+                        >
+                          {deletingId === ch._id ? "Устгаж байна..." : "Устгах"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

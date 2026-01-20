@@ -4,10 +4,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { editorGetChapters } from "@/lib/api";
+import { editorDeleteChapter, editorGetChapters } from "@/lib/api";
 import type { Chapter } from "@/types/manhua";
 import EmptyState from "../../../components/EmptyState";
 import { TableSkeleton } from "../../../components/LoadingSkeleton";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { useToast } from "@/app/components/ToastProvider";
 
 export default function EditorChaptersPage() {
   const params = useParams();
@@ -17,6 +19,9 @@ export default function EditorChaptersPage() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   useEffect(() => {
     if (!slug) return;
@@ -45,6 +50,30 @@ export default function EditorChaptersPage() {
 
     load();
   }, [slug, router]);
+
+  const handleDelete = async (chapter: Chapter) => {
+    const ok = await confirm({
+      title: "Chapter устгах уу?",
+      description: `Ch. ${chapter.chapterNumber} ${chapter.title ? `– ${chapter.title}` : ""} устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
+    if (!ok) return;
+
+    try {
+      setDeletingId(chapter._id);
+      await editorDeleteChapter(chapter._id);
+      setChapters((prev) => prev.filter((ch) => ch._id !== chapter._id));
+      toast.success("Chapter устгагдлаа");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(
+        e?.response?.data?.message || "Chapter устгах үед алдаа гарлаа"
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const getStatusBadge = (status?: string) => {
     if (status === "published") {
@@ -183,6 +212,14 @@ export default function EditorChaptersPage() {
                           >
                             Edit
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(ch)}
+                            disabled={deletingId === ch._id}
+                            className="rounded-lg border border-rose-500/60 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-200 hover:bg-rose-500/20 transition disabled:opacity-60"
+                          >
+                            {deletingId === ch._id ? "Устгаж байна..." : "Устгах"}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -227,12 +264,22 @@ export default function EditorChaptersPage() {
                       </div>
                     </div>
                   </div>
-                  <Link
-                    href={`/editor/manhuas/${slug}/chapters/${ch._id}`}
-                    className="block w-full rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-4 py-2 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 transition text-center"
-                  >
-                    Edit
-                  </Link>
+                  <div className="grid gap-2">
+                    <Link
+                      href={`/editor/manhuas/${slug}/chapters/${ch._id}`}
+                      className="block w-full rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-4 py-2 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 transition text-center"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(ch)}
+                      disabled={deletingId === ch._id}
+                      className="block w-full rounded-lg border border-rose-500/60 bg-rose-500/10 px-4 py-2 text-xs font-medium text-rose-200 hover:bg-rose-500/20 transition text-center disabled:opacity-60"
+                    >
+                      {deletingId === ch._id ? "Устгаж байна..." : "Устгах"}
+                    </button>
+                  </div>
                 </div>
               );
             })}

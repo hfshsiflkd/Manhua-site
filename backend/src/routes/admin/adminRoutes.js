@@ -20,6 +20,7 @@ const {
   createChapter,
   getChapterById,
   updateChapter,
+  adminDeleteChapter,
 } = require("../../controllers/chapterController");
 
 router.use(protect, adminOnly);
@@ -50,6 +51,7 @@ router.post("/manhuas/:slug/chapters", createChapter);
 // ✅ ADMIN chapter by id
 router.get("/chapters/:id", getChapterById);
 router.put("/chapters/:id", updateChapter);
+router.delete("/chapters/:id", adminDeleteChapter);
 
 
 // Logs (old ActionLog endpoint - keep for backward compatibility)
