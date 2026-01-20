@@ -29,14 +29,18 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan("dev"));
 
-// CORS (public API: single origin, no credentials)
-const corsOrigin = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",")[0].trim()
-  : "https://www.arc-read.com";
+// CORS (public API: allow known origins, no credentials)
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
+  : ["https://www.arc-read.com", "https://arcread.vercel.app"];
 
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // non-browser or same-origin
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: false,
   })
 );
