@@ -8,7 +8,6 @@ import { getPublicChapters } from "@/lib/api";
 import { ProfileHeader } from "./components/ProfileHeader";
 import { ContinueReading } from "./components/ContinueReading";
 import { LibraryTabs } from "./components/LibraryTabs";
-import { Stats } from "./components/Stats";
 import { ProfileSettings } from "./components/ProfileSettings";
 import { VipPurchase } from "./components/VipPurchase";
 
@@ -87,38 +86,6 @@ export default function ProfilePage() {
       return [];
     }
   }, [favorites, bookmarks]);
-
-  // Calculate stats from localStorage
-  const stats = useMemo(() => {
-    try {
-      const stored = localStorage.getItem("readChapterIds");
-      if (!stored) {
-        return { totalChaptersRead: 0, readingStreak: 0, todayReadCount: 0 };
-      }
-
-      const readChapters = JSON.parse(stored) as Record<string, boolean>;
-      const totalChaptersRead = Object.values(readChapters).filter(Boolean).length;
-
-      // Simple streak calculation: check if read today
-      // For a more accurate streak, we'd need to track dates, but this is a simple version
-      const today = new Date().toDateString();
-      const todayReadCount = Object.keys(readChapters).filter((key) => {
-        // This is a simplified version - in reality, we'd need to track when chapters were read
-        return readChapters[key] === true;
-      }).length;
-
-      // Reading streak: assume 1 if they've read today (simplified)
-      const readingStreak = totalChaptersRead > 0 ? 1 : 0;
-
-      return {
-        totalChaptersRead,
-        readingStreak,
-        todayReadCount: Math.min(todayReadCount, totalChaptersRead), // Cap at total
-      };
-    } catch {
-      return { totalChaptersRead: 0, readingStreak: 0, todayReadCount: 0 };
-    }
-  }, []);
 
   useEffect(() => {
     async function loadProfile() {
@@ -217,13 +184,6 @@ export default function ProfilePage() {
         favorites={favorites}
         bookmarks={bookmarks}
         recentlyRead={recentlyRead}
-      />
-
-      {/* Stats */}
-      <Stats
-        totalChaptersRead={stats.totalChaptersRead}
-        readingStreak={stats.readingStreak}
-        todayReadCount={stats.todayReadCount}
       />
 
       {/* VIP Purchase */}
