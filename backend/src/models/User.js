@@ -3,15 +3,6 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 
-const preferenceStringArray = {
-  type: [String],
-  default: [],
-  validate: {
-    validator: (arr) => Array.isArray(arr) && arr.length <= 20,
-    message: "Too many preference items",
-  },
-};
-
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
@@ -55,13 +46,6 @@ const userSchema = new mongoose.Schema(
     resetPasswordTokenHash: { type: String },
     resetPasswordExpiresAt: { type: Date },
     resetPasswordRequestedAt: { type: Date },
-
-    preferredActivities: preferenceStringArray,
-    workValues: preferenceStringArray,
-    energyBoosts: preferenceStringArray,
-    goingOut: preferenceStringArray,
-    weekend: preferenceStringArray,
-    hobby: preferenceStringArray,
 
     bookmarks: [
       {

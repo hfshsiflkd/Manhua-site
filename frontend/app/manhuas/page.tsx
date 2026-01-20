@@ -320,7 +320,7 @@ export default function ManhuasPage() {
                 }}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
               >
-                <option value="all">Бүгд баг</option>
+                <option value="all">Бүх баг</option>
                 {teams.map((t) => (
                   <option key={t._id} value={t._id}>
                     {t.name}
