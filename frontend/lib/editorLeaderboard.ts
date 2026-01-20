@@ -2,7 +2,14 @@ import { api } from "@/lib/api";
 
 export type LeaderboardRow = {
   rank: number;
-  editor: { _id: string; username: string; email?: string; role?: string };
+  editor: {
+    _id: string;
+    username: string;
+    email?: string;
+    role?: string;
+    teamName?: string | null;
+    displayName?: string;
+  };
   chaptersUploaded: number;
   chapterMonthlyViews: number;
   share: number;

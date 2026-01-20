@@ -133,10 +133,10 @@ export default function EditorLeaderboardPage() {
                       <td className="px-4 py-3 text-slate-200">#{r.rank}</td>
                       <td className="px-4 py-3">
                         <div className="font-semibold text-slate-100">
-                          {r.editor.username}
+                          {r.editor.displayName || r.editor.username}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {(r.editor.role || "").toUpperCase()}
+                          {(r.editor.teamName || r.editor.role || "").toUpperCase()}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-200">

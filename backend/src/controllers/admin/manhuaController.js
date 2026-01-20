@@ -84,6 +84,10 @@ exports.deleteManhuaAdmin = async (req, res, next) => {
     const manhua = await Manhua.findById(id).lean();
     if (!manhua) return res.status(404).json({ message: "Manhua not found" });
 
+    if (String(manhua.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Only owner can delete" });
+    }
+
     await Manhua.deleteOne({ _id: id });
 
     // ✅ cache invalidate

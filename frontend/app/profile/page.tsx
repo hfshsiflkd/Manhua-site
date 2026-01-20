@@ -3,13 +3,24 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { api, getMyFavorites, getMyBookmarks, type Favorite, type Bookmark } from "@/lib/api";
+import {
+  api,
+  getMyFavorites,
+  getMyBookmarks,
+  getMyTeamInvites,
+  acceptMyTeamInvite,
+  declineMyTeamInvite,
+  type Favorite,
+  type Bookmark,
+  type TeamInvite,
+} from "@/lib/api";
 import { getPublicChapters } from "@/lib/api";
 import { ProfileHeader } from "./components/ProfileHeader";
 import { ContinueReading } from "./components/ContinueReading";
 import { LibraryTabs } from "./components/LibraryTabs";
 import { ProfileSettings } from "./components/ProfileSettings";
 import { VipPurchase } from "./components/VipPurchase";
+import { useToast } from "@/app/components/ToastProvider";
 
 interface MeResponse {
   _id: string;
@@ -27,6 +38,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [totalChapters, setTotalChapters] = useState<number | undefined>(undefined);
+  const [invites, setInvites] = useState<TeamInvite[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(true);
+  const [workingInviteId, setWorkingInviteId] = useState<string | null>(null);
+  const toast = useToast();
 
   // Get last read chapter from bookmarks (most recent)
   const lastReadBookmark = useMemo(() => {
@@ -131,6 +146,56 @@ export default function ProfilePage() {
     loadProfile();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setLoadingInvites(true);
+    getMyTeamInvites()
+      .then((data) => {
+        if (!active) return;
+        setInvites(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error("Failed to load invites:", err);
+        setInvites([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setLoadingInvites(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleAcceptInvite = async (inviteId: string) => {
+    try {
+      setWorkingInviteId(inviteId);
+      await acceptMyTeamInvite(inviteId);
+      setInvites((prev) => prev.filter((i) => i._id !== inviteId));
+      toast.success("Багийн хүсэлт зөвшөөрөгдлөө");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Алдаа гарлаа");
+    } finally {
+      setWorkingInviteId(null);
+    }
+  };
+
+  const handleDeclineInvite = async (inviteId: string) => {
+    try {
+      setWorkingInviteId(inviteId);
+      await declineMyTeamInvite(inviteId);
+      setInvites((prev) => prev.filter((i) => i._id !== inviteId));
+      toast.success("Хүсэлт татгалзлаа");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Алдаа гарлаа");
+    } finally {
+      setWorkingInviteId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-400">
@@ -180,6 +245,74 @@ export default function ProfilePage() {
       <div className="space-y-6">
         {/* Top Summary */}
         <ProfileHeader />
+
+        {/* Team Invites */}
+        {(loadingInvites || invites.length > 0) && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-200">Team хүсэлтүүд</h2>
+              <span className="text-xs text-slate-500">
+                {invites.length}
+              </span>
+            </div>
+            <div className="mt-3">
+              {loadingInvites ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-12 rounded-xl border border-slate-800 bg-slate-950/60 animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {invites.map((invite) => (
+                    <div
+                      key={invite._id}
+                      className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-slate-100">
+                          {invite.team?.name || "Team"}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Урьсан: {invite.invitedBy?.username || "—"}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] uppercase text-amber-200">
+                          pending
+                        </span>
+                        <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase text-slate-300">
+                          {invite.role}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptInvite(invite._id)}
+                          disabled={workingInviteId === invite._id}
+                          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
+                        >
+                          Зөвшөөрөх
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeclineInvite(invite._id)}
+                          disabled={workingInviteId === invite._id}
+                          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+                        >
+                          Татгалзах
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Reading Progress */}
         <ContinueReading bookmark={lastReadBookmark || undefined} totalChapters={totalChapters} />

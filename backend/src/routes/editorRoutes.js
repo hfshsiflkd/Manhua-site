@@ -18,6 +18,21 @@ const {
   editorCreateChapter,
   editorDeleteChapter,
 } = require("../controllers/chapterController");
+const {
+  listTeams,
+  createTeam,
+  getTeam,
+  updateTeam,
+  deleteTeam,
+  addTeamMember,
+  updateMemberRole,
+  removeMember,
+  listTeamInvites,
+  listMyTeamInvites,
+  acceptTeamInvite,
+  declineTeamInvite,
+  listTeamManhuas,
+} = require("../controllers/teamController");
 
 // бүх editor route-ууд auth шаардлагатай
 router.use(protect);
@@ -47,5 +62,23 @@ router.post("/manhuas/:slug/chapters", editorCreateChapter);
 router.get("/chapters/:id", editorGetChapterById);
 router.put("/chapters/:id", editorUpdateChapter);
 router.delete("/chapters/:id", editorDeleteChapter);
+
+// ✅ EDITOR: teams
+router.use("/teams", requireRole("admin", "editor"));
+router.get("/teams", listTeams);
+router.post("/teams", createTeam);
+router.get("/teams/:id", getTeam);
+router.patch("/teams/:id", updateTeam);
+router.delete("/teams/:id", deleteTeam);
+router.post("/teams/:id/members", addTeamMember);
+router.patch("/teams/:id/members/:userId", updateMemberRole);
+router.delete("/teams/:id/members/:userId", removeMember);
+router.get("/teams/:id/invites", listTeamInvites);
+router.post("/teams/:id/invites/:inviteId/accept", acceptTeamInvite);
+router.post("/teams/:id/invites/:inviteId/decline", declineTeamInvite);
+router.get("/teams/:id/manhuas", listTeamManhuas);
+
+// ✅ EDITOR: my pending team invites
+router.get("/team-invites", listMyTeamInvites);
 
 module.exports = router;

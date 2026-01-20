@@ -9,6 +9,8 @@ import {
   editorUpdateManhua,
   uploadImage,
   Manhua,
+  editorGetTeams,
+  Team,
 } from "@/lib/api";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
@@ -93,7 +95,9 @@ export default function AdminManhuaDetailPage() {
     status: "ongoing",
     genres: "",
     rating: "",
+    teamId: "",
   });
+  const [teams, setTeams] = useState<Team[]>([]);
 
   // ─── LOAD DATA ─────────────────────
   useEffect(() => {
@@ -133,6 +137,10 @@ export default function AdminManhuaDetailPage() {
           status: found.status || "ongoing",
           genres: found.genres?.join(", ") || "",
           rating: found.rating?.toString() || "0",
+          teamId:
+            typeof found.team === "string"
+              ? found.team
+              : (found.team as any)?._id || "",
         });
 
         setIsSlugLocked(wasCustom);
@@ -149,6 +157,22 @@ export default function AdminManhuaDetailPage() {
 
     fetchManhua();
   }, [routeSlug]);
+
+  useEffect(() => {
+    let active = true;
+    editorGetTeams()
+      .then((data) => {
+        if (!active) return;
+        setTeams(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setTeams([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // ─── SAVE ─────────────────────────
   const handleSave = async (e: React.FormEvent) => {
@@ -187,6 +211,7 @@ export default function AdminManhuaDetailPage() {
         status: form.status,
         genres: genresArray,
         rating: ratingValue,
+        teamId: form.teamId || null,
       };
 
       const updated = await editorUpdateManhua(manhua._id, payload);
@@ -499,6 +524,30 @@ export default function AdminManhuaDetailPage() {
                     <option value="completed">Completed</option>
                     <option value="hiatus">Hiatus</option>
                   </select>
+                </div>
+
+                {/* Team */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Баг
+                  </label>
+                  <select
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    value={form.teamId}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, teamId: e.target.value }))
+                    }
+                  >
+                    <option value="">Баггүй (хувийн)</option>
+                    {teams.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500">
+                    Баг сонговол тухайн багийн гишүүд хамт ажиллаж чадна.
+                  </p>
                 </div>
 
                 {/* Genres - Pill selection */}

@@ -70,8 +70,8 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 401/403 - token expired or invalid
-    if (error?.response?.status === 401 || error?.response?.status === 403) {
+    // Handle 401 - token expired or invalid
+    if (error?.response?.status === 401) {
       // Only clear token and redirect if we're in browser
       if (typeof window !== "undefined") {
         const isAuthEndpoint = error?.config?.url?.includes("/auth/");
@@ -131,6 +131,40 @@ export interface User {
   trialGrantedAt?: string;
 }
 
+export type TeamRole = "owner" | "admin" | "editor";
+
+export interface TeamMember {
+  user: User;
+  role: TeamRole;
+  addedAt?: string;
+}
+
+export interface Team {
+  _id: string;
+  name: string;
+  description?: string;
+  createdBy?: User;
+  members?: TeamMember[];
+  membersCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TeamInvite {
+  _id: string;
+  team: {
+    _id: string;
+    name: string;
+    description?: string;
+  };
+  invitedUser: User;
+  invitedBy: User;
+  role: TeamRole;
+  status: "pending" | "accepted" | "declined";
+  createdAt?: string;
+  respondedAt?: string | null;
+}
+
 export interface ActionLog {
   _id: string;
   user: {
@@ -164,7 +198,10 @@ export interface Manhua {
     email?: string;
     role?: string;
   };
+  team?: { _id: string; name: string } | string | null;
   rating: number;
+  chapterCount?: number;
+  chapterViews?: number;
 }
 
 // Auth
@@ -300,6 +337,7 @@ export async function editorCreateManhua(payload: {
   coverImage?: string;
   coverImageUrl?: string;
   genres?: string[];
+  teamId?: string | null;
 }) {
   const res = await api.post<Manhua>("/editor/manhuas", payload);
   return res.data;
@@ -316,6 +354,7 @@ export async function editorUpdateManhua(
     coverImage: string;
     coverImageUrl: string;
     genres: string[];
+    teamId: string | null;
   }>
 ) {
   const res = await api.patch<Manhua>(`/editor/manhuas/${id}`, payload);
@@ -429,6 +468,117 @@ export async function editorUpdateChapter(
 
 export async function editorDeleteChapter(id: string) {
   const res = await api.delete<{ message: string }>(`/editor/chapters/${id}`);
+  return res.data;
+}
+
+// EDITOR – teams
+export async function editorGetTeams() {
+  const res = await api.get<Team[]>(`/editor/teams`);
+  return res.data;
+}
+
+export async function editorCreateTeam(payload: {
+  name: string;
+  description?: string;
+}) {
+  const res = await api.post<Team>(`/editor/teams`, payload);
+  return res.data;
+}
+
+export async function editorGetTeam(id: string) {
+  const res = await api.get<Team>(`/editor/teams/${id}`);
+  return res.data;
+}
+
+export async function editorUpdateTeam(
+  id: string,
+  payload: { name?: string; description?: string }
+) {
+  const res = await api.patch<Team>(`/editor/teams/${id}`, payload);
+  return res.data;
+}
+
+export async function editorDeleteTeam(id: string) {
+  const res = await api.delete<{ message: string }>(`/editor/teams/${id}`);
+  return res.data;
+}
+
+export async function editorAddTeamMember(
+  teamId: string,
+  payload: { userId?: string; username?: string; email?: string; role?: TeamRole }
+) {
+  const res = await api.post<{ message: string; invite: TeamInvite }>(
+    `/editor/teams/${teamId}/members`,
+    payload
+  );
+  return res.data;
+}
+
+export async function editorUpdateTeamMember(
+  teamId: string,
+  userId: string,
+  role: TeamRole
+) {
+  const res = await api.patch<Team>(
+    `/editor/teams/${teamId}/members/${userId}`,
+    { role }
+  );
+  return res.data;
+}
+
+export async function editorRemoveTeamMember(teamId: string, userId: string) {
+  const res = await api.delete<Team>(
+    `/editor/teams/${teamId}/members/${userId}`
+  );
+  return res.data;
+}
+
+export async function editorGetTeamInvites(teamId: string) {
+  const res = await api.get<TeamInvite[]>(`/editor/teams/${teamId}/invites`);
+  return res.data;
+}
+
+export async function editorGetMyTeamInvites() {
+  const res = await api.get<TeamInvite[]>(`/editor/team-invites`);
+  return res.data;
+}
+
+export async function editorAcceptTeamInvite(teamId: string, inviteId: string) {
+  const res = await api.post<{ message: string }>(
+    `/editor/teams/${teamId}/invites/${inviteId}/accept`
+  );
+  return res.data;
+}
+
+export async function editorDeclineTeamInvite(teamId: string, inviteId: string) {
+  const res = await api.post<{ message: string }>(
+    `/editor/teams/${teamId}/invites/${inviteId}/decline`
+  );
+  return res.data;
+}
+
+// ME – team invites (for normal users)
+export async function getMyTeamInvites() {
+  const res = await api.get<TeamInvite[]>(`/me/team-invites`);
+  return res.data;
+}
+
+export async function acceptMyTeamInvite(inviteId: string) {
+  const res = await api.post<{ message: string }>(
+    `/me/team-invites/${inviteId}/accept`
+  );
+  return res.data;
+}
+
+export async function declineMyTeamInvite(inviteId: string) {
+  const res = await api.post<{ message: string }>(
+    `/me/team-invites/${inviteId}/decline`
+  );
+  return res.data;
+}
+
+export async function editorGetTeamManhuas(teamId: string) {
+  const res = await api.get<Manhua[]>(`/editor/teams/${teamId}/manhuas`);
   return res.data;
 }
 export async function adminUnlockUser(id: string) {

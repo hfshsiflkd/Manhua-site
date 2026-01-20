@@ -16,6 +16,11 @@ interface ManhuaListResponse {
   limit: number;
 }
 
+interface TeamOption {
+  _id: string;
+  name: string;
+}
+
 const GENRES = [
   { value: "all", label: "Бүгд" },
   { value: "Romance", label: "Romance" },
@@ -62,7 +67,9 @@ export default function ManhuasPage() {
   const [searchInput, setSearchInput] = useState("");
   const [genre, setGenre] = useState("all");
   const [status, setStatus] = useState("all");
+  const [teamId, setTeamId] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +83,12 @@ export default function ManhuasPage() {
   );
 
   const hasActiveFilters = useMemo(
-    () => debouncedSearch !== "" || genre !== "all" || status !== "all",
-    [debouncedSearch, genre, status]
+    () =>
+      debouncedSearch !== "" ||
+      genre !== "all" ||
+      status !== "all" ||
+      teamId !== "all",
+    [debouncedSearch, genre, status, teamId]
   );
 
   const load = useCallback(async () => {
@@ -90,6 +101,7 @@ export default function ManhuasPage() {
       if (debouncedSearch) params.q = debouncedSearch;
       if (genre !== "all") params.genre = genre;
       if (status !== "all") params.status = status;
+      if (teamId !== "all") params.teamId = teamId;
 
       const res = await api.get<ManhuaListResponse>("/manhuas", {
         params,
@@ -103,11 +115,28 @@ export default function ManhuasPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, genre, status, debouncedSearch, limit]);
+  }, [page, genre, status, teamId, debouncedSearch, limit]);
 
   useEffect(() => {
     setPage(1); // Reset to page 1 when filters change
-  }, [debouncedSearch, genre, status]);
+  }, [debouncedSearch, genre, status, teamId]);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .get<TeamOption[]>("/manhuas/teams")
+      .then((res) => {
+        if (!active) return;
+        setTeams(Array.isArray(res.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setTeams([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     load();
@@ -117,6 +146,7 @@ export default function ManhuasPage() {
     setSearchInput("");
     setGenre("all");
     setStatus("all");
+    setTeamId("all");
     setPage(1);
   };
 
@@ -132,7 +162,7 @@ export default function ManhuasPage() {
             Манхуа жагсаалт
           </h1>
           <p className="text-xs text-slate-400 sm:text-sm lg:text-base">
-            Нэрээр хайх • Жанраар шүүх • Статус
+            Нэрээр хайх • Жанраар шүүх • Статус • Баг
           </p>
         </div>
 
@@ -162,6 +192,28 @@ export default function ManhuasPage() {
               placeholder="Хайх..."
               className="w-full rounded-lg border border-slate-700 bg-slate-950/70 pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 sm:rounded-xl sm:pl-10 sm:py-3"
             />
+          </div>
+
+          {/* Mobile: Team Filter (always visible) */}
+          <div className="sm:hidden">
+            <label className="mb-1.5 block text-xs font-medium text-slate-400">
+              Баг
+            </label>
+            <select
+              value={teamId}
+              onChange={(e) => {
+                setTeamId(e.target.value);
+                setPage(1);
+              }}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            >
+              <option value="all">Бүгд</option>
+              {teams.map((t) => (
+                <option key={t._id} value={t._id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Mobile: Collapsible Filters */}
@@ -234,15 +286,6 @@ export default function ManhuasPage() {
                   </div>
                 </div>
 
-                {/* Clear Filters Button */}
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-300 transition active:bg-slate-900"
-                  >
-                    Цэвэрлэх
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -262,6 +305,25 @@ export default function ManhuasPage() {
                 {GENRES.map((g) => (
                   <option key={g.value} value={g.value}>
                     {g.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Team Filter */}
+            <div className="flex-1 max-w-[220px]">
+              <select
+                value={teamId}
+                onChange={(e) => {
+                  setTeamId(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              >
+                <option value="all">Бүгд баг</option>
+                {teams.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    {t.name}
                   </option>
                 ))}
               </select>
@@ -287,15 +349,6 @@ export default function ManhuasPage() {
               ))}
             </div>
 
-            {/* Clear Filters Button */}
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 sm:px-6"
-              >
-                Цэвэрлэх
-              </button>
-            )}
           </div>
         </div>
 

@@ -34,6 +34,11 @@ export default function EditorSidebar({
       label: "My Manhuas",
       icon: "📚",
     },
+    {
+      href: "/editor/teams",
+      label: "Teams",
+      icon: "👥",
+    },
   ];
   if (isAdmin || isEditor) {
     navItems.push({
@@ -237,7 +242,7 @@ export default function EditorSidebar({
               >
                 <div className="min-w-0">
                   <div className="truncate text-[11px] font-semibold text-slate-100">
-                    #{r.rank} {r.editor.username}
+                    #{r.rank} {r.editor.displayName || r.editor.username}
                   </div>
                   <div className="text-[10px] text-slate-500">
                     Chapters: {r.chaptersUploaded.toLocaleString("en-US")}

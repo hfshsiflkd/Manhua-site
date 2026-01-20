@@ -6,12 +6,16 @@ const Chapter = require("../models/Chapter");
  * query-с filter үүсгэнэ
  */
 function buildFilter(query = {}) {
-  const { q, genre, status } = query;
+  const { q, genre, status, teamId } = query;
   const filter = {};
 
   if (q) filter.title = { $regex: q, $options: "i" };
   if (genre) filter.genres = genre;
   if (status) filter.status = status;
+  if (teamId) {
+    if (teamId === "none") filter.team = null;
+    else filter.team = teamId;
+  }
 
   return filter;
 }

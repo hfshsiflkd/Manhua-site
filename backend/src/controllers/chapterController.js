@@ -1,6 +1,7 @@
 // src/controllers/chapterController.js
 const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
+const Team = require("../models/Team");
 const { trackView } = require("../utils/viewCounter");
 
 /* =====================================================
@@ -32,6 +33,24 @@ function invalidateChapterCache(manhuaId) {
       chapterCache.delete(key);
     }
   }
+}
+
+async function getTeamRole(teamId, userId) {
+  const normalizedId =
+    typeof teamId === "object" && teamId !== null
+      ? teamId._id || teamId.id
+      : teamId;
+  if (!normalizedId) return null;
+  const team = await Team.findById(normalizedId).select("members").lean();
+  if (!team) return null;
+  const member = team.members?.find(
+    (m) => String(m.user) === String(userId)
+  );
+  return member?.role || null;
+}
+
+function hasTeamAccess(role) {
+  return role === "owner" || role === "admin" || role === "editor";
 }
 
 /* =====================================================
@@ -297,6 +316,15 @@ exports.adminDeleteChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
+    const manhua = await Manhua.findById(chapter.manhua).select("createdBy");
+    if (!manhua) {
+      return res.status(404).json({ message: "Manhua not found" });
+    }
+
+    if (String(manhua.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Only owner can delete" });
+    }
+
     const manhuaId = chapter.manhua;
     await chapter.deleteOne();
     invalidateChapterCache(manhuaId);
@@ -316,12 +344,13 @@ exports.editorListChaptersOfManhua = async (req, res, next) => {
       return res.status(404).json({ message: "Manhua not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө manhua дээр ажиллах
-    if (
-      req.user.role !== "admin" &&
-      String(manhua.createdBy) !== String(req.user._id)
-    ) {
-      return res.status(403).json({ message: "No permission for this manhua" });
+    // admin биш бол зөвхөн өөрийнхөө manhua эсвэл багийнх
+    if (req.user.role !== "admin") {
+      const isOwner = String(manhua.createdBy) === String(req.user._id);
+      const teamRole = await getTeamRole(manhua.team, req.user._id);
+      if (!isOwner && !hasTeamAccess(teamRole)) {
+        return res.status(403).json({ message: "No permission for this manhua" });
+      }
     }
 
     const chapters = await Chapter.find({ manhua: manhua._id })
@@ -341,7 +370,7 @@ exports.editorListChaptersOfManhua = async (req, res, next) => {
 exports.editorGetChapterById = async (req, res, next) => {
   try {
     const chapter = await Chapter.findById(req.params.id)
-      .populate("manhua", "title slug createdBy")
+      .populate("manhua", "title slug createdBy team")
       .lean();
 
     if (!chapter) {
@@ -350,14 +379,15 @@ exports.editorGetChapterById = async (req, res, next) => {
 
     const manhua = chapter.manhua;
 
-    // admin биш бол зөвхөн өөрийн manhua
-    if (
-      req.user.role !== "admin" &&
-      String(manhua.createdBy) !== String(req.user._id)
-    ) {
-      return res
-        .status(403)
-        .json({ message: "No permission for this chapter" });
+    // admin биш бол зөвхөн өөрийн manhua эсвэл багийнх
+    if (req.user.role !== "admin") {
+      const isOwner = String(manhua.createdBy) === String(req.user._id);
+      const teamRole = await getTeamRole(manhua.team, req.user._id);
+      if (!isOwner && !hasTeamAccess(teamRole)) {
+        return res
+          .status(403)
+          .json({ message: "No permission for this chapter" });
+      }
     }
 
     res.json(chapter);
@@ -374,19 +404,21 @@ exports.editorUpdateChapter = async (req, res, next) => {
   try {
     const chapter = await Chapter.findById(req.params.id).populate(
       "manhua",
-      "createdBy"
+      "createdBy team"
     );
 
     if (!chapter) {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө manhua-ны chapter
-    if (
-      req.user.role !== "admin" &&
-      String(chapter.manhua.createdBy) !== String(req.user._id)
-    ) {
-      return res.status(403).json({ message: "No permission" });
+    // admin биш бол зөвхөн өөрийнхөө manhua эсвэл багийнх
+    if (req.user.role !== "admin") {
+      const isOwner =
+        String(chapter.manhua.createdBy) === String(req.user._id);
+      const teamRole = await getTeamRole(chapter.manhua.team, req.user._id);
+      if (!isOwner && !hasTeamAccess(teamRole)) {
+        return res.status(403).json({ message: "No permission" });
+      }
     }
 
     const { chapterNumber, title, status, pages } = req.body;
@@ -411,19 +443,16 @@ exports.editorDeleteChapter = async (req, res, next) => {
   try {
     const chapter = await Chapter.findById(req.params.id).populate(
       "manhua",
-      "createdBy"
+      "createdBy team"
     );
 
     if (!chapter) {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө manhua-ны chapter
-    if (
-      req.user.role !== "admin" &&
-      String(chapter.manhua.createdBy) !== String(req.user._id)
-    ) {
-      return res.status(403).json({ message: "No permission" });
+    // зөвхөн owner устгана
+    if (String(chapter.manhua.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Only owner can delete" });
     }
 
     const manhuaId = chapter.manhua?._id || chapter.manhua;
@@ -447,14 +476,15 @@ exports.editorCreateChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Manhua not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө манхуа дээр л chapter үүсгэнэ
-    if (
-      req.user.role !== "admin" &&
-      String(manhua.createdBy) !== String(req.user._id)
-    ) {
-      return res
-        .status(403)
-        .json({ message: "No permission to create chapter for this manhua" });
+    // admin биш бол зөвхөн өөрийнхөө манхуа эсвэл багийнх
+    if (req.user.role !== "admin") {
+      const isOwner = String(manhua.createdBy) === String(req.user._id);
+      const teamRole = await getTeamRole(manhua.team, req.user._id);
+      if (!isOwner && !hasTeamAccess(teamRole)) {
+        return res
+          .status(403)
+          .json({ message: "No permission to create chapter for this manhua" });
+      }
     }
 
     // ChapterNumber давхацуулахгүй болгож шалгана (хүсвэл авч болно)

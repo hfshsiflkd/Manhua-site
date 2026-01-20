@@ -10,6 +10,7 @@ const adminOnly = require("../middleware/adminOnly");
 
 router.get("/home/sections", manhuaCtrl.getHomeSections);
 router.get("/popular-today", manhuaCtrl.getPopularToday);
+router.get("/teams", manhuaCtrl.getManhuaTeams);
 router.get("/", manhuaCtrl.getManhuas);
 
 router.get("/:slug/chapters", chapterPublicCtrl.getChaptersOfManhua);

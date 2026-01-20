@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, FormEvent, ChangeEvent, useMemo } from "react";
+import { useState, FormEvent, ChangeEvent, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { uploadImage, editorCreateManhua } from "@/lib/api";
+import { uploadImage, editorCreateManhua, editorGetTeams, Team } from "@/lib/api";
 
 const GENRE_OPTIONS = [
   "Romance",
@@ -27,6 +27,8 @@ export default function EditorNewManhuaPage() {
     "ongoing"
   );
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamId, setTeamId] = useState<string>("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -44,6 +46,22 @@ export default function EditorNewManhuaPage() {
   );
 
   const effectiveSlug = slug || autoSlug;
+
+  useEffect(() => {
+    let active = true;
+    editorGetTeams()
+      .then((data) => {
+        if (!active) return;
+        setTeams(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setTeams([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -88,6 +106,7 @@ export default function EditorNewManhuaPage() {
         genres: selectedGenres,
         coverImage: coverImageUrl,
         coverImageUrl,
+        teamId: teamId || undefined,
       };
 
       const manhua = await editorCreateManhua(payload);
@@ -201,6 +220,28 @@ export default function EditorNewManhuaPage() {
                   <option value="completed">Дууссан</option>
                   <option value="hiatus">Завсарласан</option>
                 </select>
+              </div>
+
+              {/* Team */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Баг
+                </label>
+                <select
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  value={teamId}
+                  onChange={(e) => setTeamId(e.target.value)}
+                >
+                  <option value="">Баггүй (хувийн)</option>
+                  {teams.map((t) => (
+                    <option key={t._id} value={t._id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500">
+                  Баг сонговол тухайн багийн гишүүд хамт ажиллаж чадна.
+                </p>
               </div>
 
               {/* Genres */}

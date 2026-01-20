@@ -2,6 +2,7 @@ const User = require("../models/User");
 const Chapter = require("../models/Chapter");
 const FinanceMonth = require("../models/FinanceMonth");
 const EditorMonthStat = require("../models/EditorMonthStat");
+const Team = require("../models/Team");
 
 function parseMonthKey(monthKey) {
   const m = String(monthKey || "").match(/^(\d{4})-(\d{2})$/);
@@ -74,7 +75,7 @@ exports.getEditorLeaderboard = async (req, res) => {
     .lean();
   const editorIds = editors.map((e) => e._id);
 
-  const [chapCounts, statsRows] = await Promise.all([
+  const [chapCounts, statsRows, teams] = await Promise.all([
     Chapter.aggregate([
       { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
       { $group: { _id: "$uploadedBy", count: { $sum: 1 } } },
@@ -82,6 +83,9 @@ exports.getEditorLeaderboard = async (req, res) => {
     // Pre-aggregated monthly stats (fast path)
     EditorMonthStat.find({ monthKey, editorId: { $in: editorIds } })
       .select("editorId chapterMonthlyViews")
+      .lean(),
+    Team.find({ "members.user": { $in: editorIds } })
+      .select("name members")
       .lean(),
   ]);
 
@@ -115,25 +119,90 @@ exports.getEditorLeaderboard = async (req, res) => {
     }
   }
 
-  const totalChapterViews = editors.reduce(
-    (acc, e) => acc + (chapterViewsByEditor.get(String(e._id)) || 0),
+  const teamByEditor = new Map();
+  const teamMembersById = new Map();
+  for (const team of teams) {
+    const teamId = String(team._id || "");
+    if (!teamId) continue;
+    const members = [];
+    for (const member of team.members || []) {
+      const memberId =
+        typeof member.user === "object" && member.user !== null
+          ? member.user._id
+          : member.user;
+      const key = String(memberId || "");
+      if (!key) continue;
+      teamByEditor.set(key, { teamId, teamName: team.name });
+      members.push(key);
+    }
+    teamMembersById.set(teamId, { name: team.name, members });
+  }
+
+  const teamTotals = new Map(); // teamId -> { chapterCount, chapterViews }
+  const editorsInTeam = new Set();
+
+  for (const [teamId, info] of teamMembersById.entries()) {
+    let chapterCount = 0;
+    let chapterViews = 0;
+    for (const editorId of info.members) {
+      if (!editorIds.find((id) => String(id) === String(editorId))) continue;
+      editorsInTeam.add(String(editorId));
+      chapterCount += chaptersByEditor.get(String(editorId)) || 0;
+      chapterViews += chapterViewsByEditor.get(String(editorId)) || 0;
+    }
+    teamTotals.set(teamId, { chapterCount, chapterViews, teamName: info.name });
+  }
+
+  const rows = [];
+
+  for (const [teamId, totals] of teamTotals.entries()) {
+    rows.push({
+      editor: {
+        _id: teamId,
+        username: totals.teamName,
+        email: undefined,
+        role: "team",
+        teamName: totals.teamName,
+        displayName: totals.teamName,
+      },
+      chaptersUploaded: totals.chapterCount,
+      chapterMonthlyViews: totals.chapterViews,
+      share: 0,
+      payout: 0,
+    });
+  }
+
+  for (const e of editors) {
+    const id = String(e._id);
+    if (editorsInTeam.has(id)) continue;
+    rows.push({
+      editor: {
+        _id: e._id,
+        username: e.username,
+        email: e.email,
+        role: e.role,
+        teamName: null,
+        displayName: e.username,
+      },
+      chaptersUploaded: chaptersByEditor.get(id) || 0,
+      chapterMonthlyViews: chapterViewsByEditor.get(id) || 0,
+      share: 0,
+      payout: 0,
+    });
+  }
+
+  const totalChapterViews = rows.reduce(
+    (acc, r) => acc + (r.chapterMonthlyViews || 0),
     0
   );
 
-  const rows = editors.map((e) => {
-    const id = String(e._id);
-    const chaptersUploaded = chaptersByEditor.get(id) || 0;
-    const chapterMonthlyViews = chapterViewsByEditor.get(id) || 0;
-    const share = totalChapterViews ? chapterMonthlyViews / totalChapterViews : 0;
-    const payout = editorsPool ? editorsPool * share : 0;
-    return {
-      editor: { _id: e._id, username: e.username, email: e.email, role: e.role },
-      chaptersUploaded,
-      chapterMonthlyViews,
-      share,
-      payout,
-    };
-  });
+  for (const r of rows) {
+    const share = totalChapterViews
+      ? r.chapterMonthlyViews / totalChapterViews
+      : 0;
+    r.share = share;
+    r.payout = editorsPool ? editorsPool * share : 0;
+  }
 
   rows.sort((a, b) => {
     if (b.payout !== a.payout) return b.payout - a.payout;

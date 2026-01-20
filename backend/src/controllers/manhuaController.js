@@ -6,6 +6,7 @@ const {
 
 const { parsePagination } = require("../utils/pagination");
 const Manhua = require("../models/Manhua");
+const Team = require("../models/Team");
 const Chapter = require("../models/Chapter");
 const { MemoryCache } = require("../cache/memoryCache");
 
@@ -24,6 +25,23 @@ exports.getManhuas = async (req, res, next) => {
     });
 
     res.json({ items, total, page, limit });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/manhuas/teams
+exports.getManhuaTeams = async (req, res, next) => {
+  try {
+    const teamIds = await Manhua.distinct("team", { team: { $ne: null } });
+    if (!teamIds.length) return res.json([]);
+
+    const teams = await Team.find({ _id: { $in: teamIds } })
+      .select("_id name")
+      .sort({ name: 1 })
+      .lean();
+
+    res.json(teams);
   } catch (err) {
     next(err);
   }

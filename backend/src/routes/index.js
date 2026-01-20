@@ -17,6 +17,7 @@ const leaderboardRoutes = require("./leaderboardRoutes");
 const feedbackRoutes = require("./feedbackRoutes");
 const requestRoutes = require("./requestRoutes");
 const userController = require("../controllers/userController");
+const teamController = require("../controllers/teamController");
 const { protect } = require("../middleware/authMiddleware");
 
 router.use("/auth", authRoutes);
@@ -39,6 +40,19 @@ router.get(
 router.patch("/user/profile", protect, userController.updateProfile);
 router.patch("/user/email", protect, userController.updateEmail);
 router.patch("/user/password", protect, userController.updatePassword);
+
+// Team invites for all logged-in users
+router.get("/me/team-invites", protect, teamController.listMyTeamInvites);
+router.post(
+  "/me/team-invites/:inviteId/accept",
+  protect,
+  teamController.acceptTeamInvite
+);
+router.post(
+  "/me/team-invites/:inviteId/decline",
+  protect,
+  teamController.declineTeamInvite
+);
 
 router.use("/stats", statsRoutes);
 

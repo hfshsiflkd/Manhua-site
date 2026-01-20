@@ -64,6 +64,12 @@ const manhuaSchema = new mongoose.Schema(
       required: true,
     },
 
+    team: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      default: null,
+    },
+
     views: {
       type: Number,
       default: 0,
