@@ -29,15 +29,15 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan("dev"));
 
-// CORS
-const origins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())
-  : ["*"];
+// CORS (public API: single origin, no credentials)
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",")[0].trim()
+  : "https://www.arc-read.com";
 
 app.use(
   cors({
-    origin: origins[0] === "*" ? "*" : origins,
-    credentials: true,
+    origin: corsOrigin,
+    credentials: false,
   })
 );
 app.set("etag", false);

@@ -37,8 +37,22 @@ api.interceptors.request.use((config) => {
     }
   }
 
-  // login дээр auth-г хүчээр авч хаяна
+  const method = (config.method || "get").toLowerCase();
   const url = config.url || "";
+  const isPublicChapterRequest =
+    method === "get" &&
+    (/\/manhuas\/[^/]+\/chapters(\/|$)/.test(url) ||
+      /\/chapters(\/|$)/.test(url));
+
+  if (isPublicChapterRequest) {
+    // Ensure no credentials/authorization for cacheable public endpoints
+    if (headers.set) headers.set("Authorization", "");
+    delete headers.Authorization;
+    delete headers.authorization;
+    config.withCredentials = false;
+  }
+
+  // login дээр auth-г хүчээр авч хаяна
   if (url.includes("/auth/login") || url.includes("/auth/register")) {
     if (headers.set) headers.set("Authorization", "");
     delete headers.Authorization;
