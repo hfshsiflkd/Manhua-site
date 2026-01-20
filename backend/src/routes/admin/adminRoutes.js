@@ -27,6 +27,10 @@ router.use("/trial", require("./trialRoutes"));
 router.use("/users", require("./userAdminRoutes"));
 router.use("/finance", require("./financeRoutes"));
 router.use("/feedback", require("./feedbackRoutes"));
+router.get(
+  "/requests",
+  require("../../controllers/admin/requestAdminController").listRequests
+);
 
 
 // Stats

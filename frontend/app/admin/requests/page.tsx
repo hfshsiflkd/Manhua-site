@@ -2,20 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AdminShell from "../components/AdminShell";
-
-type RequestItem = {
-  id: string;
-  title: string;
-  imageUrl?: string;
-  createdAt: string;
-  votes: number;
-  votesThisMonth: number;
-};
-
-type RequestsResponse = {
-  monthKey: string;
-  items: RequestItem[];
-};
+import { adminGetRequests, type RequestItem } from "@/lib/requests";
 
 function RequestBadge({
   title,
@@ -49,13 +36,12 @@ export default function AdminReaderRequestsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/requests");
-      const data = (await res.json()) as RequestsResponse;
+      const data = await adminGetRequests();
       setItems(data.items || []);
       setMonthKey(data.monthKey || "");
       setError(null);
     } catch (e: any) {
-      setError(e?.message || "Хүсэлтүүдийг уншиж чадсангүй");
+      setError(e?.response?.data?.message || "Хүсэлтүүдийг уншиж чадсангүй");
       setItems([]);
     } finally {
       setLoading(false);

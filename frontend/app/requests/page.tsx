@@ -2,23 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { uploadImage } from "@/lib/api";
-import { getOrCreateDeviceId } from "@/lib/deviceId";
 import { useToast } from "@/app/components/ToastProvider";
 import { useAuth } from "@/context/AuthContext";
-
-type RequestItem = {
-  id: string;
-  title: string;
-  imageUrl?: string;
-  createdAt: string;
-  votes: number;
-  votesThisMonth: number;
-};
-
-type RequestsResponse = {
-  monthKey: string;
-  items: RequestItem[];
-};
+import { createRequest, getRequests, voteRequest, type RequestItem } from "@/lib/requests";
 
 const MAX_IMAGE_SIZE_MB = 10;
 
@@ -66,8 +52,7 @@ export default function ReaderRequestsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/requests`);
-      const data = (await res.json()) as RequestsResponse;
+      const data = await getRequests();
       setItems(data.items || []);
       setMonthKey(data.monthKey);
     } catch {
@@ -140,23 +125,7 @@ export default function ReaderRequestsPage() {
         imageUrl = (uploadResult as any).url || "";
       }
 
-      const deviceId = getOrCreateDeviceId();
-      const res = await fetch("/api/requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-device-id": deviceId,
-        },
-        body: JSON.stringify({ title: trimmed, imageUrl }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data?.message || "Хүсэлт илгээж чадсангүй");
-        return;
-      }
-
-      const created = (await res.json()) as RequestItem;
+      const created = await createRequest({ title: trimmed, imageUrl });
       setItems((prev) => [created, ...prev]);
       setTitle("");
       setImage(null);
@@ -164,8 +133,8 @@ export default function ReaderRequestsPage() {
         markVoted(created.id);
       }
       toast.success("Хүсэлт амжилттай илгээгдлээ");
-    } catch {
-      toast.error("Хүсэлт илгээж чадсангүй");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Хүсэлт илгээж чадсангүй");
     } finally {
       setSubmitting(false);
       setUploading(false);
@@ -183,19 +152,7 @@ export default function ReaderRequestsPage() {
     }
 
     try {
-      const deviceId = getOrCreateDeviceId();
-      const res = await fetch(`/api/requests/${id}/vote`, {
-        method: "POST",
-        headers: {
-          "x-device-id": deviceId,
-        },
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data?.message || "Санал өгч чадсангүй");
-        return;
-      }
+      const data = await voteRequest(id);
 
       setItems((prev) =>
         prev.map((item) =>
@@ -210,8 +167,8 @@ export default function ReaderRequestsPage() {
       );
       markVoted(id);
       toast.success("Санал өглөө");
-    } catch {
-      toast.error("Санал өгч чадсангүй");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Санал өгч чадсангүй");
     }
   };
 
