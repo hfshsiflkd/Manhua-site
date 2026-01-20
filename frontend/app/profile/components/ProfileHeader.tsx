@@ -53,13 +53,16 @@ export function ProfileHeader() {
   const avatarUrl = preview || user.avatar;
 
   return (
-    <div className="relative flex items-center gap-3 pb-4">
-      {/* Avatar with upload */}
-      <div className="relative shrink-0">
+    <div className="rounded-3xl bg-gradient-to-r from-cyan-500/40 via-fuchsia-500/30 to-yellow-400/30 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.2),_transparent_60%)]" />
+        <div className="relative flex items-center gap-4">
+        {/* Avatar with upload */}
+        <div className="relative shrink-0">
         <button
           onClick={handleAvatarClick}
           disabled={isUploading}
-          className="group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-500 to-fuchsia-500 text-lg font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="group relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-400 via-fuchsia-500 to-yellow-400 text-lg font-semibold text-white shadow-[0_8px_24px_rgba(56,189,248,0.35)] ring-2 ring-white/20 transition-all hover:scale-[1.02] hover:opacity-95 disabled:opacity-50"
           title="Профайл зураг солих"
         >
           {avatarUrl ? (
@@ -93,32 +96,35 @@ export function ProfileHeader() {
         />
       </div>
 
-      {/* Info */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h2 className="truncate text-base font-semibold text-slate-50">
-            {user.username}
-          </h2>
-          {user.isVIP ? (
-            <span className="inline-flex shrink-0 items-center rounded-full bg-yellow-300/90 px-2 py-0.5 text-[10px] font-semibold text-slate-900">
-              VIP ✨
-            </span>
-          ) : (
-            <span className="inline-flex shrink-0 items-center rounded-full bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-              Энгийн
-            </span>
+        {/* Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-semibold text-slate-50">
+              {user.username}
+            </h2>
+            {user.isVIP ? (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-yellow-300/90 px-2.5 py-0.5 text-[10px] font-semibold text-slate-900">
+                VIP ✨
+              </span>
+            ) : (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] font-semibold text-slate-300">
+                Энгийн
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-slate-400">{user.email}</p>
+          {user.isVIP && vipExpireText && (
+            <p className="mt-1 text-[10px] text-slate-500">
+              VIP дуусах: {vipExpireText}
+            </p>
           )}
         </div>
-        {user.isVIP && vipExpireText && (
-          <p className="mt-0.5 text-[10px] text-slate-400">
-            VIP дуусах: {vipExpireText}
-          </p>
-        )}
+        </div>
       </div>
 
       {/* Error message */}
       {error && (
-        <div className="absolute top-full left-0 right-0 mt-2 rounded-lg bg-red-500/20 px-3 py-2 text-xs text-red-300">
+        <div className="mt-3 rounded-lg bg-red-500/15 px-3 py-2 text-xs text-red-300">
           {error}
           <button
             onClick={clearError}

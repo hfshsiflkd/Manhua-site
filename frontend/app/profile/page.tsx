@@ -172,25 +172,31 @@ export default function ProfilePage() {
   if (!me) return null;
 
   return (
-    <div className="mx-auto max-w-md px-4 pb-12 pt-6">
-      {/* Top Summary */}
-      <ProfileHeader />
+    <div className="relative mx-auto max-w-3xl px-4 pb-16 pt-8">
+      <div className="pointer-events-none absolute inset-x-0 -top-12 -z-10 h-64 bg-gradient-to-b from-cyan-500/20 via-fuchsia-500/10 to-transparent blur-2xl" />
+      <div className="pointer-events-none absolute -right-10 top-16 -z-10 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -left-10 bottom-10 -z-10 h-52 w-52 rounded-full bg-fuchsia-500/10 blur-3xl" />
 
-      {/* Reading Progress */}
-      <ContinueReading bookmark={lastReadBookmark || undefined} totalChapters={totalChapters} />
+      <div className="space-y-6">
+        {/* Top Summary */}
+        <ProfileHeader />
 
-      {/* Library Tabs */}
-      <LibraryTabs
-        favorites={favorites}
-        bookmarks={bookmarks}
-        recentlyRead={recentlyRead}
-      />
+        {/* Reading Progress */}
+        <ContinueReading bookmark={lastReadBookmark || undefined} totalChapters={totalChapters} />
 
-      {/* VIP Purchase */}
-      <VipPurchase />
+        {/* Library Tabs */}
+        <LibraryTabs
+          favorites={favorites}
+          bookmarks={bookmarks}
+          recentlyRead={recentlyRead}
+        />
 
-      {/* Profile Settings */}
-      <ProfileSettings />
+        {/* VIP Purchase */}
+        <VipPurchase />
+
+        {/* Profile Settings */}
+        <ProfileSettings />
+      </div>
     </div>
   );
 }

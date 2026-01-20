@@ -30,16 +30,18 @@ export function ContinueReading({
 
   if (!bookmark) {
     return (
-      <div className="pt-6 pb-4 text-center border-b border-slate-800/50">
-        <p className="text-sm text-slate-400">
-          Та одоогоор уншиж эхлээгүй байна
-        </p>
-        <button
-          onClick={() => router.push("/manhuas")}
-          className="mt-3 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-400"
-        >
-          Манхуа сонгох
-        </button>
+      <div className="rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/25 to-slate-800/10 p-[1px] shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+        <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 text-center backdrop-blur">
+          <p className="text-sm text-slate-400">
+            Та одоогоор уншиж эхлээгүй байна
+          </p>
+          <button
+            onClick={() => router.push("/manhuas")}
+            className="mt-3 rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-cyan-500/25 transition-all hover:brightness-110"
+          >
+            Манхуа сонгох
+          </button>
+        </div>
       </div>
     );
   }
@@ -58,18 +60,27 @@ export function ContinueReading({
   };
 
   return (
-    <div className="pt-6 pb-4 border-b border-slate-800/50">
-      <h3 className="mb-4 text-sm font-medium text-slate-400">
-        Уншиж буй манхуа
-      </h3>
+    <div className="rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/25 to-yellow-400/20 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200">
+            Уншиж буй манхуа
+          </h3>
+          <button
+            onClick={handleResume}
+            className="rounded-full bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/25"
+          >
+            Үргэлжлүүлэх
+          </button>
+        </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-4">
         {/* Cover */}
         <Link
           href={`/manhua/${bookmark.manhua.slug}`}
           className="shrink-0"
         >
-          <div className="relative h-20 w-14 overflow-hidden rounded-lg bg-slate-800">
+          <div className="relative h-20 w-14 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
             {cover ? (
               <Image
                 src={cover}
@@ -92,12 +103,12 @@ export function ContinueReading({
             href={`/manhua/${bookmark.manhua.slug}`}
             className="block"
           >
-            <h4 className="line-clamp-2 text-sm font-medium text-slate-100 hover:text-cyan-400 transition-colors">
+            <h4 className="line-clamp-2 text-sm font-semibold text-slate-100 hover:text-cyan-300 transition-colors">
               {bookmark.manhua.title}
             </h4>
           </Link>
 
-          <div className="mt-1.5 space-y-1.5">
+          <div className="mt-2 space-y-2">
             <div className="flex items-center gap-2">
               <span
                 className={`text-xs ${
@@ -116,9 +127,9 @@ export function ContinueReading({
             {/* Progress Bar */}
             {progress !== null && (
               <div className="space-y-1">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-fuchsia-500 transition-all"
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-yellow-400 transition-all"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -127,16 +138,9 @@ export function ContinueReading({
                 </p>
               </div>
             )}
-
-            {/* Resume Button */}
-            <button
-              onClick={handleResume}
-              className="mt-2 w-full rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-cyan-400 active:scale-95"
-            >
-              Үргэлжлүүлэх
-            </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

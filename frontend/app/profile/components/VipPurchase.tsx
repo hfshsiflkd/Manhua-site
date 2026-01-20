@@ -24,36 +24,39 @@ export function VipPurchase() {
   };
 
   return (
-    <div className="pt-6 pb-4 border-b border-slate-800/50">
-      <div className="mb-4">
-        <h3 className="text-sm font-medium text-slate-400 mb-1">VIP</h3>
-      </div>
+    <div className="rounded-3xl bg-gradient-to-r from-yellow-400/30 via-amber-500/25 to-cyan-500/10 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200">VIP</h3>
+          <span className="text-[10px] text-slate-500">Онцгой эрх</span>
+        </div>
 
-      {isVip && vipExpiresAt && vipExpiresAt > now ? (
-        <div className="space-y-3">
-          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-            <p className="text-xs font-medium text-yellow-200 mb-1">
-              VIP идэвхтэй ✨
-            </p>
-            <p className="text-[10px] text-yellow-300/70">
-              Дуусах: {vipExpiresAt.toLocaleDateString("mn-MN")} ({daysRemaining} өдөр үлдсэн)
-            </p>
+        {isVip && vipExpiresAt && vipExpiresAt > now ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-500/20 to-yellow-400/10 px-4 py-3 shadow-inner shadow-yellow-500/20">
+              <p className="mb-1 text-xs font-semibold text-yellow-200">
+                VIP идэвхтэй ✨
+              </p>
+              <p className="text-[10px] text-yellow-300/70">
+                Дуусах: {vipExpiresAt.toLocaleDateString("mn-MN")} ({daysRemaining} өдөр үлдсэн)
+              </p>
+            </div>
+            <button
+              onClick={handleNavigateToVip}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
+            >
+              Сунгах
+            </button>
           </div>
+        ) : (
           <button
             onClick={handleNavigateToVip}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 transition-colors"
+            className="w-full rounded-lg bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-yellow-500/30 transition-all hover:brightness-110"
           >
-            Сунгах
+            VIP авах
           </button>
-        </div>
-      ) : (
-        <button
-          onClick={handleNavigateToVip}
-          className="w-full rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:from-yellow-300 hover:to-yellow-400 transition-all shadow-lg shadow-yellow-500/20"
-        >
-          VIP авах
-        </button>
-      )}
+        )}
+      </div>
     </div>
   );
 }

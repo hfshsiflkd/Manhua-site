@@ -17,10 +17,14 @@ export function ProfileSettings() {
   if (!user) return null;
 
   return (
-    <div className="pt-6 pb-4">
-      <h3 className="mb-4 text-sm font-medium text-slate-400">Профайл тохиргоо</h3>
+    <div className="rounded-3xl bg-gradient-to-r from-cyan-500/25 via-fuchsia-500/20 to-slate-800/10 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200">Профайл тохиргоо</h3>
+          <span className="text-[10px] text-slate-500">Тохиргоогоо шинэчил</span>
+        </div>
 
-      <div className="space-y-4">
+        <div className="space-y-3">
         {/* Username */}
         <UsernameForm
           currentUsername={user.username}
@@ -55,6 +59,7 @@ export function ProfileSettings() {
           }
           onSuccess={() => setActiveSection(null)}
         />
+        </div>
       </div>
     </div>
   );
@@ -108,14 +113,14 @@ function UsernameForm({
 
   if (!isActive) {
     return (
-      <div className="flex items-center justify-between py-2 border-b border-slate-800/30">
+      <div className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20">
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Хэрэглэгчийн нэр</p>
+          <p className="mb-0.5 text-xs text-slate-500">Хэрэглэгчийн нэр</p>
           <p className="text-sm text-slate-200">{currentUsername}</p>
         </div>
         <button
           onClick={onToggle}
-          className="text-xs text-cyan-400 hover:text-cyan-300"
+          className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25"
         >
           Засах
         </button>
@@ -124,7 +129,10 @@ function UsernameForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="py-2 border-b border-slate-800/30">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 shadow-inner shadow-black/20"
+    >
       <label className="block mb-2">
         <span className="text-xs text-slate-500 mb-1 block">
           Хэрэглэгчийн нэр
@@ -134,7 +142,7 @@ function UsernameForm({
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           placeholder="Хэрэглэгчийн нэр"
           minLength={3}
           maxLength={30}
@@ -148,11 +156,11 @@ function UsernameForm({
       {success && (
         <p className="mt-1 text-xs text-green-400">Амжилттай шинэчлэгдлээ</p>
       )}
-      <div className="flex gap-2 mt-3">
+      <div className="mt-3 flex gap-2">
         <button
           type="submit"
           disabled={isSubmitting || username === currentUsername}
-          className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Хадгалж байна..." : "Хадгалах"}
         </button>
@@ -228,14 +236,14 @@ function EmailForm({
 
   if (!isActive) {
     return (
-      <div className="flex items-center justify-between py-2 border-b border-slate-800/30">
+      <div className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20">
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Имэйл</p>
+          <p className="mb-0.5 text-xs text-slate-500">Имэйл</p>
           <p className="text-sm text-slate-200">{currentEmail}</p>
         </div>
         <button
           onClick={onToggle}
-          className="text-xs text-cyan-400 hover:text-cyan-300"
+          className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25"
         >
           Засах
         </button>
@@ -244,7 +252,10 @@ function EmailForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="py-2 border-b border-slate-800/30">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 shadow-inner shadow-black/20"
+    >
       <label className="block mb-2">
         <span className="text-xs text-slate-500 mb-1 block">Имэйл</span>
         <input
@@ -252,7 +263,7 @@ function EmailForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           placeholder="Имэйл хаяг"
           required
         />
@@ -266,7 +277,7 @@ function EmailForm({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           placeholder="Одоогийн нууц үг"
           required
         />
@@ -275,11 +286,11 @@ function EmailForm({
       {success && (
         <p className="mt-1 text-xs text-green-400">Амжилттай шинэчлэгдлээ</p>
       )}
-      <div className="flex gap-2 mt-3">
+      <div className="mt-3 flex gap-2">
         <button
           type="submit"
           disabled={isSubmitting || email === currentEmail}
-          className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Хадгалж байна..." : "Хадгалах"}
         </button>
@@ -357,14 +368,14 @@ function PasswordForm({
 
   if (!isActive) {
     return (
-      <div className="flex items-center justify-between py-2 border-b border-slate-800/30">
+      <div className="flex items-center justify-between rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20">
         <div>
-          <p className="text-xs text-slate-500 mb-0.5">Нууц үг</p>
+          <p className="mb-0.5 text-xs text-slate-500">Нууц үг</p>
           <p className="text-sm text-slate-400">••••••••</p>
         </div>
         <button
           onClick={onToggle}
-          className="text-xs text-cyan-400 hover:text-cyan-300"
+          className="rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/25"
         >
           Солих
         </button>
@@ -373,7 +384,10 @@ function PasswordForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="py-2 border-b border-slate-800/30">
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-white/5 bg-slate-900/50 px-4 py-3 shadow-inner shadow-black/20"
+    >
       <label className="block mb-2">
         <span className="text-xs text-slate-500 mb-1 block">
           Одоогийн нууц үг
@@ -383,7 +397,7 @@ function PasswordForm({
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           placeholder="Одоогийн нууц үг"
           required
         />
@@ -395,7 +409,7 @@ function PasswordForm({
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           placeholder="Шинэ нууц үг (хамгийн багадаа 8 тэмдэгт)"
           minLength={8}
           required
@@ -410,7 +424,7 @@ function PasswordForm({
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={isSubmitting}
-          className="w-full rounded-lg bg-slate-800/50 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          className="w-full rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-400 disabled:opacity-50"
           placeholder="Шинэ нууц үг давтах"
           minLength={8}
           required
@@ -420,11 +434,11 @@ function PasswordForm({
       {success && (
         <p className="mt-1 text-xs text-green-400">Амжилттай шинэчлэгдлээ</p>
       )}
-      <div className="flex gap-2 mt-3">
+      <div className="mt-3 flex gap-2">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? "Хадгалж байна..." : "Хадгалах"}
         </button>

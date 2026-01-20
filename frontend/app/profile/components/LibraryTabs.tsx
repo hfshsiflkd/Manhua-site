@@ -44,26 +44,28 @@ export function LibraryTabs({
   };
 
   return (
-    <div className="pt-6 pb-4 border-b border-slate-800/50">
-      {/* Tabs */}
-      <div className="flex mb-4">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
-              activeTab === tab.id
-                ? "border-b-2 border-cyan-500 text-cyan-400"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            {tab.label} ({tab.count})
-          </button>
-        ))}
-      </div>
+    <div className="rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/25 to-yellow-400/15 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+      <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
+        {/* Tabs */}
+        <div className="mb-4 flex flex-wrap gap-2 rounded-full bg-slate-950/70 p-1 shadow-inner shadow-black/40">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                activeTab === tab.id
+                  ? "bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-yellow-400 text-slate-950 shadow-md shadow-cyan-500/20"
+                  : "text-slate-300 hover:text-white"
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
 
-      {/* Content */}
-      <div>{renderContent()}</div>
+        {/* Content */}
+        <div>{renderContent()}</div>
+      </div>
     </div>
   );
 }
@@ -78,16 +80,16 @@ function FavoritesList({ favorites }: { favorites: Favorite[] }) {
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {favorites.map((fav) => {
         const cover = fav.manhua.coverImageUrl || fav.manhua.coverImage;
         return (
           <Link
             key={fav._id}
             href={`/manhua/${fav.manhua.slug}`}
-            className="flex gap-3 py-2.5 transition-colors hover:opacity-80"
+            className="flex gap-3 rounded-xl border border-transparent bg-slate-900/40 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20 hover:bg-slate-900/80"
           >
-            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700">
+            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
               {cover ? (
                 <Image
                   src={cover}
@@ -103,7 +105,7 @@ function FavoritesList({ favorites }: { favorites: Favorite[] }) {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="line-clamp-2 text-sm font-medium text-slate-100">
+              <h4 className="line-clamp-2 text-sm font-semibold text-slate-100">
                 {fav.manhua.title}
               </h4>
             </div>
@@ -124,7 +126,7 @@ function BookmarksList({ bookmarks }: { bookmarks: Bookmark[] }) {
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {bookmarks.map((bookmark) => {
         const cover =
           bookmark.manhua.coverImageUrl || bookmark.manhua.coverImage;
@@ -137,9 +139,9 @@ function BookmarksList({ bookmarks }: { bookmarks: Bookmark[] }) {
           <Link
             key={bookmark._id}
             href={`/manhua/${bookmark.manhua.slug}/chapter/${bookmark.chapterNumber}`}
-            className="flex gap-3 py-2.5 transition-colors hover:opacity-80"
+            className="flex gap-3 rounded-xl border border-transparent bg-slate-900/40 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20 hover:bg-slate-900/80"
           >
-            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700">
+            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
               {cover ? (
                 <Image
                   src={cover}
@@ -155,7 +157,7 @@ function BookmarksList({ bookmarks }: { bookmarks: Bookmark[] }) {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="line-clamp-1 text-sm font-medium text-slate-100">
+              <h4 className="line-clamp-1 text-sm font-semibold text-slate-100">
                 {bookmark.manhua.title}
               </h4>
               <p
@@ -197,16 +199,16 @@ function RecentlyReadList({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {items.map((item, idx) => {
         const isRead = isChapterRead(item.manhuaSlug, item.chapterNumber);
         return (
           <Link
             key={`${item.manhuaSlug}-${item.chapterNumber}-${idx}`}
             href={`/manhua/${item.manhuaSlug}/chapter/${item.chapterNumber}`}
-            className="flex gap-3 py-2.5 transition-colors hover:opacity-80"
+            className="flex gap-3 rounded-xl border border-transparent bg-slate-900/40 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20 hover:bg-slate-900/80"
           >
-            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700">
+            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
               {item.coverImageUrl ? (
                 <Image
                   src={item.coverImageUrl}
@@ -222,7 +224,7 @@ function RecentlyReadList({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h4 className="line-clamp-1 text-sm font-medium text-slate-100">
+              <h4 className="line-clamp-1 text-sm font-semibold text-slate-100">
                 {item.manhuaTitle}
               </h4>
               <p

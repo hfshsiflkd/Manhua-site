@@ -75,9 +75,13 @@ api.interceptors.response.use(
       // Only clear token and redirect if we're in browser
       if (typeof window !== "undefined") {
         const isAuthEndpoint = error?.config?.url?.includes("/auth/");
+        const isPasswordCheckEndpoint =
+          error?.config?.url?.includes("/user/password") ||
+          error?.config?.url?.includes("/user/email");
         
         // Don't clear token on login/register endpoints (they return 401 for invalid credentials)
-        if (!isAuthEndpoint) {
+        // Also don't clear token on password confirmation failures
+        if (!isAuthEndpoint && !isPasswordCheckEndpoint) {
           console.warn("Authentication failed, clearing token");
           localStorage.removeItem("token");
           
