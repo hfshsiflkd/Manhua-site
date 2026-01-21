@@ -5,6 +5,7 @@ const manhuaCtrl = require("../controllers/manhuaController");
 const chapterPublicCtrl = require("../controllers/chapter.public.controller");
 const chapterAdminCtrl = require("../controllers/admin/chapter.admin.controller");
 const { protect } = require("../middleware/authMiddleware");
+const { publicCache } = require("../middleware/cacheControl");
 const { optionalProtect } = require("../middleware/optionalProtect");
 const adminOnly = require("../middleware/adminOnly");
 
@@ -13,10 +14,11 @@ router.get("/popular-today", manhuaCtrl.getPopularToday);
 router.get("/teams", manhuaCtrl.getManhuaTeams);
 router.get("/", manhuaCtrl.getManhuas);
 
-router.get("/:slug/chapters", chapterPublicCtrl.getChaptersOfManhua);
+router.get("/:slug/chapters", publicCache(300), chapterPublicCtrl.getChaptersOfManhua);
 router.get(
   "/:slug/chapters/:chapterNumber",
   optionalProtect,
+  publicCache(300),
   chapterPublicCtrl.getChapter
 );
 router.get("/:slug", manhuaCtrl.getManhuaBySlug);

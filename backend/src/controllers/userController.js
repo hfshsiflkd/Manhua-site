@@ -53,6 +53,7 @@ exports.uploadAvatar = [
         Key: key,
         Body: req.file.buffer,
         ContentType: req.file.mimetype,
+        CacheControl: "public, max-age=31536000, immutable",
       });
 
       await r2Client.send(command);

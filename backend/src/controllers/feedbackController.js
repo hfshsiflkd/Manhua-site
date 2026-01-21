@@ -50,6 +50,7 @@ exports.submitFeedback = [
         Key: key,
         Body: req.file.buffer,
         ContentType: req.file.mimetype,
+        CacheControl: "public, max-age=31536000, immutable",
       });
       await r2Client.send(command);
       imageUrl = `${process.env.R2_PUBLIC_BASE_URL}/${key}`;
