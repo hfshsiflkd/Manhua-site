@@ -92,6 +92,7 @@ export function ManhuaChapters({ slug, chapters }: ManhuaChaptersProps) {
                 <li key={ch._id}>
                   <Link
                     href={`/manhua/${slug}/chapter/${ch.chapterNumber}`}
+                    prefetch={false}
                     className={`flex items-center justify-between px-4 py-2.5 transition ${
                       isRead ? "hover:bg-slate-900/60" : "hover:bg-slate-900/80"
                     }`}

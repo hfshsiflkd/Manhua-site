@@ -113,7 +113,7 @@ export default function Header() {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:py-3 lg:px-16">
         {/* LOGO */}
         <div className="flex items-center gap-2">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" prefetch={false} className="flex items-center gap-2">
             {/* Optional: жижиг badge (хүсэхгүй бол устга) */}
             
 
@@ -123,23 +123,23 @@ export default function Header() {
 
         {/* DESKTOP NAV (md дээш) */}
         <nav className="hidden items-center justify-end gap-2 text-[13px] md:flex">
-          <Link href="/" className={isActive("/")}>
+          <Link href="/" prefetch={false} className={isActive("/")}>
             Нүүр
           </Link>
 
-          <Link href="/manhuas" className={isActive("/manhuas")}>
+          <Link href="/manhuas" prefetch={false} className={isActive("/manhuas")}>
             Жагсаалт
           </Link>
 
-          <Link href="/leaderboard" className={isActive("/leaderboard")}>
+          <Link href="/leaderboard" prefetch={false} className={isActive("/leaderboard")}>
             Leaderboard
           </Link>
 
-          <Link href="/requests" className={isActive("/requests")}>
+          <Link href="/requests" prefetch={false} className={isActive("/requests")}>
             Хүсэлт
           </Link>
 
-          <Link href="/profile" className={isActive("/profile")}>
+          <Link href="/profile" prefetch={false} className={isActive("/profile")}>
             Профайл
           </Link>
 
@@ -148,6 +148,7 @@ export default function Header() {
               {isAdmin && (
                 <Link
                   href="/admin"
+                  prefetch={false}
                   className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-amber-500/50 hover:brightness-110"
                 >
                   Admin
@@ -157,6 +158,7 @@ export default function Header() {
               {isEditor && (
                 <Link
                   href="/editor/manhuas"
+                  prefetch={false}
                   className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-emerald-500/50 hover:brightness-110"
                 >
                   Editor
@@ -194,12 +196,14 @@ export default function Header() {
             <>
               <Link
                 href="/login"
+                prefetch={false}
                 className="rounded-full border border-slate-700 px-3 py-1 text-[12px] font-medium text-slate-100 hover:border-cyan-400 hover:text-cyan-200"
               >
                 Нэвтрэх
               </Link>
               <Link
                 href="/register"
+                prefetch={false}
                 className="rounded-full bg-cyan-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-cyan-500/40 hover:bg-cyan-400"
               >
                 Бүртгүүлэх
@@ -230,6 +234,7 @@ export default function Header() {
           ) : (
             <Link
               href="/login"
+              prefetch={false}
               className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-medium text-slate-100 hover:border-cyan-400 hover:text-cyan-200"
             >
               Нэвтрэх
@@ -258,6 +263,7 @@ export default function Header() {
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 text-[13px]">
             <Link
               href="/"
+              prefetch={false}
               className={`${isActive("/")} w-full text-left`}
               onClick={() => setIsOpen(false)}
             >
@@ -266,6 +272,7 @@ export default function Header() {
 
             <Link
               href="/manhuas"
+              prefetch={false}
               className={`${isActive("/manhuas")} w-full text-left`}
               onClick={() => setIsOpen(false)}
             >
@@ -274,6 +281,7 @@ export default function Header() {
 
             <Link
               href="/profile"
+              prefetch={false}
               className={`${isActive("/profile")} w-full text-left`}
               onClick={() => setIsOpen(false)}
             >
@@ -282,6 +290,7 @@ export default function Header() {
 
             <Link
               href="/leaderboard"
+              prefetch={false}
               className={`${isActive("/leaderboard")} w-full text-left`}
               onClick={() => setIsOpen(false)}
             >
@@ -290,6 +299,7 @@ export default function Header() {
 
             <Link
               href="/requests"
+              prefetch={false}
               className={`${isActive("/requests")} w-full text-left`}
               onClick={() => setIsOpen(false)}
             >
@@ -301,6 +311,7 @@ export default function Header() {
                 {isAdmin && (
                   <Link
                     href="/admin"
+                    prefetch={false}
                     className="mt-1 w-full rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-amber-500/50 hover:brightness-110"
                     onClick={() => setIsOpen(false)}
                   >
@@ -311,6 +322,7 @@ export default function Header() {
                 {isEditor && (
                   <Link
                     href="/editor/manhuas"
+                    prefetch={false}
                     className="mt-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-emerald-500/50 hover:brightness-110"
                     onClick={() => setIsOpen(false)}
                   >
@@ -331,6 +343,7 @@ export default function Header() {
               ) : (
                 <Link
                   href="/register"
+                  prefetch={false}
                   className="w-full rounded-full bg-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-slate-950 shadow-sm shadow-cyan-500/40 hover:bg-cyan-400"
                   onClick={() => setIsOpen(false)}
                 >

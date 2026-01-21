@@ -49,6 +49,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
     return (
       <Link
         href={`/manhua/${manhua.slug || manhua._id}`}
+        prefetch={false}
         className="group flex gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3 shadow-lg shadow-black/40 transition-all active:scale-[0.98]"
       >
         {/* Cover Image - Smaller for horizontal */}
@@ -119,6 +120,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
   return (
     <Link
       href={`/manhua/${manhua.slug || manhua._id}`}
+      prefetch={false}
       className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-black/40 transition-all hover:-translate-y-1 hover:border-cyan-500/60 hover:shadow-cyan-500/20"
     >
       {/* Cover Image */}

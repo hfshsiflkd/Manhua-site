@@ -180,6 +180,7 @@ const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
                 <Link
                   key={item._id}
                   href={`/manhua/${item.slug}`}
+                  prefetch={false}
                   className={`group flex h-full flex-col transition-all duration-200 hover:-translate-y-0.5 ${
                     isHiddenOnMobile ? "hidden lg:flex" : "flex"
                   }`}

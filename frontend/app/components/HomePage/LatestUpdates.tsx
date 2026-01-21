@@ -84,7 +84,11 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
             return (
               <div key={item.manhuaId} className="flex gap-3 py-3">
                 {/* COVER */}
-                <Link href={`/manhua/${item.slug}`} className="shrink-0">
+                <Link
+                  href={`/manhua/${item.slug}`}
+                  prefetch={false}
+                  className="shrink-0"
+                >
                   <div className="w-14 h-[84px] overflow-hidden rounded-xl bg-slate-800">
                     <img
                       src={item.cover}
@@ -96,7 +100,7 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
 
                 {/* CONTENT */}
                 <div className="flex flex-1 flex-col min-w-0">
-                  <Link href={`/manhua/${item.slug}`}>
+                  <Link href={`/manhua/${item.slug}`} prefetch={false}>
                     <h3 className="line-clamp-2 text-sm font-semibold">
                       {item.title}
                     </h3>
@@ -128,6 +132,7 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
                         <Link
                           key={`${item.slug}-${idx}`}
                           href={href}
+                          prefetch={false}
                           className={`flex items-center gap-2 text-[12px] md:text-sm truncate ${
                             isRead
                               ? "text-gray-500"
