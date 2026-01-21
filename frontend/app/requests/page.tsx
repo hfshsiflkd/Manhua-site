@@ -39,6 +39,7 @@ export default function ReaderRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [image, setImage] = useState<File | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -121,8 +122,12 @@ export default function ReaderRequestsPage() {
           return;
         }
         setUploading(true);
-        const uploadResult = await uploadImage(image);
+        setUploadProgress(0);
+        const uploadResult = await uploadImage(image, (percent) => {
+          setUploadProgress(percent);
+        });
         imageUrl = (uploadResult as any).url || "";
+        setUploadProgress(100);
       }
 
       const created = await createRequest({ title: trimmed, imageUrl });
@@ -138,6 +143,7 @@ export default function ReaderRequestsPage() {
     } finally {
       setSubmitting(false);
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -314,6 +320,24 @@ export default function ReaderRequestsPage() {
                   className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-cyan-500/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-cyan-200 hover:file:bg-cyan-500/25"
                   disabled={!hasVipAccess}
                 />
+                {uploadProgress !== null && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                      <span>
+                        {uploading ? "Upload хийж байна..." : "Upload"}
+                      </span>
+                      <span className="font-mono text-slate-200">
+                        {uploadProgress}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="text-[11px] text-slate-500">
                   10MB хүртэл зөвшөөрнө.
                 </div>

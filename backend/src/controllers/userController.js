@@ -1,6 +1,7 @@
 // src/controllers/userController.js
 const User = require("../models/User");
 const { r2Client, PutObjectCommand } = require("../config/r2");
+const { toWebpBuffer } = require("../utils/image");
 const upload = require("../middleware/upload");
 
 // POST /api/user/avatar
@@ -12,11 +13,10 @@ exports.uploadAvatar = [
         return res.status(400).json({ message: "Файл ирсэнгүй." });
       }
 
-      // Validate file type
-      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-      if (!allowedTypes.includes(req.file.mimetype)) {
+      // Validate file type (any image)
+      if (!String(req.file.mimetype || "").startsWith("image/")) {
         return res.status(400).json({
-          message: "Зөвхөн JPG, PNG, WebP зураг ашиглана уу.",
+          message: "Зөвхөн зураг файл ашиглана уу.",
         });
       }
 
@@ -44,15 +44,19 @@ exports.uploadAvatar = [
 
       const bucket = process.env.R2_BUCKET_NAME;
       const folder = "avatars";
-      const ext = req.file.originalname.split(".").pop();
-      const filename = `user-${req.user._id}-${Date.now()}.${ext}`;
-      const key = `${folder}/${filename}`;
+      const key = `${folder}/user-${req.user._id}-${Date.now()}.webp`;
+      let converted;
+      try {
+        converted = await toWebpBuffer(req.file);
+      } catch {
+        return res.status(400).json({ message: "Зөвхөн зураг файл оруулна уу." });
+      }
 
       const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
+        Body: converted.buffer,
+        ContentType: converted.contentType,
         CacheControl: "public, max-age=31536000, immutable",
       });
 

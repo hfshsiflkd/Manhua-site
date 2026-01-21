@@ -30,6 +30,8 @@ export default function NewManhuaPage() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverProgress, setCoverProgress] = useState<number | null>(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,8 +54,10 @@ export default function NewManhuaPage() {
     if (file) {
       const url = URL.createObjectURL(file);
       setCoverPreview(url);
+      setCoverProgress(null);
     } else {
       setCoverPreview(null);
+      setCoverProgress(null);
     }
   };
 
@@ -78,8 +82,17 @@ export default function NewManhuaPage() {
 
       // 1) cover upload
       if (coverFile) {
-        const result = await uploadImage(coverFile); // { url }
-        coverImageUrl = (result as any).url;
+        setUploadingCover(true);
+        setCoverProgress(0);
+        try {
+          const result = await uploadImage(coverFile, (percent) => {
+            setCoverProgress(percent);
+          });
+          coverImageUrl = (result as any).url;
+          setCoverProgress(100);
+        } finally {
+          setUploadingCover(false);
+        }
       }
 
       // 2) manhua үүсгэх (editor endpoint)
@@ -272,6 +285,25 @@ export default function NewManhuaPage() {
               />
               {coverFile ? "Файл солих" : "Файл сонгох"}
             </label>
+
+            {coverProgress !== null && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>
+                    {uploadingCover ? "Upload хийж байна..." : "Upload"}
+                  </span>
+                  <span className="font-mono text-slate-200">
+                    {coverProgress}%
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
+                    style={{ width: `${coverProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="mt-2 flex justify-center">
               <div className="aspect-[3/4] w-40 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg shadow-black/50">

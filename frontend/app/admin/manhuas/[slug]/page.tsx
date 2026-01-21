@@ -34,6 +34,7 @@ export default function AdminManhuaDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverProgress, setCoverProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const confirm = useConfirm();
   const toast = useToast();
@@ -134,9 +135,13 @@ export default function AdminManhuaDetailPage() {
       setUploadingCover(true);
       setError(null);
 
-      const result = await uploadImage(file);
+      setCoverProgress(0);
+      const result = await uploadImage(file, (percent) => {
+        setCoverProgress(percent);
+      });
       const url = (result as any).url;
       setForm((f) => ({ ...f, coverImage: url }));
+      setCoverProgress(100);
       toast.success("Cover зураг шинэчлэгдлээ");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] upload error:", e);
@@ -272,6 +277,7 @@ export default function AdminManhuaDetailPage() {
                 coverPreview={coverPreview}
                 title={form.title || manhua.title}
                 uploadingCover={uploadingCover}
+                coverProgress={coverProgress}
                 onChangeCover={handleCoverFileChange}
               />
 

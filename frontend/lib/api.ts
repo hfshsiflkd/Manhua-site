@@ -435,10 +435,12 @@ export async function uploadImage(
         return;
       }
       const percent = Math.round((event.loaded * 100) / total);
-      onProgress(percent);
+      const capped = Math.min(95, Math.max(0, percent));
+      onProgress(capped);
     },
   });
 
+  if (onProgress) onProgress(100);
   return res.data; // { url }
 }
 

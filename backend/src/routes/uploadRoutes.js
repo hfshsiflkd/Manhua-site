@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const { r2Client, PutObjectCommand } = require("../config/r2");
+const { toWebpBuffer, makeWebpKey } = require("../utils/image");
 
 // multer: файл memory дээр авна
 const upload = multer({ storage: multer.memoryStorage() });
@@ -29,17 +30,20 @@ router.post("/", upload.single("file"), async (req, res) => {
 
     const bucket = process.env.R2_BUCKET_NAME;
     const folder = "manhua_pages";
-
-    const ext = req.file.originalname.split(".").pop();
-    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
-
-    const key = `${folder}/${filename}`;
+    let converted;
+    try {
+      converted = await toWebpBuffer(req.file);
+    } catch {
+      return res.status(400).json({ message: "Зөвхөн зураг файл оруулна уу." });
+    }
+    const { buffer, contentType } = converted;
+    const key = makeWebpKey(folder);
 
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      Body: req.file.buffer,
-      ContentType: req.file.mimetype,
+      Body: buffer,
+      ContentType: contentType,
       CacheControl: "public, max-age=31536000, immutable",
     });
 

@@ -82,6 +82,7 @@ export default function AdminManhuaDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverProgress, setCoverProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSlugLocked, setIsSlugLocked] = useState(false);
   const confirm = useConfirm();
@@ -255,9 +256,13 @@ export default function AdminManhuaDetailPage() {
       setUploadingCover(true);
       setError(null);
 
-      const result = await uploadImage(file);
+      setCoverProgress(0);
+      const result = await uploadImage(file, (percent) => {
+        setCoverProgress(percent);
+      });
       const url = (result as any).url;
       setForm((f) => ({ ...f, coverImage: url }));
+      setCoverProgress(100);
       toast.success("Cover зураг шинэчлэгдлээ");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] upload error:", e);
@@ -669,6 +674,24 @@ export default function AdminManhuaDetailPage() {
                   {uploadingCover ? "Uploading..." : "Change cover"}
                 </label>
               </div>
+              {coverProgress !== null && (
+                <div className="mb-3 space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>
+                      {uploadingCover ? "Upload хийж байна..." : "Upload"}
+                    </span>
+                    <span className="font-mono text-slate-200">
+                      {coverProgress}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
+                      style={{ width: `${coverProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex justify-center">
                 <div className="relative aspect-[3/4] w-full max-w-[192px] sm:w-48 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg">
                   <img

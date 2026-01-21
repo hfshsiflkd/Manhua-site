@@ -1,6 +1,7 @@
 const multer = require("multer");
 const Feedback = require("../models/Feedback");
 const { r2Client, PutObjectCommand } = require("../config/r2");
+const { toWebpBuffer, makeWebpKey } = require("../utils/image");
 
 // Use memory storage
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -13,12 +14,6 @@ function requireR2Config() {
     process.env.R2_BUCKET_NAME &&
     process.env.R2_PUBLIC_BASE_URL
   );
-}
-
-function makeKey(folder, originalname) {
-  const ext = String(originalname || "png").split(".").pop();
-  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
-  return `${folder}/${filename}`;
 }
 
 // POST /api/feedback  (multipart/form-data)
@@ -44,12 +39,18 @@ exports.submitFeedback = [
         return res.status(500).json({ message: "R2 тохиргоо (env) дутуу байна." });
       }
       const bucket = process.env.R2_BUCKET_NAME;
-      const key = makeKey("feedback", req.file.originalname);
+      let converted;
+      try {
+        converted = await toWebpBuffer(req.file);
+      } catch {
+        return res.status(400).json({ message: "Зөвхөн зураг файл оруулна уу." });
+      }
+      const key = makeWebpKey("feedback");
       const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
+        Body: converted.buffer,
+        ContentType: converted.contentType,
         CacheControl: "public, max-age=31536000, immutable",
       });
       await r2Client.send(command);
