@@ -201,6 +201,7 @@ export interface ActionLog {
 export interface Manhua {
   _id: string;
   title: string;
+  titleEn?: string;
   slug?: string;
   description?: string;
   coverImage?: string;
@@ -348,6 +349,7 @@ export async function editorGetMyManhuas() {
 // ✅ Editor – шинэ манхуа үүсгэх
 export async function editorCreateManhua(payload: {
   title: string;
+  titleEn?: string;
   description?: string;
   slug?: string;
   status?: string;
@@ -365,6 +367,7 @@ export async function editorUpdateManhua(
   id: string,
   payload: Partial<{
     title: string;
+    titleEn: string;
     description: string;
     slug: string;
     status: string;

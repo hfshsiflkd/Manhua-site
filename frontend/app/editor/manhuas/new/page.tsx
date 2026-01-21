@@ -21,6 +21,7 @@ export default function EditorNewManhuaPage() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
+  const [titleEn, setTitleEn] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"ongoing" | "completed" | "hiatus">(
@@ -37,15 +38,14 @@ export default function EditorNewManhuaPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Auto-generate slug from title
-  const autoSlug = useMemo(
-    () =>
-      title
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, ""),
-    [title]
-  );
+  const autoSlug = useMemo(() => {
+    const base = (titleEn && titleEn.trim()) || title;
+    return base
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "");
+  }, [title, titleEn]);
 
   const effectiveSlug = slug || autoSlug;
 
@@ -113,6 +113,7 @@ export default function EditorNewManhuaPage() {
 
       const payload = {
         title: title.trim(),
+        titleEn: titleEn.trim() || undefined,
         description: description.trim() || undefined,
         status,
         slug: effectiveSlug || undefined,
@@ -175,6 +176,20 @@ export default function EditorNewManhuaPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
+                />
+              </div>
+
+              {/* Title (English) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Title (EN)
+                </label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  placeholder="English title (optional)"
+                  value={titleEn}
+                  onChange={(e) => setTitleEn(e.target.value)}
                 />
               </div>
 

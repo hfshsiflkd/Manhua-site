@@ -126,6 +126,11 @@ export default function AdminManhuasPage() {
                             <span className="text-xs font-medium text-slate-100">
                               {m.title}
                             </span>
+                            {m.titleEn && (
+                              <span className="text-[10px] text-slate-400">
+                                {m.titleEn}
+                              </span>
+                            )}
                             {m.slug && (
                               <span className="text-[10px] text-slate-500">
                                 /manhua/{m.slug}

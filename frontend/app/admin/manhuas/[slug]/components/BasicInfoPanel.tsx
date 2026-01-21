@@ -7,6 +7,7 @@ import { Label, TextInput, TextArea } from "./FormControls";
 
 export type ManhuaFormState = {
   title: string;
+  titleEn: string;
   slug: string;
   description: string;
   coverImage: string;
@@ -100,6 +101,16 @@ export function BasicInfoPanel({
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             required
+          />
+        </div>
+
+        {/* Title (English) */}
+        <div className="space-y-1">
+          <Label>Title (EN)</Label>
+          <TextInput
+            value={form.titleEn}
+            onChange={(e) => setForm((f) => ({ ...f, titleEn: e.target.value }))}
+            placeholder="English title (optional)"
           />
         </div>
 

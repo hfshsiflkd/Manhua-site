@@ -41,6 +41,7 @@ exports.createManhua = async (req, res, next) => {
   try {
     const {
       title,
+      titleEn,
       description,
       coverImage,
       coverImageUrl,
@@ -79,6 +80,7 @@ exports.createManhua = async (req, res, next) => {
 
     const doc = await Manhua.create({
       title,
+      titleEn,
       description,
       slug,
       status: status || "ongoing",

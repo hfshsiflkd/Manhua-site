@@ -32,8 +32,12 @@ function slugify(str: string): string {
   return str
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function getSlugBase(title: string, titleEn?: string) {
+  return (titleEn && titleEn.trim()) || title;
 }
 
 // Star Rating Display Component
@@ -76,6 +80,7 @@ function StarRatingDisplay({ rating }: { rating: number }) {
 export default function AdminManhuaDetailPage() {
   const { slug: routeSlug } = useParams() as { slug?: string };
   const router = useRouter();
+  const decodedRouteSlug = routeSlug ? decodeURIComponent(routeSlug) : undefined;
 
   const [manhua, setManhua] = useState<Manhua | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,6 +95,7 @@ export default function AdminManhuaDetailPage() {
 
   const [form, setForm] = useState({
     title: "",
+    titleEn: "",
     slug: "",
     description: "",
     coverImage: "",
@@ -102,7 +108,7 @@ export default function AdminManhuaDetailPage() {
 
   // ─── LOAD DATA ─────────────────────
   useEffect(() => {
-    if (!routeSlug) {
+    if (!decodedRouteSlug) {
       setLoading(false);
       setError("Manhua slug олдсонгүй.");
       return;
@@ -115,7 +121,7 @@ export default function AdminManhuaDetailPage() {
         // Fetch all my manhuas and find the one with matching slug
         const manhuas = await editorGetMyManhuas();
         const found = manhuas.find(
-          (m) => m.slug === routeSlug || m._id === routeSlug
+          (m) => m.slug === decodedRouteSlug || m._id === decodedRouteSlug
         );
 
         if (!found) {
@@ -132,6 +138,7 @@ export default function AdminManhuaDetailPage() {
 
         setForm({
           title: found.title,
+          titleEn: (found as any).titleEn || "",
           slug: found.slug || "",
           description: found.description || "",
           coverImage: found.coverImage || (found as any).coverImageUrl || "",
@@ -157,7 +164,7 @@ export default function AdminManhuaDetailPage() {
     };
 
     fetchManhua();
-  }, [routeSlug]);
+  }, [decodedRouteSlug]);
 
   useEffect(() => {
     let active = true;
@@ -206,6 +213,7 @@ export default function AdminManhuaDetailPage() {
 
       const payload: any = {
         title: form.title,
+        titleEn: form.titleEn?.trim() || undefined,
         slug: cleanedSlug,
         description: form.description || undefined,
         coverImage: form.coverImage || undefined,
@@ -218,7 +226,7 @@ export default function AdminManhuaDetailPage() {
       const updated = await editorUpdateManhua(manhua._id, payload);
 
       // If slug changed, update route
-      if (updated.slug && updated.slug !== routeSlug) {
+      if (updated.slug && updated.slug !== decodedRouteSlug) {
         router.replace(`/editor/manhuas/${updated.slug}`);
       }
 
@@ -317,7 +325,7 @@ export default function AdminManhuaDetailPage() {
           <p className="mb-1">{error}</p>
           <p className="text-slate-300">
             Slug:{" "}
-            <span className="font-mono text-xs">{routeSlug ?? "(хоосон)"}</span>
+            <span className="font-mono text-xs">{decodedRouteSlug ?? "(хоосон)"}</span>
           </p>
         </div>
       </div>
@@ -438,12 +446,37 @@ export default function AdminManhuaDetailPage() {
                         const newForm = { ...f, title: newTitle };
                         // Auto-sync slug if not locked
                         if (!isSlugLocked) {
-                          newForm.slug = slugify(newTitle);
+                          const base = getSlugBase(newTitle, f.titleEn);
+                          newForm.slug = slugify(base);
                         }
                         return newForm;
                       });
                     }}
                     required
+                  />
+                </div>
+
+                {/* Title (English) */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-300">
+                    Title (EN)
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                    value={form.titleEn}
+                    onChange={(e) => {
+                      const newTitleEn = e.target.value;
+                      setForm((f) => {
+                        const newForm = { ...f, titleEn: newTitleEn };
+                        if (!isSlugLocked) {
+                          const base = getSlugBase(f.title, newTitleEn);
+                          newForm.slug = slugify(base);
+                        }
+                        return newForm;
+                      });
+                    }}
+                    placeholder="English title (optional)"
                   />
                 </div>
 
@@ -460,7 +493,10 @@ export default function AdminManhuaDetailPage() {
                       type="button"
                       onClick={() => {
                         setIsSlugLocked(false);
-                        setForm((f) => ({ ...f, slug: slugify(f.title) }));
+                        setForm((f) => ({
+                          ...f,
+                          slug: slugify(getSlugBase(f.title, f.titleEn)),
+                        }));
                       }}
                       className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition self-start sm:self-auto"
                       title={isSlugLocked ? "Slug автоматаар үүсгэх" : "Slug гараар"}
@@ -488,12 +524,18 @@ export default function AdminManhuaDetailPage() {
                       // Apply slugify on input to keep it clean
                       setForm((f) => ({ ...f, slug: slugify(inputValue) }));
                     }}
-                    placeholder={slugify(form.title) || "my-manhua-slug"}
+                    placeholder={
+                      slugify(getSlugBase(form.title, form.titleEn)) ||
+                      "my-manhua-slug"
+                    }
                   />
                   <p className="text-xs text-slate-500 break-all">
                     URL:{" "}
                     <span className="font-mono text-slate-300">
-                      /manhua/{form.slug || slugify(form.title) || "<slug>"}
+                      /manhua/
+                      {form.slug ||
+                        slugify(getSlugBase(form.title, form.titleEn)) ||
+                        "<slug>"}
                     </span>
                   </p>
                 </div>

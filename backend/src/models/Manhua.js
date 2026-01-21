@@ -8,6 +8,10 @@ const manhuaSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    titleEn: {
+      type: String,
+      trim: true,
+    },
 
     slug: {
       type: String,
@@ -104,10 +108,11 @@ manhuaSchema.virtual("chapters", {
 
 // slug автоматаар үүсгэх
 manhuaSchema.pre("save", function (next) {
-  if (!this.slug && this.title) {
-    this.slug = this.title
+  if (!this.slug && (this.titleEn || this.title)) {
+    const slugSource = this.titleEn || this.title;
+    this.slug = slugSource
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
       .replace(/(^-|-$)+/g, "");
   }
   next();

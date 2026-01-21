@@ -41,6 +41,7 @@ export default function AdminManhuaDetailPage() {
 
   const [form, setForm] = useState<ManhuaFormState>({
     title: "",
+    titleEn: "",
     slug: "",
     description: "",
     coverImage: "",
@@ -66,6 +67,7 @@ export default function AdminManhuaDetailPage() {
 
         setForm({
           title: data.title,
+          titleEn: (data as any).titleEn || "",
           slug: data.slug || "",
           description: data.description || "",
           coverImage: data.coverImage || (data as any).coverImageUrl || "",
@@ -103,6 +105,7 @@ export default function AdminManhuaDetailPage() {
 
       const updated = await adminUpdateManhua(manhuaId, {
         title: form.title,
+        titleEn: form.titleEn?.trim() || undefined,
         slug: form.slug || undefined,
         description: form.description || undefined,
         coverImage: form.coverImage || undefined,

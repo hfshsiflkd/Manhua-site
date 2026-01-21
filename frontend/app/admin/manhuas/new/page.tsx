@@ -22,6 +22,7 @@ export default function NewManhuaPage() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
+  const [titleEn, setTitleEn] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"ongoing" | "completed" | "hiatus">(
@@ -36,15 +37,14 @@ export default function NewManhuaPage() {
   const [error, setError] = useState<string | null>(null);
 
   // title → автоматаар slug гаргах (slug хоосон байвал)
-  const autoSlug = useMemo(
-    () =>
-      title
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, ""),
-    [title]
-  );
+  const autoSlug = useMemo(() => {
+    const base = (titleEn && titleEn.trim()) || title;
+    return base
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "");
+  }, [title, titleEn]);
 
   const effectiveSlug = slug || autoSlug;
 
@@ -98,6 +98,7 @@ export default function NewManhuaPage() {
       // 2) manhua үүсгэх (editor endpoint)
       const payload = {
         title: title.trim(),
+        titleEn: titleEn.trim() || undefined,
         description: description.trim() || undefined,
         status,
         slug: effectiveSlug || undefined,
@@ -147,6 +148,18 @@ export default function NewManhuaPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] text-slate-300">
+                  Title (EN)
+                </label>
+                <input
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+                  placeholder="English title (optional)"
+                  value={titleEn}
+                  onChange={(e) => setTitleEn(e.target.value)}
                 />
               </div>
 

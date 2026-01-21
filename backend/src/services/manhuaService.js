@@ -9,7 +9,12 @@ function buildFilter(query = {}) {
   const { q, genre, status, teamId } = query;
   const filter = {};
 
-  if (q) filter.title = { $regex: q, $options: "i" };
+  if (q) {
+    filter.$or = [
+      { title: { $regex: q, $options: "i" } },
+      { titleEn: { $regex: q, $options: "i" } },
+    ];
+  }
   if (genre) filter.genres = genre;
   if (status) filter.status = status;
   if (teamId) {

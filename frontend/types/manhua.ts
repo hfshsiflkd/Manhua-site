@@ -7,6 +7,7 @@ export interface Manhua {
   latestChapterAt: string | null | undefined;
   _id: string;
   title: string;
+  titleEn?: string;
   slug: string;
   description?: string;
   coverImage?: string;

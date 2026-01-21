@@ -85,6 +85,7 @@ export default function EditorManhuasPage() {
     const query = searchQuery.toLowerCase();
     return (
       m.title?.toLowerCase().includes(query) ||
+      m.titleEn?.toLowerCase().includes(query) ||
       m.slug?.toLowerCase().includes(query) ||
       m.genres?.some((g) => g.toLowerCase().includes(query))
     );
@@ -231,6 +232,11 @@ export default function EditorManhuasPage() {
                             <p className="text-sm font-semibold text-slate-100 truncate">
                               {m.title}
                             </p>
+                            {m.titleEn && (
+                              <p className="text-xs text-slate-400 truncate">
+                                {m.titleEn}
+                              </p>
+                            )}
                             <p className="text-xs text-slate-500 mt-0.5 truncate">
                               {m.slug ? (
                                 <>
@@ -380,6 +386,11 @@ export default function EditorManhuasPage() {
                       <h3 className="text-sm font-semibold text-slate-100 truncate mb-1">
                         {m.title}
                       </h3>
+                      {m.titleEn && (
+                        <p className="text-xs text-slate-400 truncate mb-1">
+                          {m.titleEn}
+                        </p>
+                      )}
                       <p className="text-xs text-slate-500 mb-2 truncate">
                         {m.slug ? (
                           <span className="font-mono">/manhua/{m.slug}</span>
