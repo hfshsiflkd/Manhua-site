@@ -22,6 +22,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
   const status = (manhua.status || "ongoing").toLowerCase();
   const statusLabel = statusLabels[status] || status;
   const statusColor = statusColors[status] || statusColors.ongoing;
+  const displayTitle = manhua.title || manhua.titleEn || "Untitled";
 
   const genres = manhua.genres || [];
   const displayGenres = genres.slice(0, 2);
@@ -56,7 +57,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
         <div className="relative h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-950">
           <img
             src={manhua.coverImage || "https://via.placeholder.com/300x400"}
-            alt={manhua.title}
+            alt={displayTitle}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           {/* Status Badge */}
@@ -71,7 +72,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
           {/* Title */}
           <h3 className="line-clamp-2 text-sm font-semibold text-slate-100">
-            {manhua.title}
+            {displayTitle}
           </h3>
 
           {/* Genres */}
@@ -127,7 +128,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-950">
         <img
           src={manhua.coverImage || "https://via.placeholder.com/300x400"}
-          alt={manhua.title}
+          alt={displayTitle}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         {/* Status Badge - Top Right */}
@@ -144,7 +145,7 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
       <div className="space-y-2 p-3 sm:p-4">
         {/* Title */}
         <h3 className="line-clamp-2 text-sm font-semibold text-slate-100 sm:text-base">
-          {manhua.title}
+          {displayTitle}
         </h3>
 
         {/* Genres */}
