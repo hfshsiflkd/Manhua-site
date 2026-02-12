@@ -1,4 +1,5 @@
 // backend/src/utils/auditLogger.js
+const mongoose = require("mongoose");
 const AuditLog = require("../models/AuditLog");
 const crypto = require("crypto");
 
@@ -39,7 +40,7 @@ function sanitizeMeta(meta) {
 
     // Check if key contains sensitive terms
     const isSensitive = SENSITIVE_KEYS.some((sensitive) =>
-      keyLower.includes(sensitive.toLowerCase())
+      keyLower.includes(sensitive.toLowerCase()),
     );
 
     if (isSensitive) {
@@ -75,6 +76,9 @@ function hashDeviceId(deviceId) {
  */
 async function logAudit(req, { level, category, action, message, meta = {} }) {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return;
+    }
     const audit = req.audit || {};
     const durationMs = audit.startTime ? Date.now() - audit.startTime : null;
 
@@ -111,4 +115,3 @@ async function logAudit(req, { level, category, action, message, meta = {} }) {
 }
 
 module.exports = { logAudit, sanitizeMeta, hashDeviceId };
-

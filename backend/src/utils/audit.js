@@ -1,7 +1,18 @@
+const mongoose = require("mongoose");
 const AuditLog = require("../models/AuditLog");
 
-async function writeAudit({ adminId, targetUserId, action, before = {}, after = {}, req }) {
+async function writeAudit({
+  adminId,
+  targetUserId,
+  action,
+  before = {},
+  after = {},
+  req,
+}) {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return;
+    }
     await AuditLog.create({
       adminId,
       targetUserId,
@@ -16,4 +27,3 @@ async function writeAudit({ adminId, targetUserId, action, before = {}, after = 
 }
 
 module.exports = { writeAudit };
-
