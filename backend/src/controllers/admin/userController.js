@@ -2,6 +2,22 @@
 const User = require("../../models/User");
 const logAction = require("../../utils/logAction");
 
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isValidId(id) {
+  return /^[0-9a-fA-F]{24}$/.test(String(id));
+}
+
+function addMonthsSafe(date, months) {
+  const d = new Date(date);
+  const targetMonth = d.getMonth() + months;
+  d.setMonth(targetMonth);
+  if (d.getMonth() !== ((targetMonth % 12) + 12) % 12) d.setDate(0);
+  return d;
+}
+
 // GET /api/admin/users
 exports.listUsers = async (req, res) => {
   try {
@@ -10,9 +26,10 @@ exports.listUsers = async (req, res) => {
 
     if (role) filter.role = role;
     if (q) {
+      const safe = escapeRegex(q);
       filter.$or = [
-        { username: new RegExp(q, "i") },
-        { email: new RegExp(q, "i") },
+        { username: new RegExp(safe, "i") },
+        { email: new RegExp(safe, "i") },
       ];
     }
 
@@ -63,7 +80,8 @@ exports.createUserByAdmin = async (req, res) => {
       description: `Admin created user ${user.username}`,
     });
 
-    const safe = await User.findById(user._id).select("-password");
+    const safe = user.toObject();
+    delete safe.password;
     res.status(201).json(safe);
   } catch (err) {
     console.error(err);
@@ -75,6 +93,7 @@ exports.createUserByAdmin = async (req, res) => {
 exports.updateUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ message: "ID буруу байна" });
     const { username, email, role, isActive } = req.body;
 
     const user = await User.findById(id);
@@ -96,7 +115,8 @@ exports.updateUserByAdmin = async (req, res) => {
       meta: { body: req.body },
     });
 
-    const safe = await User.findById(user._id).select("-password");
+    const safe = user.toObject();
+    delete safe.password;
     res.json(safe);
   } catch (err) {
     console.error(err);
@@ -109,6 +129,7 @@ exports.updateUserByAdmin = async (req, res) => {
 exports.setVIP = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ message: "ID буруу байна" });
     const months = Number(req.body.months ?? 1);
 
     if (!Number.isFinite(months) || months <= 0 || months > 120) {
@@ -123,11 +144,10 @@ exports.setVIP = async (req, res) => {
     const now = new Date();
     const base =
       user.vipExpiresAt && user.vipExpiresAt > now ? user.vipExpiresAt : now;
-    const newExp = new Date(base.getTime());
-    newExp.setMonth(newExp.getMonth() + months);
+    const newExp = addMonthsSafe(base, months);
 
     user.vipExpiresAt = newExp;
-    user.isVIP = true; // ✅ VIP өгсөн бол true
+    user.isVIP = true;
     await user.save();
 
     await logAction({
@@ -139,7 +159,8 @@ exports.setVIP = async (req, res) => {
       meta: { months, vipExpiresAt: newExp },
     });
 
-    const safe = await User.findById(user._id).select("-password");
+    const safe = user.toObject();
+    delete safe.password;
     res.json(safe);
   } catch (err) {
     console.error(err);
@@ -151,6 +172,7 @@ exports.setVIP = async (req, res) => {
 exports.unlockUser = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ message: "ID буруу байна" });
 
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
@@ -170,7 +192,8 @@ exports.unlockUser = async (req, res) => {
       description: `Admin unlocked user ${user.username}`,
     });
 
-    const safe = await User.findById(user._id).select("-password");
+    const safe = user.toObject();
+    delete safe.password;
     res.json(safe);
   } catch (err) {
     console.error(err);

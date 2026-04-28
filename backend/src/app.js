@@ -8,12 +8,20 @@ const compression = require("compression");
 const morgan = require("morgan");
 
 const { registerCrashHandlers } = require("./middleware/crash");
+const connectDB = require("./config/db");
 const routes = require("./routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
-const { auditContext, auditRequestEnd } = require("./middleware/auditMiddleware");
-
+const {
+  auditContext,
+  auditRequestEnd,
+} = require("./middleware/auditMiddleware");
 
 const app = express();
+
+// Ensure DB connection is initialized (serverless-safe)
+connectDB().catch((err) => {
+  console.error("❌ MongoDB connect init failed:", err);
+});
 
 /* =======================
    Crash log
@@ -27,7 +35,7 @@ app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(compression());
-app.use(morgan("dev"));
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // CORS (public API: allow known origins, no credentials)
 const defaultCorsOrigins = [
@@ -48,7 +56,7 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: false,
-  })
+  }),
 );
 app.set("etag", false);
 
@@ -70,6 +78,14 @@ app.get("/", (req, res) => {
 /* =======================
    Routes
 ======================= */
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 app.use("/api", routes);
 
 /* =======================

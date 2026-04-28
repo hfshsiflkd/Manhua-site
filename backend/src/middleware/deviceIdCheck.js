@@ -1,6 +1,4 @@
 // src/middleware/deviceIdCheck.js
-// Middleware to enforce deviceId header matches user's deviceId
-const User = require("../models/User");
 const { logAudit } = require("../utils/auditLogger");
 
 exports.checkDeviceId = async (req, res, next) => {
@@ -21,26 +19,16 @@ exports.checkDeviceId = async (req, res, next) => {
     });
   }
 
-  // Fetch user to get current deviceId
-  const user = await User.findById(req.user._id);
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: "Хэрэглэгч олдсонгүй"
-    });
-  }
-
-  // Check if deviceId matches user's deviceId or lastDeviceId
-  const userDeviceId = user.deviceId || "";
-  const userLastDeviceId = user.lastDeviceId || "";
+  // req.user is already populated by protect middleware — no extra DB query needed
+  const userDeviceId = req.user.deviceId || "";
+  const userLastDeviceId = req.user.lastDeviceId || "";
 
   if (deviceId !== userDeviceId && deviceId !== userLastDeviceId) {
-    // Log device mismatch
     if (req.audit) {
       req.audit.user = {
-        id: user._id,
-        username: user.username,
-        role: user.role,
+        id: req.user._id,
+        username: req.user.username,
+        role: req.user.role,
       };
       logAudit(req, {
         level: "WARN",

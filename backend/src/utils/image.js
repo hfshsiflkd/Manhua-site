@@ -1,4 +1,5 @@
 const sharp = require("sharp");
+const { randomBytes } = require("crypto");
 
 function assertImageFile(file) {
   if (!file || !file.buffer) {
@@ -17,7 +18,7 @@ async function toWebpBuffer(file) {
 }
 
 function makeWebpKey(folder) {
-  const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`;
+  const filename = `${Date.now()}-${randomBytes(8).toString("hex")}.webp`;
   return `${folder}/${filename}`;
 }
 

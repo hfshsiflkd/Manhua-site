@@ -42,4 +42,40 @@ const forgotPasswordEmailLimiter = rateLimit({
   },
 });
 
-module.exports = { forgotPasswordIpLimiter, forgotPasswordEmailLimiter };
+// Login: IP дээр 20 удаа / 15 минут
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
+  keyGenerator: (req) => `login:ip:${req.ip}`,
+  message: {
+    success: false,
+    message: "Хэт олон нэвтрэх оролдлого. 15 минутын дараа дахин оролдоно уу.",
+    code: "RATE_LIMIT_EXCEEDED",
+  },
+});
+
+// Register: IP дээр 10 удаа / 1 цаг
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
+  keyGenerator: (req) => `register:ip:${req.ip}`,
+  message: {
+    success: false,
+    message: "Хэт олон бүртгэлийн оролдлого. 1 цагийн дараа дахин оролдоно уу.",
+    code: "RATE_LIMIT_EXCEEDED",
+  },
+});
+
+module.exports = { forgotPasswordIpLimiter, forgotPasswordEmailLimiter, loginLimiter, registerLimiter };

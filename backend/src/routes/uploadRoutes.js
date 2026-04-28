@@ -4,12 +4,16 @@ const router = express.Router();
 const multer = require("multer");
 const { r2Client, PutObjectCommand } = require("../config/r2");
 const { toWebpBuffer, makeWebpKey } = require("../utils/image");
+const { protect } = require("../middleware/authMiddleware");
+const { requireRole } = require("../middleware/authMiddleware");
 
-// multer: файл memory дээр авна
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
-// POST /api/upload
-router.post("/", upload.single("file"), async (req, res) => {
+// POST /api/upload — зөвхөн translator/admin
+router.post("/", protect, requireRole("translator", "admin"), upload.single("file"), async (req, res) => {
   try {
     if (
       !process.env.R2_ACCOUNT_ID ||

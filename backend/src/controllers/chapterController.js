@@ -54,8 +54,9 @@ function hasTeamAccess(role) {
 }
 
 /* =====================================================
-   slug -> manhuaId CACHE
+   slug -> manhuaId CACHE (max 500 entry, LRU-light)
 ===================================================== */
+const SLUG_CACHE_MAX = 500;
 const manhuaIdCache = new Map();
 
 async function getManhuaIdBySlug(slug) {
@@ -65,8 +66,15 @@ async function getManhuaIdBySlug(slug) {
   const m = await Manhua.findOne({ slug }).select("_id").lean();
   if (!m) return null;
 
+  if (manhuaIdCache.size >= SLUG_CACHE_MAX) {
+    manhuaIdCache.delete(manhuaIdCache.keys().next().value);
+  }
   manhuaIdCache.set(slug, m._id);
   return m._id;
+}
+
+function isValidId(id) {
+  return /^[0-9a-fA-F]{24}$/.test(String(id));
 }
 
 /* =====================================================
@@ -266,6 +274,7 @@ exports.createChapter = async (req, res, next) => {
  */
 exports.getChapterById = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
     const chapter = await Chapter.findById(req.params.id)
       .populate("manhua", "title slug coverImage coverImageUrl")
       .lean();
@@ -286,6 +295,7 @@ exports.getChapterById = async (req, res, next) => {
  */
 exports.updateChapter = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
     const { chapterNumber, title, status, pages } = req.body;
 
     const chapter = await Chapter.findById(req.params.id);
@@ -311,19 +321,10 @@ exports.updateChapter = async (req, res, next) => {
  */
 exports.adminDeleteChapter = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
+
     const chapter = await Chapter.findById(req.params.id);
-    if (!chapter) {
-      return res.status(404).json({ message: "Chapter not found" });
-    }
-
-    const manhua = await Manhua.findById(chapter.manhua).select("createdBy");
-    if (!manhua) {
-      return res.status(404).json({ message: "Manhua not found" });
-    }
-
-    if (String(manhua.createdBy) !== String(req.user._id)) {
-      return res.status(403).json({ message: "Only owner can delete" });
-    }
+    if (!chapter) return res.status(404).json({ message: "Chapter not found" });
 
     const manhuaId = chapter.manhua;
     await chapter.deleteOne();
@@ -369,6 +370,7 @@ exports.editorListChaptersOfManhua = async (req, res, next) => {
  */
 exports.editorGetChapterById = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
     const chapter = await Chapter.findById(req.params.id)
       .populate("manhua", "title slug createdBy team")
       .lean();
@@ -402,6 +404,7 @@ exports.editorGetChapterById = async (req, res, next) => {
  */
 exports.editorUpdateChapter = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
     const chapter = await Chapter.findById(req.params.id).populate(
       "manhua",
       "createdBy team"
@@ -441,6 +444,8 @@ exports.editorUpdateChapter = async (req, res, next) => {
  */
 exports.editorDeleteChapter = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
+
     const chapter = await Chapter.findById(req.params.id).populate(
       "manhua",
       "createdBy team"
@@ -450,9 +455,13 @@ exports.editorDeleteChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
-    // зөвхөн owner устгана
-    if (String(chapter.manhua.createdBy) !== String(req.user._id)) {
-      return res.status(403).json({ message: "Only owner can delete" });
+    // Admin бүх chapter устгаж болно
+    if (req.user.role !== "admin") {
+      const isOwner = String(chapter.manhua.createdBy) === String(req.user._id);
+      const teamRole = await getTeamRole(chapter.manhua.team, req.user._id);
+      if (!isOwner && !hasTeamAccess(teamRole)) {
+        return res.status(403).json({ message: "Only owner can delete" });
+      }
     }
 
     const manhuaId = chapter.manhua?._id || chapter.manhua;

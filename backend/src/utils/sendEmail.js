@@ -9,10 +9,6 @@ function getEnv() {
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const from =
-    process.env.SMTP_FROM || (user ? `"arc-read.com" <${user}>` : undefined);
-  const resendKey = process.env.RESEND_API_KEY || "";
-  const resendFrom = process.env.RESEND_FROM || from;
   return { host, port, user, pass };
 }
 

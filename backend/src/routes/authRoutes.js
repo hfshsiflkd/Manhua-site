@@ -7,13 +7,15 @@ const { protect } = require("../middleware/authMiddleware");
 const {
   forgotPasswordIpLimiter,
   forgotPasswordEmailLimiter,
+  loginLimiter,
+  registerLimiter,
 } = require("../middleware/forgotPasswordLimiter");
 
 // Бүртгүүлэх
-router.post("/register", register);
+router.post("/register", registerLimiter, register);
 
 // Нэвтрэх (email эсвэл username ашиглаж болно)
-router.post("/login", login);
+router.post("/login", loginLimiter, login);
 
 // Өөрийгөө авах
 router.get("/me", protect, me);

@@ -18,7 +18,7 @@ exports.protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id).select("+password");
+    const user = await User.findById(decoded.id);
 
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "Хэрэглэгч идэвхгүй байна" });
@@ -78,7 +78,6 @@ exports.protect = async (req, res, next) => {
     }
 
     req.user = user.toObject({ getters: true });
-    delete req.user.password;
 
     // Attach user info to audit context
     if (req.audit) {

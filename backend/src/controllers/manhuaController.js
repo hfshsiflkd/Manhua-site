@@ -8,10 +8,7 @@ const { parsePagination } = require("../utils/pagination");
 const Manhua = require("../models/Manhua");
 const Team = require("../models/Team");
 const Chapter = require("../models/Chapter");
-const { MemoryCache } = require("../cache/memoryCache");
-
-// In-memory cache for popular-today (60s TTL)
-const popularTodayCache = new MemoryCache();
+const redisCache = require("../cache/redisCache");
 
 // GET /api/manhuas
 exports.getManhuas = async (req, res, next) => {
@@ -65,17 +62,14 @@ exports.getManhuaBySlug = async (req, res, next) => {
 // GET /api/manhuas/popular-today
 exports.getPopularToday = async (req, res, next) => {
   try {
-    const limit = Number(req.query.limit) || 12;
+    const limit = Math.min(Number(req.query.limit) || 12, 50);
     const todayKey = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
     const cacheKey = `popular-today-${todayKey}-${limit}`;
 
-    // Check cache first
-    const cached = popularTodayCache.get(cacheKey);
+    // Check cache first (Redis → in-memory fallback)
+    const cached = await redisCache.get(cacheKey);
     if (cached) {
-      res.set(
-        "Cache-Control",
-        "public, s-maxage=60, stale-while-revalidate=120"
-      );
+      res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
       return res.json(cached);
     }
 
@@ -175,10 +169,8 @@ exports.getPopularToday = async (req, res, next) => {
       };
     });
 
-    // Cache the result (60 seconds TTL)
-    popularTodayCache.set(cacheKey, enriched, 60_000);
+    await redisCache.set(cacheKey, enriched, 60);
 
-    // Cache headers
     res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
     res.json(enriched);
   } catch (err) {
@@ -189,10 +181,17 @@ exports.getPopularToday = async (req, res, next) => {
 // GET /api/home
 exports.getHomeSections = async (req, res, next) => {
   try {
+    const latestUpdatesLimit = Math.min(Number(req.query.latestUpdatesLimit) || 6, 30);
+    const cacheKey = `home-sections-${latestUpdatesLimit}`;
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+      return res.json(cached);
+    }
+
     const HERO_LIMIT = 5;
     const POPULAR_LIMIT = 8;
     const LATEST_LIMIT = 50;
-    const LATEST_UPDATES_LIMIT = 50;
 
     const hero = await Manhua.find({})
       .sort({ rating: -1 })
@@ -219,7 +218,6 @@ exports.getHomeSections = async (req, res, next) => {
       .lean();
 
     // 🔥 Latest updates (flat feed with latest 3 chapters per manhua, sorted by createdAt DESC)
-    const latestUpdatesLimit = Number(req.query.latestUpdatesLimit) || 6;
     const rawChapters = await Chapter.find({
       status: "published",
     })
@@ -297,48 +295,14 @@ exports.getHomeSections = async (req, res, next) => {
       .slice(0, latestUpdatesLimit)
       .map(({ latestDate, ...rest }) => rest);
 
-    res.json({
-      hero,
-      popularToday,
-      latest,
-      latestUpdates,
-    });
+    const result = { hero, popularToday, latest, latestUpdates };
+
+    await redisCache.set(cacheKey, result, 60);
+
+    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=120");
+    res.json(result);
   } catch (err) {
     next(err);
   }
 };
 
-function formatTimeAgoSafe(date) {
-  if (!date) return "";
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return "";
-
-  const now = Date.now();
-  const diffMs = now - d.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  // 🔮 Ирээдүйд нийтлэхээр төлөвлөсөн chapter
-  if (diffMs < 0) {
-    const futureDays = Math.ceil(Math.abs(diffMs) / (1000 * 60 * 60 * 24));
-    if (futureDays === 0) return "Soon";
-    if (futureDays === 1) return "in 1 day";
-    return `in ${futureDays} days`;
-  }
-
-  // ⏱ Өнөөдөр, өчигдөр г.м
-  if (diffDays === 0) {
-    if (diffHours >= 1) return `${diffHours}h ago`;
-    if (diffMinutes >= 1) return `${diffMinutes}m ago`;
-    return "Just now";
-  }
-
-  if (diffDays === 1) return "1 day ago";
-  if (diffDays < 7) return `${diffDays} days ago`;
-
-  const weeks = Math.floor(diffDays / 7);
-  if (weeks === 1) return "1 week ago";
-  return `${weeks} weeks ago`;
-}

@@ -298,41 +298,23 @@ exports.forgotPassword = async (req, res, next) => {
       );
     }
 
-    // Find user by email with minimal select for performance
-    // Email field has unique: true and index: true for fast lookup
-    const user = await User.findOne({ email: normalizedEmail })
-      .select("_id email username")
-      .lean();
+    const GENERIC_OK = { ok: true, message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ." };
 
-    // If user NOT found, return explicit 404 message
-    if (!user) {
-      // Log forgot password request for non-existent user
-      logAudit(req, {
-        level: "WARN",
-        category: "auth",
-        action: "forgot_password_requested",
-        message: `Forgot password requested for non-existent email: ${normalizedEmail.substring(0, 3)}***`,
-        meta: {
-          emailPrefix: normalizedEmail.substring(0, 3),
-        },
-      });
-
-      return res.status(404).json({
-        ok: false,
-        message: "Бүртгэлгүй хэрэглэгч байна.",
-      });
-    }
-
-    // Rate limiting: 1 request per minute per user (in addition to middleware)
-    const fullUser = await User.findById(user._id).select(
+    // Single query with all needed fields
+    const fullUser = await User.findOne({ email: normalizedEmail }).select(
       "+resetPasswordRequestedAt +resetPasswordTokenHash +resetPasswordExpiresAt"
     );
 
     if (!fullUser) {
-      return res.status(404).json({
-        ok: false,
-        message: "Бүртгэлгүй хэрэглэгч байна.",
+      // Same response regardless — prevents user enumeration
+      logAudit(req, {
+        level: "WARN",
+        category: "auth",
+        action: "forgot_password_requested",
+        message: `Forgot password for non-existent email: ${normalizedEmail.substring(0, 3)}***`,
+        meta: { emailPrefix: normalizedEmail.substring(0, 3) },
       });
+      return res.json(GENERIC_OK);
     }
 
     const now = Date.now();
@@ -341,10 +323,7 @@ exports.forgotPassword = async (req, res, next) => {
       : 0;
 
     if (last && now - last < 60 * 1000) {
-      return res.json({
-        ok: true,
-        message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ.",
-      });
+      return res.json(GENERIC_OK);
     }
 
     // Generate reset token
@@ -402,10 +381,7 @@ exports.forgotPassword = async (req, res, next) => {
       });
     }
 
-    return res.json({
-      ok: true,
-      message: "Сэргээх холбоос таны имэйл рүү илгээгдлээ.",
-    });
+    return res.json(GENERIC_OK);
     } catch (emailErr) {
       console.error(
         "Forgot password email failed:",
@@ -441,7 +417,6 @@ exports.resetPassword = async (req, res, next) => {
   try {
     noStore(res);
 
-    // Support both email and userId for reset
     const userId = req.body.id || req.body.userId;
     const email = req.body.email ? normalizeEmail(req.body.email) : null;
     const token = String(req.body.token || "").trim();
@@ -459,12 +434,11 @@ exports.resetPassword = async (req, res, next) => {
     }
 
     if (newPassword.length < 8) {
-      return sendError(
-        res,
-        400,
-        "Нууц үг хамгийн багадаа 8 тэмдэгт байна.",
-        "PASSWORD_TOO_SHORT"
-      );
+      return sendError(res, 400, "Нууц үг хамгийн багадаа 8 тэмдэгт байна.", "PASSWORD_TOO_SHORT");
+    }
+
+    if (userId && !/^[0-9a-fA-F]{24}$/.test(userId)) {
+      return sendError(res, 400, "Token буруу эсвэл хугацаа дууссан байна.", "INVALID_OR_EXPIRED_TOKEN");
     }
 
     // Hash the token to compare with stored hash

@@ -4,6 +4,31 @@ const User = require("../../models/User");
 const FinanceMonth = require("../../models/FinanceMonth");
 const { writeAudit } = require("../../utils/audit");
 
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isValidId(id) {
+  return /^[0-9a-fA-F]{24}$/.test(String(id));
+}
+
+function addMonthsSafe(date, months) {
+  const d = new Date(date);
+  const targetMonth = d.getMonth() + months;
+  d.setMonth(targetMonth);
+  if (d.getMonth() !== ((targetMonth % 12) + 12) % 12) d.setDate(0);
+  return d;
+}
+
+const ALLOWED_SORTS = new Set([
+  "createdAt", "-createdAt",
+  "username", "-username",
+  "email", "-email",
+  "role", "-role",
+  "vipExpiresAt", "-vipExpiresAt",
+  "blocked", "-blocked",
+]);
+
 function buildSafeUser(user) {
   const safe = user.toObject();
   delete safe.password;
@@ -16,10 +41,11 @@ function buildSafeUser(user) {
 function applySearchFilters(query) {
   const filter = {};
   if (query.q) {
+    const safe = escapeRegex(query.q);
     filter.$or = [
-      { username: new RegExp(query.q, "i") },
-      { email: new RegExp(query.q, "i") },
-      { phone: new RegExp(query.q, "i") },
+      { username: new RegExp(safe, "i") },
+      { email: new RegExp(safe, "i") },
+      { phone: new RegExp(safe, "i") },
     ];
   }
   if (query.role) filter.role = query.role;
@@ -62,7 +88,7 @@ function getMonthKeyFromDate(d) {
 exports.listUsers = async (req, res) => {
   const page = Number(req.query.page || 1);
   const limit = Number(req.query.limit || 20);
-  const sort = req.query.sort || "-createdAt";
+  const sort = ALLOWED_SORTS.has(req.query.sort) ? req.query.sort : "-createdAt";
   const filter = applySearchFilters({
     ...req.query,
     vip: parseBool(req.query.vip),
@@ -98,6 +124,7 @@ exports.listUsers = async (req, res) => {
 };
 
 exports.getUser = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const user = await User.findById(req.params.id).select(
     "-password -resetPasswordTokenHash -resetPasswordExpiresAt -resetPasswordRequestedAt"
   );
@@ -106,6 +133,7 @@ exports.getUser = async (req, res) => {
 };
 
 exports.updateUser = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
@@ -146,6 +174,7 @@ exports.updateUser = async (req, res) => {
 // body: { months: number, amount?: number, paidAt?: string|Date, note?: string, vipLevel?: number }
 // Extends VIP and (optionally) records revenue into monthly finance ledger based on paidAt month.
 exports.grantVip = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const { months, amount, paidAt, note, vipLevel } = req.body || {};
   const monthsNum = Number(months ?? 1);
 
@@ -183,8 +212,7 @@ exports.grantVip = async (req, res) => {
     user.vipExpiresAt && new Date(user.vipExpiresAt) > now
       ? new Date(user.vipExpiresAt)
       : now;
-  const newExp = new Date(base.getTime());
-  newExp.setMonth(newExp.getMonth() + monthsNum);
+  const newExp = addMonthsSafe(base, monthsNum);
 
   user.vipExpiresAt = newExp;
   user.isVIP = true;
@@ -237,6 +265,7 @@ exports.grantVip = async (req, res) => {
 };
 
 exports.resetPassword = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const { newPassword, generateRandom } = req.body;
   if (!newPassword && !generateRandom) {
     return res
@@ -309,6 +338,7 @@ exports.resetPassword = async (req, res) => {
 };
 
 exports.forceLogout = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
@@ -329,6 +359,7 @@ exports.forceLogout = async (req, res) => {
 };
 
 exports.blockUser = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
@@ -352,6 +383,7 @@ exports.blockUser = async (req, res) => {
 };
 
 exports.unblockUser = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 
@@ -373,6 +405,7 @@ exports.unblockUser = async (req, res) => {
 };
 
 exports.lockUser = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const { reason, minutes } = req.body;
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
@@ -409,6 +442,7 @@ exports.lockUser = async (req, res) => {
 };
 
 exports.unlockUser = async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
   const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
 

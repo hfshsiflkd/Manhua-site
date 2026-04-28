@@ -106,6 +106,15 @@ manhuaSchema.virtual("chapters", {
   foreignField: "manhua",
 });
 
+// ─── Indexes ────────────────────────────────────────────────────────────────
+// Home hero: sort by rating desc
+manhuaSchema.index({ rating: -1 });
+// Home latest: sort by updatedAt desc
+manhuaSchema.index({ updatedAt: -1 });
+// Popular fallback sorts
+manhuaSchema.index({ weeklyViews: -1 });
+manhuaSchema.index({ views: -1 });
+
 // slug автоматаар үүсгэх
 manhuaSchema.pre("save", function (next) {
   if (!this.slug && (this.titleEn || this.title)) {
@@ -118,17 +127,5 @@ manhuaSchema.pre("save", function (next) {
   next();
 });
 
-// ⛓ Manhua-гаа find хийх болгонд chapters-ийг автоматаар дагуулж populate хийх
-function autoPopulateChapters(next) {
-  this.populate({
-    path: "chapters",
-    options: { sort: { chapterNumber: 1 } },
-    select: "chapterNumber title language status views createdAt updatedAt",
-  });
-  next();
-}
-
-manhuaSchema.pre("find", autoPopulateChapters);
-manhuaSchema.pre("findOne", autoPopulateChapters);
 
 module.exports = mongoose.model("Manhua", manhuaSchema);

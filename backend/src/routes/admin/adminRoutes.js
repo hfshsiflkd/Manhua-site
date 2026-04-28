@@ -69,8 +69,12 @@ router.get("/audit-logs/:id", getAuditLogById);
 const {
   getVipSettings,
   updateVipSettings,
+  getFreeReadMode,
+  setFreeReadMode,
 } = require("../../controllers/adminSettingsController");
 router.get("/settings/vip", getVipSettings);
 router.put("/settings/vip", updateVipSettings);
+router.get("/settings/free-read", getFreeReadMode);
+router.post("/settings/free-read", setFreeReadMode);
 
 module.exports = router;

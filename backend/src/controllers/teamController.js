@@ -5,6 +5,10 @@ const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
 const cache = require("../utils/cache");
 
+function isValidId(id) {
+  return /^[0-9a-fA-F]{24}$/.test(String(id));
+}
+
 function isGlobalAdmin(req) {
   return String(req.user?.role || "") === "admin";
 }
@@ -75,6 +79,7 @@ exports.createTeam = async (req, res, next) => {
 
 exports.getTeam = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const team = await Team.findById(req.params.id)
       .populate("createdBy", "username email role")
       .populate("members.user", "username email role")
@@ -100,6 +105,7 @@ exports.getTeam = async (req, res, next) => {
 
 exports.updateTeam = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const { name, description } = req.body;
     const team = await Team.findById(req.params.id);
 
@@ -124,6 +130,7 @@ exports.updateTeam = async (req, res, next) => {
 
 exports.deleteTeam = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const team = await Team.findById(req.params.id).lean();
     if (!team) {
       return res.status(404).json({ message: "Team олдсонгүй" });
@@ -149,6 +156,7 @@ exports.deleteTeam = async (req, res, next) => {
 
 exports.addTeamMember = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const { userId, username, email, role } = req.body;
     const team = await Team.findById(req.params.id);
 
@@ -163,6 +171,7 @@ exports.addTeamMember = async (req, res, next) => {
 
     let user = null;
     if (userId) {
+      if (!isValidId(userId)) return res.status(400).json({ message: "userId буруу байна" });
       user = await User.findById(userId);
     } else if (email) {
       user = await User.findOne({ email: String(email).toLowerCase() });
@@ -217,6 +226,8 @@ exports.addTeamMember = async (req, res, next) => {
 
 exports.updateMemberRole = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
+    if (!isValidId(req.params.userId)) return res.status(400).json({ message: "userId буруу байна" });
     const { role } = req.body;
     const team = await Team.findById(req.params.id);
 
@@ -257,6 +268,8 @@ exports.updateMemberRole = async (req, res, next) => {
 
 exports.removeMember = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
+    if (!isValidId(req.params.userId)) return res.status(400).json({ message: "userId буруу байна" });
     const team = await Team.findById(req.params.id);
 
     if (!team) {
@@ -299,6 +312,7 @@ exports.removeMember = async (req, res, next) => {
 
 exports.listTeamInvites = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const team = await Team.findById(req.params.id).lean();
     if (!team) {
       return res.status(404).json({ message: "Team олдсонгүй" });
@@ -340,6 +354,7 @@ exports.listMyTeamInvites = async (req, res, next) => {
 
 exports.acceptTeamInvite = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.inviteId)) return res.status(400).json({ message: "ID буруу байна" });
     const invite = await TeamInvite.findById(req.params.inviteId);
     if (!invite) {
       return res.status(404).json({ message: "Хүсэлт олдсонгүй" });
@@ -390,6 +405,7 @@ exports.acceptTeamInvite = async (req, res, next) => {
 
 exports.declineTeamInvite = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.inviteId)) return res.status(400).json({ message: "ID буруу байна" });
     const invite = await TeamInvite.findById(req.params.inviteId);
     if (!invite) {
       return res.status(404).json({ message: "Хүсэлт олдсонгүй" });
@@ -415,6 +431,7 @@ exports.declineTeamInvite = async (req, res, next) => {
 
 exports.listTeamManhuas = async (req, res, next) => {
   try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const team = await Team.findById(req.params.id).lean();
     if (!team) {
       return res.status(404).json({ message: "Team олдсонгүй" });

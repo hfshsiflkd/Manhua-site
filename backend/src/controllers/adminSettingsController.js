@@ -2,6 +2,48 @@
 const AppSetting = require("../models/AppSetting");
 const { getOrCreateVipSettings } = require("./settingsController");
 
+// ─── Free Read Mode ────────────────────────────────────────────────────────
+
+// GET /api/admin/settings/free-read
+exports.getFreeReadMode = async (req, res, next) => {
+  try {
+    const doc = await AppSetting.findOne({ key: "freeReadMode" });
+    const value = doc?.value || { enabled: false, expiresAt: null };
+    res.json({ success: true, ...value });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/admin/settings/free-read
+exports.setFreeReadMode = async (req, res, next) => {
+  try {
+    const { enabled, expiresAt } = req.body;
+
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ success: false, message: "enabled must be boolean" });
+    }
+
+    const value = {
+      enabled,
+      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+    };
+
+    await AppSetting.findOneAndUpdate(
+      { key: "freeReadMode" },
+      { value },
+      { upsert: true, new: true }
+    );
+
+    const redisCache = require("../cache/redisCache");
+    await redisCache.del("setting:freeReadMode");
+
+    res.json({ success: true, ...value });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // GET /api/admin/settings/vip
 exports.getVipSettings = async (req, res, next) => {
   try {

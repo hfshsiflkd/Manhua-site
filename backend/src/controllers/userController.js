@@ -1,8 +1,9 @@
 // src/controllers/userController.js
 const User = require("../models/User");
-const { r2Client, PutObjectCommand } = require("../config/r2");
+const { r2Client, PutObjectCommand, DeleteObjectCommand } = require("../config/r2");
 const { toWebpBuffer } = require("../utils/image");
 const upload = require("../middleware/upload");
+const mongoose = require("mongoose");
 
 // POST /api/user/avatar
 exports.uploadAvatar = [
@@ -64,7 +65,23 @@ exports.uploadAvatar = [
 
       const publicUrl = `${process.env.R2_PUBLIC_BASE_URL}/${key}`;
 
-      // Update user avatar
+      // Delete old avatar from R2 if exists
+      const oldUser = await User.findById(req.user._id).select("avatar");
+      if (oldUser?.avatar) {
+        try {
+          const R2_BASE = process.env.R2_PUBLIC_BASE_URL || "";
+          const oldKey = oldUser.avatar.startsWith(R2_BASE)
+            ? oldUser.avatar.slice(R2_BASE.length + 1)
+            : null;
+          if (oldKey) {
+            await r2Client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: oldKey }));
+          }
+        } catch {
+          // Non-fatal — log but continue
+          console.warn("[uploadAvatar] Old avatar delete failed");
+        }
+      }
+
       const user = await User.findByIdAndUpdate(
         req.user._id,
         { avatar: publicUrl },
@@ -91,6 +108,9 @@ exports.uploadAvatar = [
 exports.getManhuaStatus = async (req, res, next) => {
   try {
     const { manhuaId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(manhuaId)) {
+      return res.status(400).json({ success: false, message: "Manhua ID буруу байна" });
+    }
     const Favorite = require("../models/Favorite");
     const Bookmark = require("../models/Bookmark");
 
@@ -256,24 +276,20 @@ exports.updateEmail = async (req, res, next) => {
       });
     }
 
-    // Update email
     user.email = normalizedEmail;
-    // Increment tokenVersion to invalidate existing tokens
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
-
-    const updatedUser = await User.findById(user._id).select("-password");
 
     res.json({
       success: true,
       user: {
-        _id: updatedUser._id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        isVIP: updatedUser.isVIP,
-        vipExpiresAt: updatedUser.vipExpiresAt,
-        avatar: updatedUser.avatar,
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        isVIP: user.isVIP,
+        vipExpiresAt: user.vipExpiresAt,
+        avatar: user.avatar,
       },
       message: "Имэйл амжилттай шинэчлэгдлээ.",
     });
@@ -342,24 +358,20 @@ exports.updatePassword = async (req, res, next) => {
       });
     }
 
-    // Update password (will be hashed by pre-save hook)
     user.password = newPassword;
-    // Increment tokenVersion to invalidate existing tokens
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
-
-    const updatedUser = await User.findById(user._id).select("-password");
 
     res.json({
       success: true,
       user: {
-        _id: updatedUser._id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        isVIP: updatedUser.isVIP,
-        vipExpiresAt: updatedUser.vipExpiresAt,
-        avatar: updatedUser.avatar,
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        isVIP: user.isVIP,
+        vipExpiresAt: user.vipExpiresAt,
+        avatar: user.avatar,
       },
       message: "Нууц үг амжилттай шинэчлэгдлээ.",
     });

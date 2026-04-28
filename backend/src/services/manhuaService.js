@@ -5,21 +5,31 @@ const Chapter = require("../models/Chapter");
 /**
  * query-с filter үүсгэнэ
  */
+const mongoose = require("mongoose");
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function buildFilter(query = {}) {
   const { q, genre, status, teamId } = query;
   const filter = {};
 
-  if (q) {
+  if (q && typeof q === "string") {
+    const safeQ = escapeRegex(q.slice(0, 100));
     filter.$or = [
-      { title: { $regex: q, $options: "i" } },
-      { titleEn: { $regex: q, $options: "i" } },
+      { title: { $regex: safeQ, $options: "i" } },
+      { titleEn: { $regex: safeQ, $options: "i" } },
     ];
   }
   if (genre) filter.genres = genre;
   if (status) filter.status = status;
   if (teamId) {
-    if (teamId === "none") filter.team = null;
-    else filter.team = teamId;
+    if (teamId === "none") {
+      filter.team = null;
+    } else if (mongoose.Types.ObjectId.isValid(teamId)) {
+      filter.team = new mongoose.Types.ObjectId(teamId);
+    }
   }
 
   return filter;
@@ -85,5 +95,12 @@ exports.fetchManhuaList = async ({ query, page, limit }) => {
  * Single manhua
  */
 exports.fetchManhuaBySlug = async (slug) => {
-  return Manhua.findOne({ slug }).lean();
+  return Manhua.findOne({ slug })
+    .populate({
+      path: "chapters",
+      match: { status: "published" },
+      options: { sort: { chapterNumber: 1 } },
+      select: "chapterNumber title language status views createdAt updatedAt",
+    })
+    .lean();
 };

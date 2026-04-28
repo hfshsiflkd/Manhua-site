@@ -11,16 +11,16 @@ function inc(map, id) {
 
 function getTodayDateKey() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
 function getMonthKey() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
@@ -49,7 +49,9 @@ async function flush() {
       });
     }
     chapterCounts.clear();
-    Chapter.bulkWrite(ops, { ordered: false }).catch(() => {});
+    Chapter.bulkWrite(ops, { ordered: false }).catch((err) => {
+      console.error("[viewCounter] Chapter bulkWrite failed:", err.message);
+    });
   }
 
   if (manhuaCounts.size) {
@@ -70,7 +72,9 @@ async function flush() {
       });
     }
     manhuaCounts.clear();
-    Manhua.bulkWrite(ops, { ordered: false }).catch(() => {});
+    Manhua.bulkWrite(ops, { ordered: false }).catch((err) => {
+      console.error("[viewCounter] Manhua bulkWrite failed:", err.message);
+    });
   }
 }
 

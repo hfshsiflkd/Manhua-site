@@ -1,6 +1,11 @@
 const Manhua = require("../models/Manhua");
 const Team = require("../models/Team");
 const cache = require("../utils/cache");
+const mongoose = require("mongoose");
+
+function isValidId(id) {
+  return /^[0-9a-fA-F]{24}$/.test(String(id));
+}
 
 const TTL_MINE = 30_000; // 30s
 
@@ -57,6 +62,9 @@ exports.createManhua = async (req, res, next) => {
 
     let team = null;
     if (teamId) {
+      if (!isValidId(teamId)) {
+        return res.status(400).json({ message: "Team ID буруу байна" });
+      }
       team = await Team.findById(teamId).lean();
       if (!team) {
         return res.status(404).json({ message: "Team олдсонгүй" });
@@ -117,6 +125,9 @@ exports.createManhua = async (req, res, next) => {
 exports.updateManhua = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) {
+      return res.status(400).json({ message: "Manhua ID буруу байна" });
+    }
     const manhua = await Manhua.findById(id);
 
     if (!manhua) {
@@ -142,9 +153,28 @@ exports.updateManhua = async (req, res, next) => {
       return res.status(403).json({ message: "No permission" });
     }
 
-    if (req.body.teamId !== undefined) {
-      if (req.body.teamId) {
-        const team = await Team.findById(req.body.teamId).lean();
+    // Зөвшөөрөгдсөн талбаруудыг цагаан жагсаалтаар шүүнэ (mass assignment хамгаалалт)
+    const {
+      title, titleEn, description, slug,
+      status, coverImage, coverImageUrl, genres, teamId,
+    } = req.body;
+
+    const updates = {};
+    if (title !== undefined) updates.title = title;
+    if (titleEn !== undefined) updates.titleEn = titleEn;
+    if (description !== undefined) updates.description = description;
+    if (slug !== undefined) updates.slug = slug;
+    if (status !== undefined) updates.status = status;
+    if (coverImage !== undefined) updates.coverImage = coverImage;
+    if (coverImageUrl !== undefined) updates.coverImageUrl = coverImageUrl;
+    if (genres !== undefined) updates.genres = Array.isArray(genres) ? genres : [];
+
+    if (teamId !== undefined) {
+      if (teamId) {
+        if (!isValidId(teamId)) {
+          return res.status(400).json({ message: "Team ID буруу байна" });
+        }
+        const team = await Team.findById(teamId).lean();
         if (!team) {
           return res.status(404).json({ message: "Team олдсонгүй" });
         }
@@ -157,21 +187,17 @@ exports.updateManhua = async (req, res, next) => {
           member?.role === "admin" ||
           member?.role === "editor";
         if (!canAssign) {
-          return res
-            .status(403)
-            .json({ message: "Team тохируулах эрхгүй" });
+          return res.status(403).json({ message: "Team тохируулах эрхгүй" });
         }
-        req.body.team = req.body.teamId;
+        updates.team = teamId;
       } else {
-        req.body.team = null;
+        updates.team = null;
       }
     }
 
     const oldTeamId = manhua.team ? String(manhua.team) : null;
 
-    const doc = await Manhua.findByIdAndUpdate(id, req.body, {
-      new: true,
-    }).lean();
+    const doc = await Manhua.findByIdAndUpdate(id, updates, { new: true }).lean();
 
     // ✅ cache invalidate
     cache.del(`editor:manhuas:mine:${String(req.user._id)}`);

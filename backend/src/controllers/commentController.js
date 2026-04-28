@@ -3,13 +3,22 @@ const Comment = require("../models/Comment");
 const Manhua = require("../models/Manhua");
 const { logAudit } = require("../utils/auditLogger");
 
+const mongoose = require("mongoose");
+
+function isValidId(id) {
+  return mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id);
+}
+
 // GET /api/comments/manhua/:manhuaId?page=1&limit=20
 // List comments for a manhua (newest first)
 exports.getManhuaComments = async (req, res, next) => {
   try {
     const { manhuaId } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    if (!isValidId(manhuaId)) {
+      return res.status(400).json({ success: false, message: "Manhua ID буруу байна" });
+    }
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
     // Verify manhua exists
     const manhua = await Manhua.findById(manhuaId);
@@ -54,6 +63,9 @@ exports.getManhuaComments = async (req, res, next) => {
 exports.createManhuaComment = async (req, res, next) => {
   try {
     const { manhuaId } = req.params;
+    if (!isValidId(manhuaId)) {
+      return res.status(400).json({ success: false, message: "Manhua ID буруу байна" });
+    }
     let { text } = req.body;
 
     // Validate text
@@ -143,6 +155,9 @@ exports.createManhuaComment = async (req, res, next) => {
 exports.deleteComment = async (req, res, next) => {
   try {
     const { commentId } = req.params;
+    if (!isValidId(commentId)) {
+      return res.status(400).json({ success: false, message: "Сэтгэгдэл ID буруу байна" });
+    }
 
     const comment = await Comment.findById(commentId);
     if (!comment) {

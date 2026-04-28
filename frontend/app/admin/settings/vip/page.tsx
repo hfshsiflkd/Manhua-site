@@ -5,6 +5,8 @@ import AdminShell from "@/app/admin/components/AdminShell";
 import {
   adminGetVipSettings,
   adminUpdateVipSettings,
+  adminGetFreeReadMode,
+  adminSetFreeReadMode,
   type VipPlanSetting,
   type VipPaymentSetting,
 } from "@/lib/api";
@@ -22,6 +24,12 @@ export default function AdminVipSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Free read mode state
+  const [freeReadEnabled, setFreeReadEnabled] = useState(false);
+  const [freeReadExpiresAt, setFreeReadExpiresAt] = useState<string>("");
+  const [freeReadSaving, setFreeReadSaving] = useState(false);
+  const [freeReadSuccess, setFreeReadSuccess] = useState(false);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -30,7 +38,10 @@ export default function AdminVipSettingsPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await adminGetVipSettings();
+      const [data, freeRead] = await Promise.all([
+        adminGetVipSettings(),
+        adminGetFreeReadMode(),
+      ]);
       setPlans(data.plans || []);
       setPayment(data.payment || {
         bankName: "",
@@ -38,6 +49,10 @@ export default function AdminVipSettingsPage() {
         accountNumber: "",
         note: "",
       });
+      setFreeReadEnabled(freeRead.enabled);
+      setFreeReadExpiresAt(
+        freeRead.expiresAt ? freeRead.expiresAt.slice(0, 16) : ""
+      );
     } catch (err: any) {
       console.error("Failed to load VIP settings:", err);
       setError(err?.response?.data?.message || "VIP тохиргоо ачаалж чадсангүй.");
@@ -47,22 +62,44 @@ export default function AdminVipSettingsPage() {
   };
 
   const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+
+    // Validate plans
+    if (plans.length !== 3) {
+      setError("Яг 3 төлөвлөгөө байх ёстой.");
+      setSaving(false);
+      return;
+    }
+
+    for (let i = 0; i < plans.length; i++) {
+      const p = plans[i];
+      if (!p.key.trim() || !p.title.trim()) {
+        setError(`Төлөвлөгөө ${i + 1}: Key болон нэр шаардлагатай.`);
+        setSaving(false);
+        return;
+      }
+      if (!p.priceMnt || p.priceMnt <= 0) {
+        setError(`Төлөвлөгөө ${i + 1}: Үнэ 0-ээс их байх ёстой.`);
+        setSaving(false);
+        return;
+      }
+      if (!p.durationDays || p.durationDays <= 0) {
+        setError(`Төлөвлөгөө ${i + 1}: Хугацаа 0-ээс их байх ёстой.`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    // Validate payment
+    if (!payment.accountNumber.trim()) {
+      setError("Дансны дугаар шаардлагатай.");
+      setSaving(false);
+      return;
+    }
+
     try {
-      setSaving(true);
-      setError(null);
-      setSuccess(false);
-
-      // Validate plans
-      if (plans.length !== 3) {
-        setError("Яг 3 төлөвлөгөө байх ёстой.");
-        return;
-      }
-
-      // Validate payment
-      if (!payment.accountNumber.trim()) {
-        setError("Дансны дугаар шаардлагатай.");
-        return;
-      }
 
       await adminUpdateVipSettings({ plans, payment });
       setSuccess(true);
@@ -117,6 +154,23 @@ export default function AdminVipSettingsPage() {
     });
   };
 
+  const handleFreeReadSave = async () => {
+    try {
+      setFreeReadSaving(true);
+      setError(null);
+      await adminSetFreeReadMode({
+        enabled: freeReadEnabled,
+        expiresAt: freeReadExpiresAt ? new Date(freeReadExpiresAt).toISOString() : null,
+      });
+      setFreeReadSuccess(true);
+      setTimeout(() => setFreeReadSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Үнэгүй унших горим хадгалахад алдаа гарлаа.");
+    } finally {
+      setFreeReadSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <AdminShell
@@ -147,6 +201,68 @@ export default function AdminVipSettingsPage() {
             {error}
           </div>
         )}
+
+        {/* Free Read Mode */}
+        <section className="rounded-2xl border border-amber-500/30 bg-slate-950/85 p-6 shadow-md shadow-black/40">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-slate-50">
+                Үнэгүй унших горим
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Идэвхжүүлсэн үед бүх хэрэглэгч VIP байлгүйгээр унших боломжтой болно.
+              </p>
+            </div>
+            <button
+              onClick={() => setFreeReadEnabled((v) => !v)}
+              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                freeReadEnabled ? "bg-amber-500" : "bg-slate-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                  freeReadEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {freeReadEnabled && (
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+                Дуусах огноо (сонголттой — хоосон бол хугацаагүй)
+              </label>
+              <input
+                type="datetime-local"
+                value={freeReadExpiresAt}
+                onChange={(e) => setFreeReadExpiresAt(e.target.value)}
+                className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 focus:border-amber-500/50 focus:outline-none"
+              />
+            </div>
+          )}
+
+          {freeReadSuccess && (
+            <p className="mt-3 text-xs text-emerald-400">Амжилттай хадгалагдлаа.</p>
+          )}
+
+          <div className="mt-4 flex items-center gap-3">
+            <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+              freeReadEnabled
+                ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                : "bg-slate-800 text-slate-400 border border-slate-700"
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${freeReadEnabled ? "bg-amber-400" : "bg-slate-500"}`} />
+              {freeReadEnabled ? "Идэвхтэй" : "Идэвхгүй"}
+            </div>
+            <button
+              onClick={handleFreeReadSave}
+              disabled={freeReadSaving}
+              className="rounded-lg bg-amber-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {freeReadSaving ? "Хадгалж байна..." : "Хадгалах"}
+            </button>
+          </div>
+        </section>
 
         {/* Payment Settings */}
         <section className="rounded-2xl border border-slate-800/80 bg-slate-950/85 p-6 shadow-md shadow-black/40">

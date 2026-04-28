@@ -3,6 +3,19 @@ const VipPlan = require("../models/VipPlan");
 const User = require("../models/User");
 const FinanceMonth = require("../models/FinanceMonth");
 const { computeIsVIP } = require("../utils/vip");
+const mongoose = require("mongoose");
+
+// setMonth()-ийн month-end overflow-г засна (e.g. Jan31 +1m → Feb28 биш Mar2 болдог)
+function addMonthsSafe(date, months) {
+  const d = new Date(date);
+  const targetMonth = d.getMonth() + months;
+  d.setMonth(targetMonth);
+  // Overflow илэрвэл (e.g. Feb31 → Mar2/3) өмнөх сарын сүүлийн өдрөөр тохируулна
+  if (d.getMonth() !== ((targetMonth % 12) + 12) % 12) {
+    d.setDate(0);
+  }
+  return d;
+}
 
 // GET /api/vip/plans - Get active VIP plans
 exports.getPlans = async (req, res, next) => {
@@ -42,13 +55,13 @@ exports.purchaseVip = async (req, res, next) => {
     const { planId } = req.body;
 
     if (!planId) {
-      return res.status(400).json({
-        success: false,
-        message: "VIP төлөвлөгөө сонгоно уу.",
-      });
+      return res.status(400).json({ success: false, message: "VIP төлөвлөгөө сонгоно уу." });
     }
 
-    // Get plan
+    if (!/^[0-9a-fA-F]{24}$/.test(planId)) {
+      return res.status(400).json({ success: false, message: "VIP төлөвлөгөө ID буруу байна." });
+    }
+
     const plan = await VipPlan.findById(planId);
     if (!plan || !plan.active) {
       return res.status(404).json({
@@ -66,31 +79,28 @@ exports.purchaseVip = async (req, res, next) => {
       });
     }
 
-    // Calculate new VIP expiration
     const now = new Date();
-    let newVipExpiresAt;
 
-    if (user.vipExpiresAt && new Date(user.vipExpiresAt) > now) {
-      // User is still VIP - extend from current expiration
-      newVipExpiresAt = new Date(user.vipExpiresAt);
-      newVipExpiresAt.setMonth(newVipExpiresAt.getMonth() + plan.months);
-    } else {
-      // User is not VIP or expired - start from now
-      newVipExpiresAt = new Date();
-      newVipExpiresAt.setMonth(newVipExpiresAt.getMonth() + plan.months);
+    // Atomic update: race condition-г зайлсхийхийн тулд findOneAndUpdate ашиглана.
+    // Хэрэглэгч VIP идэвхтэй бол vipExpiresAt-с, эс тэгвэл одоогоос сунгана.
+    const base = user.vipExpiresAt && new Date(user.vipExpiresAt) > now
+      ? new Date(user.vipExpiresAt)
+      : now;
+    const newVipExpiresAt = addMonthsSafe(base, plan.months);
+
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: user._id },
+      { $set: { vipExpiresAt: newVipExpiresAt, isVIP: true } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: "Хэрэглэгч олдсонгүй." });
     }
 
-    // Update user VIP status
-    user.vipExpiresAt = newVipExpiresAt;
-    user.isVIP = true; // Will be recomputed, but set explicitly
-    await user.save();
-
-    // Record revenue for user leaderboard + finance distribution
-    // (treating purchase as paid immediately)
-    const paidAt = new Date();
-    const monthKey = `${paidAt.getUTCFullYear()}-${String(
-      paidAt.getUTCMonth() + 1
-    ).padStart(2, "0")}`;
+    // Finance record
+    const paidAt = now;
+    const monthKey = `${paidAt.getUTCFullYear()}-${String(paidAt.getUTCMonth() + 1).padStart(2, "0")}`;
     await FinanceMonth.findOneAndUpdate(
       { monthKey },
       {
@@ -98,7 +108,7 @@ exports.purchaseVip = async (req, res, next) => {
         $push: {
           revenueEvents: {
             userId: user._id,
-            adminId: null,
+            adminId: req.user._id,
             amount: plan.priceTotal,
             currency: "MNT",
             paidAt,
@@ -110,16 +120,6 @@ exports.purchaseVip = async (req, res, next) => {
       },
       { upsert: true, new: false }
     );
-
-    // Recompute VIP status
-    const isVIP = computeIsVIP(user);
-    if (user.isVIP !== isVIP) {
-      user.isVIP = isVIP;
-      await user.save();
-    }
-
-    // Return updated user
-    const updatedUser = await User.findById(user._id).select("-password");
 
     res.json({
       success: true,

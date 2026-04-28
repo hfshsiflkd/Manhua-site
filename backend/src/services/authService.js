@@ -41,8 +41,9 @@ async function registerUser({ username, email, password, deviceId, ip }) {
     throw err;
   }
 
-  // Password will be hashed by pre-save hook in User model
-  const user = await User.create({
+  let user;
+  try {
+  user = await User.create({
     username: normUsername,
     email: normEmail,
     password: password, // Pre-save hook will hash this
@@ -59,6 +60,20 @@ async function registerUser({ username, email, password, deviceId, ip }) {
     hasUsedTrial: false,
     trialGrantedAt: null,
   });
+  } catch (dbErr) {
+    if (dbErr.code === 11000) {
+      const field = dbErr.keyPattern?.email ? "email" : "username";
+      const err = new Error(
+        field === "email"
+          ? "Энэ email аль хэдийн бүртгэлтэй."
+          : "Энэ username аль хэдийн бүртгэлтэй."
+      );
+      err.statusCode = 400;
+      err.code = "DUPLICATE_" + field.toUpperCase();
+      throw err;
+    }
+    throw dbErr;
+  }
 
   const { trialGranted } = await applyTrialVIP({ user, deviceId, ip });
 

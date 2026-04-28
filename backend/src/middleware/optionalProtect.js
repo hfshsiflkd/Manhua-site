@@ -32,8 +32,7 @@ exports.optionalProtect = async (req, res, next) => {
       });
     }
 
-    // ⚠️ isActive байхгүй бол үргэлж null болно
-    req.user = user ? user : null;
+    req.user = (user && user.isActive) ? user : null;
 
     return next();
   } catch (e) {

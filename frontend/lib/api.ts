@@ -4,8 +4,8 @@ import axios from "axios";
 import type { Chapter } from "@/types/manhua";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL!;
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+if (!BASE_URL) console.error("[api] NEXT_PUBLIC_API_BASE_URL тохируулаагүй байна");
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -809,6 +809,21 @@ export async function adminUpdateVipSettings(payload: {
 }) {
   const res = await api.put<VipSettingsResponse>("/admin/settings/vip", payload);
   return res.data;
+}
+
+export interface FreeReadMode {
+  enabled: boolean;
+  expiresAt: string | null;
+}
+
+export async function adminGetFreeReadMode(): Promise<FreeReadMode> {
+  const res = await api.get<FreeReadMode & { success: boolean }>("/admin/settings/free-read");
+  return { enabled: res.data.enabled, expiresAt: res.data.expiresAt };
+}
+
+export async function adminSetFreeReadMode(payload: FreeReadMode): Promise<FreeReadMode> {
+  const res = await api.post<FreeReadMode & { success: boolean }>("/admin/settings/free-read", payload);
+  return { enabled: res.data.enabled, expiresAt: res.data.expiresAt };
 }
 
 // Comments API
