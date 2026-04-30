@@ -82,6 +82,7 @@ exports.fetchManhuaList = async ({ query, page, limit }) => {
     const last = lastChapterMap.get(String(m._id));
     return {
       ...m,
+      ratingAverage: m.ratingAverage || m.rating || 0,
       lastChapterNumber: last?.lastChapterNumber || null,
       lastChapterId: last?.lastChapterId || null,
       lastChapterAt: last?.lastChapterAt || null,

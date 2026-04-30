@@ -9,8 +9,10 @@ interface Manhua {
   coverImageUrl?: string;
   coverImage?: string;
   status?: string;
-  genres?: string[];
-  createdBy?: { username: string; role?: string };
+  chapterCount?: number;
+  chaptersCount?: number;
+  views?: number;
+  updatedAt?: string;
 }
 
 interface Props {
@@ -18,77 +20,94 @@ interface Props {
   loading: boolean;
 }
 
-const statusStyle = (status?: string) => {
-  if (status === "completed") return { border: "1px solid oklch(0.75 0.17 145/.4)", background: "oklch(0.75 0.17 145/.08)", color: "oklch(0.8 0.14 145)" };
-  if (status === "ongoing") return { border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" };
-  return { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" };
+const STATUS_CLASS: Record<string, React.CSSProperties> = {
+  ongoing:   { background: "rgba(16,185,129,.12)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,.2)" },
+  completed: { background: "rgba(59,130,246,.12)", color: "#93c5fd", border: "1px solid rgba(59,130,246,.2)" },
+  hiatus:    { background: "rgba(245,158,11,.12)",  color: "#fcd34d", border: "1px solid rgba(245,158,11,.2)" },
 };
+const STATUS_LABEL: Record<string, string> = { ongoing: "Ongoing", completed: "Completed", hiatus: "Hiatus" };
+
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return "—";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const h = Math.floor(diff / 3600000);
+  if (h < 1) return "Саяхан";
+  if (h < 24) return `${h}ц өмнө`;
+  return `${Math.floor(h / 24)} өдөр өмнө`;
+}
 
 export default function AdminRecentManhuas({ manhuas, loading }: Props) {
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-[14px] font-semibold" style={{ color: "var(--arc-text)" }}>Сүүлд нэмэгдсэн манхуа</h2>
-        <Link href="/admin/manhuas" className="text-[11px] transition-opacity hover:opacity-80" style={{ color: "var(--arc-cyan)" }}>
-          Бүгдийг харах →
-        </Link>
+    <div style={{ background: "var(--arc-card)", border: "1px solid var(--arc-border)", borderRadius: 14, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid var(--arc-border)", background: "rgba(0,0,0,.2)" }}>
+        <span style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontSize: 13, fontWeight: 700, color: "var(--arc-text)" }}>Сүүлийн манхуа</span>
+        <Link href="/admin/manhuas" style={{ fontSize: 11, color: "var(--arc-cyan)", textDecoration: "none" }}>Бүгдийг харах →</Link>
       </div>
 
-      <div className="rounded-[14px] p-3" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
-        {loading ? (
-          <p className="text-[12px]" style={{ color: "var(--arc-muted)" }}>Манхуа ачаалж байна...</p>
-        ) : manhuas.length === 0 ? (
-          <p className="text-[12px]" style={{ color: "var(--arc-muted)" }}>Одоогоор манхуа бүртгэгдээгүй байна.</p>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {loading ? (
+        <div style={{ padding: "20px 18px", fontSize: 12, color: "var(--arc-muted)" }}>Ачаалж байна...</div>
+      ) : manhuas.length === 0 ? (
+        <div style={{ padding: "20px 18px", fontSize: 12, color: "var(--arc-muted)" }}>Манхуа бүртгэгдээгүй байна.</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {["Манхуа", "Статус", "Ch.", "Үзэлт", ""].map((h) => (
+                <th key={h} style={{ padding: "9px 16px", textAlign: "left", fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--arc-muted)", background: "rgba(0,0,0,.15)", borderBottom: "1px solid var(--arc-border)" }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
             {manhuas.map((m) => {
-              const cover = m.coverImageUrl || m.coverImage || "https://via.placeholder.com/200x280?text=No+Cover";
+              const status = (m.status || "ongoing").toLowerCase();
+              const pill = STATUS_CLASS[status] || STATUS_CLASS.ongoing;
+              const chapters = (m as any).chapterCount ?? (m as any).chaptersCount ?? "—";
               return (
-                <div
-                  key={m._id}
-                  className="group flex flex-col overflow-hidden rounded-[12px] transition"
-                  style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}
+                <tr key={m._id} style={{ borderBottom: "1px solid var(--arc-border)" }}
+                  onMouseEnter={(e) => { Array.from(e.currentTarget.querySelectorAll("td")).forEach(td => (td as HTMLElement).style.background = "rgba(255,255,255,.02)"); }}
+                  onMouseLeave={(e) => { Array.from(e.currentTarget.querySelectorAll("td")).forEach(td => (td as HTMLElement).style.background = ""); }}
                 >
-                  <div className="relative w-full overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={cover} alt={m.title} className="h-40 w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  </div>
-
-                  <div className="flex flex-1 flex-col justify-between p-3 space-y-1">
-                    <p className="line-clamp-2 text-[12px] font-semibold" style={{ color: "var(--arc-text)" }}>{m.title}</p>
-                    {m.genres && m.genres.length > 0 && (
-                      <p className="line-clamp-1 text-[10px]" style={{ color: "var(--arc-muted)" }}>{m.genres.join(", ")}</p>
-                    )}
-                    {m.createdBy && (
-                      <p className="text-[10px]" style={{ color: "var(--arc-dim)" }}>
-                        by <span style={{ color: "var(--arc-text)" }}>{m.createdBy.username}</span>
-                        {m.createdBy.role && (
-                          <span className="ml-1 rounded-full px-1.5 py-[1px] text-[9px] uppercase" style={{ background: "var(--arc-border)", color: "var(--arc-muted)" }}>
-                            {m.createdBy.role}
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold w-fit" style={statusStyle(m.status)}>
-                      {m.status || "draft"}
+                  <td style={{ padding: "11px 16px", fontSize: 12 }}>
+                    <div style={{ fontWeight: 600, color: "var(--arc-text)", fontFamily: "var(--font-head,'Space Grotesk',sans-serif)" }}>{m.title}</div>
+                    <div style={{ fontSize: 10, color: "var(--arc-muted)", marginTop: 2 }}>{timeAgo(m.updatedAt)}</div>
+                  </td>
+                  <td style={{ padding: "11px 16px", fontSize: 12 }}>
+                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, ...pill }}>
+                      {STATUS_LABEL[status] || status}
                     </span>
-
-                    <div className="mt-2 flex items-center justify-between">
-                      <Link href={`/admin/manhuas/${m._id}`} className="rounded-full px-3 py-1 text-[10px] font-medium transition-colors" style={{ background: "var(--arc-card)", color: "var(--arc-dim)", border: "1px solid var(--arc-border)" }}>
-                        Manage
+                  </td>
+                  <td style={{ padding: "11px 16px", fontSize: 12 }}>
+                    <span style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontWeight: 600, color: "var(--arc-text)" }}>{chapters}</span>
+                  </td>
+                  <td style={{ padding: "11px 16px", fontSize: 12 }}>
+                    <span style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontWeight: 600, color: "var(--arc-text)" }}>{m.views?.toLocaleString() ?? "—"}</span>
+                  </td>
+                  <td style={{ padding: "11px 16px" }}>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Link href={`/admin/manhuas/${m._id}`}
+                        style={{ padding: "4px 10px", borderRadius: 5, border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", fontSize: 10, cursor: "pointer", textDecoration: "none", transition: "color .12s, border-color .12s" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.12)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; }}
+                      >
+                        Засах
                       </Link>
-                      <Link href={`/manhua/${m.slug ?? m._id}`} className="text-[10px] transition-opacity hover:opacity-80" style={{ color: "var(--arc-cyan)" }}>
-                        View
+                      <Link href={`/admin/manhuas/${m._id}/chapters/new`}
+                        style={{ padding: "4px 10px", borderRadius: 5, border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", fontSize: 10, cursor: "pointer", textDecoration: "none" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.12)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; }}
+                      >
+                        Ch+
                       </Link>
                     </div>
-                  </div>
-                </div>
+                  </td>
+                </tr>
               );
             })}
-          </div>
-        )}
-      </div>
-    </section>
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }

@@ -230,3 +230,93 @@
     height: 100%;
   }
 }
+
+/* ── Manhua card ── */
+.manhua-card {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--arc-card);
+  border: 1px solid var(--arc-border);
+  cursor: pointer;
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+  text-decoration: none;
+  display: block;
+}
+.manhua-card:hover {
+  transform: translateY(-4px);
+  border-color: oklch(0.72 0.17 195 / .4);
+  box-shadow: 0 12px 32px rgba(0,0,0,.5), 0 0 0 1px oklch(0.72 0.17 195 / .15);
+}
+.manhua-card .card-cover {
+  position: relative;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: var(--arc-elevated);
+}
+.manhua-card .card-cover-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform .25s;
+}
+.manhua-card:hover .card-cover-img {
+  transform: scale(1.04);
+}
+.manhua-card .card-status {
+  position: absolute;
+  top: 8px; right: 8px;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.manhua-card .card-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(7,7,14,.85) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity .2s;
+}
+.manhua-card:hover .card-overlay { opacity: 1; }
+.manhua-card .card-body { padding: 12px; }
+.manhua-card .card-title {
+  font-family: var(--font-head, 'Space Grotesk', sans-serif);
+  font-size: 13px; font-weight: 600;
+  color: var(--arc-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+  margin-bottom: 8px;
+  transition: color .15s;
+}
+.manhua-card:hover .card-title { color: var(--arc-cyan); }
+.manhua-card .card-genres {
+  display: flex; gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.manhua-card .card-genre {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.06);
+  color: var(--arc-dim);
+}
+.manhua-card .card-foot {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--arc-border);
+}
+.manhua-card .card-rating {
+  display: flex; align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--arc-amber);
+}
+.manhua-card .card-ch {
+  font-size: 11px;
+  color: var(--arc-cyan);
+  font-weight: 600;
+}

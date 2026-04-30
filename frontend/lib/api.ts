@@ -784,6 +784,7 @@ export interface VipPaymentSetting {
   accountName: string;
   accountNumber: string;
   note: string;
+  qpayUrl?: string;
 }
 
 export interface VipSettingsResponse {

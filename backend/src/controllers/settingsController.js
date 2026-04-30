@@ -46,6 +46,7 @@ const DEFAULT_VIP_SETTINGS = {
     accountName: "Дансны нэр",
     accountNumber: "XXXX-XXXX-XXXX",
     note: "Хуулга/гүйлгээ хийсний дараа админ баталгаажуулна.",
+    qpayUrl: "",
   },
 };
 

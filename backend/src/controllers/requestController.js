@@ -34,8 +34,8 @@ exports.listRequests = async (req, res, next) => {
 
 exports.createRequest = async (req, res, next) => {
   try {
-    if (!isVipUser(req.user)) {
-      return res.status(403).json({ message: "VIP хэрэглэгч шаардлагатай." });
+    if (!req.user) {
+      return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай." });
     }
 
     const title = String(req.body?.title || "").trim();
@@ -80,8 +80,8 @@ exports.createRequest = async (req, res, next) => {
 
 exports.voteRequest = async (req, res, next) => {
   try {
-    if (!isVipUser(req.user)) {
-      return res.status(403).json({ message: "VIP хэрэглэгч шаардлагатай." });
+    if (!req.user) {
+      return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай." });
     }
 
     const deviceId = req.headers["x-device-id"] || "";

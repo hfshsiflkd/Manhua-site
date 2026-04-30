@@ -92,7 +92,7 @@ export default function VipPage() {
               const badge = pkg.badgeLabel;
               return (
                 <div
-                  key={pkg.key || index}
+                  key={pkg._id || pkg.key || index}
                   className="relative rounded-[16px] p-6"
                   style={{
                     border: `1px solid ${isPopular ? "oklch(0.65 0.2 290/.5)" : "var(--arc-border)"}`,

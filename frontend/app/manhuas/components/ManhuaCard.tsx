@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import type { Manhua } from "@/types/manhua";
 
@@ -6,64 +7,74 @@ interface ManhuaCardProps {
   variant?: "default" | "horizontal";
 }
 
-const statusStyles: Record<string, { background: string; color: string; border: string }> = {
-  ongoing: { background: "oklch(0.72 0.17 155/.12)", color: "oklch(0.8 0.14 155)", border: "1px solid oklch(0.72 0.17 155/.25)" },
-  completed: { background: "oklch(0.72 0.17 195/.12)", color: "var(--arc-cyan)", border: "1px solid oklch(0.72 0.17 195/.25)" },
-  hiatus: { background: "oklch(0.82 0.16 85/.12)", color: "var(--arc-amber)", border: "1px solid oklch(0.82 0.16 85/.25)" },
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  ongoing:   { background: "rgba(16,185,129,.15)", color: "#6ee7b7", border: "1px solid rgba(16,185,129,.3)" },
+  completed: { background: "rgba(59,130,246,.15)", color: "#93c5fd", border: "1px solid rgba(59,130,246,.3)" },
+  hiatus:    { background: "rgba(245,158,11,.15)",  color: "#fcd34d", border: "1px solid rgba(245,158,11,.3)" },
 };
+const STATUS_LABEL: Record<string, string> = { ongoing: "Ongoing", completed: "Completed", hiatus: "Hiatus" };
 
-const statusLabels: Record<string, string> = {
-  ongoing: "Ongoing",
-  completed: "Completed",
-  hiatus: "Hiatus",
-};
+const StarIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)">
+    <polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" />
+  </svg>
+);
 
 export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
   const status = (manhua.status || "ongoing").toLowerCase();
-  const statusLabel = statusLabels[status] || status;
-  const statusStyle = statusStyles[status] || statusStyles.ongoing;
-  const displayTitle = manhua.title || manhua.titleEn || "Untitled";
+  const statusStyle = STATUS_STYLE[status] || STATUS_STYLE.ongoing;
+  const statusLabel = STATUS_LABEL[status] || status;
+  const title = manhua.title || manhua.titleEn || "Untitled";
   const genres = (manhua.genres || []).slice(0, 2);
-  const extraGenres = (manhua.genres?.length || 0) - 2;
-  const rating = manhua.ratingAverage || 0;
+  const extra = (manhua.genres?.length || 0) - 2;
+  const rating = manhua.ratingAverage || (manhua as any).rating || 0;
 
+  /* ── HORIZONTAL (mobile) ── */
   if (variant === "horizontal") {
     return (
       <Link
         href={`/manhua/${manhua.slug || manhua._id}`}
         prefetch={false}
-        className="group flex gap-3 rounded-[10px] p-3 transition-colors active:scale-[0.98]"
-        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--arc-border-h)")}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
+        className="group flex gap-3 active:scale-[0.98]"
+        style={{
+          borderRadius: 10, border: "1px solid var(--arc-border)",
+          background: "var(--arc-card)", padding: 12,
+          textDecoration: "none", transition: "border-color .15s",
+        }}
+        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)")}
+        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)")}
       >
-        <div className="relative h-24 w-16 shrink-0 overflow-hidden" style={{ borderRadius: 7, background: "var(--arc-elevated)" }}>
-          <img src={manhua.coverImage} alt={displayTitle} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-          <div className="absolute right-1 top-1 rounded px-1.5 py-0.5 text-[9px] font-bold" style={statusStyle}>
+        <div className="relative shrink-0 overflow-hidden"
+          style={{ width: 50, height: 70, borderRadius: 7, background: "var(--arc-elevated)" }}>
+          {manhua.coverImage && (
+            <img src={manhua.coverImage} alt={title}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          )}
+          <span style={{ ...statusStyle, position: "absolute", top: 4, right: 4, borderRadius: 4, padding: "1px 5px", fontSize: 8, fontWeight: 700 }}>
             {statusLabel}
-          </div>
+          </span>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
-          <h3 className="line-clamp-2 text-[13px] font-semibold transition-colors group-hover:text-[var(--arc-cyan)]"
-            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
-            {displayTitle}
+        <div className="flex min-w-0 flex-1 flex-col justify-between">
+          <h3 className="line-clamp-2 transition-colors group-hover:text-[var(--arc-cyan)]"
+            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontSize: 13, fontWeight: 600, color: "var(--arc-text)", lineHeight: 1.3, marginBottom: 6 }}>
+            {title}
           </h3>
           {genres.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
               {genres.map((g, i) => (
-                <span key={i} className="rounded px-1.5 py-0.5 text-[9px]" style={{ background: "rgba(255,255,255,.06)", color: "var(--arc-dim)" }}>
-                  {g}
-                </span>
+                <span key={i} style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,.06)", color: "var(--arc-dim)" }}>{g}</span>
               ))}
-              {extraGenres > 0 && <span className="text-[9px]" style={{ color: "var(--arc-muted)" }}>+{extraGenres}</span>}
+              {extra > 0 && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,.06)", color: "var(--arc-dim)" }}>+{extra}</span>}
             </div>
           )}
-          <div className="flex items-center justify-between">
-            {rating > 0 ? (
-              <span className="text-[11px]" style={{ color: "var(--arc-amber)" }}>★ {rating.toFixed(1)}</span>
-            ) : <span />}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {rating > 0 && (
+              <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, color: "var(--arc-amber)" }}>
+                <StarIcon />{rating.toFixed(1)}
+              </span>
+            )}
             {manhua.lastChapterNumber && (
-              <span className="text-[11px] font-semibold" style={{ color: "var(--arc-cyan)" }}>Ch. {manhua.lastChapterNumber}</span>
+              <span style={{ fontSize: 11, color: "var(--arc-cyan)", fontWeight: 600 }}>Ch. {manhua.lastChapterNumber}</span>
             )}
           </div>
         </div>
@@ -71,70 +82,51 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
     );
   }
 
+  /* ── DEFAULT (grid) ── */
   return (
-    <Link
-      href={`/manhua/${manhua.slug || manhua._id}`}
-      prefetch={false}
-      className="group block overflow-hidden transition-all hover:-translate-y-1"
-      style={{
-        borderRadius: "var(--arc-radius-lg)",
-        border: "1px solid var(--arc-border)",
-        background: "var(--arc-card)",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195 / 0.4)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 32px rgba(0,0,0,.5), 0 0 0 1px oklch(0.72 0.17 195/.15)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "none";
-      }}
-    >
-      {/* COVER */}
-      <div className="relative w-full overflow-hidden aspect-[3/4]" style={{ background: "var(--arc-elevated)" }}>
-        <img
-          src={manhua.coverImage}
-          alt={displayTitle}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-        />
-        <div
-          className="absolute right-2 top-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
-          style={statusStyle}
-        >
-          {statusLabel}
-        </div>
-        <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
-          style={{ background: "linear-gradient(to top,rgba(7,7,14,.85) 0%,transparent 50%)" }} />
+    <Link href={`/manhua/${manhua.slug || manhua._id}`} prefetch={false} className="manhua-card">
+      {/* Cover */}
+      <div className="card-cover">
+        {manhua.coverImage
+          ? <img src={manhua.coverImage} alt={title} className="card-cover-img" />
+          : (
+            <div style={{
+              width: "100%", height: "100%",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              background: "repeating-linear-gradient(-45deg,#0d0d1a,#0d0d1a 5px,#111120 5px,#111120 10px)",
+              color: "var(--arc-muted)", fontSize: 9, fontFamily: "monospace", textAlign: "center",
+              padding: 8, gap: 4,
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.25 }}>
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+              <span style={{ opacity: 0.45 }}>{title.slice(0, 14)}</span>
+            </div>
+          )
+        }
+        <span className="card-status" style={statusStyle}>{statusLabel}</span>
+        <div className="card-overlay" />
       </div>
 
-      {/* BODY */}
-      <div className="p-3 space-y-2">
-        <h3
-          className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
-          style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
-        >
-          {displayTitle}
-        </h3>
+      {/* Body */}
+      <div className="card-body">
+        <div className="card-title">{title}</div>
 
-        {genres.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {genres.map((g, i) => (
-              <span key={i} className="rounded px-1.5 py-0.5 text-[9px]"
-                style={{ background: "rgba(255,255,255,.06)", color: "var(--arc-dim)" }}>
-                {g}
-              </span>
-            ))}
-            {extraGenres > 0 && <span className="text-[9px]" style={{ color: "var(--arc-muted)" }}>+{extraGenres}</span>}
+        <div className="card-genres">
+          {genres.map((g, i) => <span key={i} className="card-genre">{g}</span>)}
+          {extra > 0 && <span className="card-genre">+{extra}</span>}
+        </div>
+
+        <div className="card-foot">
+          <div className="card-rating">
+            <StarIcon />
+            {rating > 0 ? rating.toFixed(1) : "—"}
           </div>
-        )}
-
-        <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid var(--arc-border)" }}>
-          {rating > 0 ? (
-            <span className="text-[11px]" style={{ color: "var(--arc-amber)" }}>★ {rating.toFixed(1)}</span>
-          ) : <span />}
-          {manhua.lastChapterNumber && (
-            <span className="text-[11px] font-semibold" style={{ color: "var(--arc-cyan)" }}>Ch. {manhua.lastChapterNumber}</span>
-          )}
+          <span className="card-ch">
+            Ch. {manhua.lastChapterNumber ?? "—"}
+          </span>
         </div>
       </div>
     </Link>

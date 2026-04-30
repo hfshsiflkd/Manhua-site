@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -48,7 +47,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const pillBase: React.CSSProperties = {
+const pill: React.CSSProperties = {
   padding: "5px 13px", borderRadius: 20,
   border: "1px solid var(--arc-border)", background: "transparent",
   color: "var(--arc-dim)", fontSize: 12, fontWeight: 500,
@@ -57,11 +56,19 @@ const pillBase: React.CSSProperties = {
   transition: "all .15s",
 };
 
-const pillActive: React.CSSProperties = {
-  ...pillBase,
+const pillOn: React.CSSProperties = {
+  ...pill,
   borderColor: "oklch(0.72 0.17 195/.5)",
   background: "oklch(0.72 0.17 195/.1)",
   color: "var(--arc-cyan)",
+};
+
+const pagBtn: React.CSSProperties = {
+  padding: "8px 20px", borderRadius: 10,
+  background: "var(--arc-card)", border: "1px solid var(--arc-border)",
+  color: "var(--arc-text)", fontSize: 13, fontWeight: 500,
+  cursor: "pointer", fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+  transition: "border-color .15s, background .15s",
 };
 
 export default function ManhuasPage() {
@@ -80,18 +87,12 @@ export default function ManhuasPage() {
   const [error, setError] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(searchInput.trim(), 300);
-
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
-
-  const hasActiveFilters = useMemo(
-    () => debouncedSearch !== "" || genre !== "Бүгд" || status !== "all" || teamId !== "all",
-    [debouncedSearch, genre, status, teamId]
-  );
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total]);
+  const hasActiveFilters = debouncedSearch !== "" || genre !== "Бүгд" || status !== "all" || teamId !== "all";
 
   const load = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       const params: any = { page, limit };
       if (debouncedSearch) params.q = debouncedSearch;
       if (genre !== "Бүгд") params.genre = genre;
@@ -106,7 +107,7 @@ export default function ManhuasPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, genre, status, teamId, sort, debouncedSearch, limit]);
+  }, [page, genre, status, teamId, sort, debouncedSearch]);
 
   useEffect(() => { setPage(1); }, [debouncedSearch, genre, status, teamId, sort]);
   useEffect(() => { load(); }, [load]);
@@ -115,49 +116,39 @@ export default function ManhuasPage() {
     let active = true;
     api.get<TeamOption[]>("/manhuas/teams")
       .then((res) => { if (active) setTeams(Array.isArray(res.data) ? res.data : []); })
-      .catch(() => { if (active) setTeams([]); });
+      .catch(() => {});
     return () => { active = false; };
   }, []);
 
-  const clearFilters = () => {
-    setSearchInput(""); setGenre("Бүгд"); setStatus("all"); setTeamId("all"); setSort("popular"); setPage(1);
-  };
+  const clearFilters = () => { setSearchInput(""); setGenre("Бүгд"); setStatus("all"); setTeamId("all"); setSort("popular"); setPage(1); };
 
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
 
   return (
-    <div className="mx-auto w-full px-4 py-8 pb-16" style={{ maxWidth: "var(--arc-max-w)" }}>
+    <div style={{ maxWidth: "var(--arc-max-w)", margin: "0 auto", padding: "36px 24px 60px" }}>
 
       {/* Page header */}
       <div style={{ marginBottom: 28 }}>
-        <h1
-          className="text-[28px] font-bold"
-          style={{
-            fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
-            letterSpacing: "-0.03em",
-            background: "linear-gradient(90deg,var(--arc-cyan),oklch(0.72 0.17 240))",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-          }}
-        >
+        <h1 style={{
+          fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
+          fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em",
+          background: "linear-gradient(90deg,var(--arc-cyan),oklch(0.72 0.17 240))",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+        }}>
           Манхуа жагсаалт
         </h1>
-        <p className="mt-1 text-[13px]" style={{ color: "var(--arc-muted)" }}>
+        <p style={{ marginTop: 4, fontSize: 13, color: "var(--arc-muted)" }}>
           Нэрээр хайх · жанраар шүүх · статус · дараалал
         </p>
       </div>
 
       {/* Filter bar */}
-      <div
-        style={{
-          background: "var(--arc-card)", border: "1px solid var(--arc-border)",
-          borderRadius: "var(--arc-radius-lg)", padding: 18, marginBottom: 24,
-          display: "flex", flexDirection: "column", gap: 14,
-        }}
-      >
+      <div style={{ background: "var(--arc-card)", border: "1px solid var(--arc-border)", borderRadius: 14, padding: 18, marginBottom: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+
         {/* Search */}
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--arc-muted)" }}>
+        <div style={{ position: "relative" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--arc-muted)", pointerEvents: "none" }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>
             </svg>
@@ -170,22 +161,23 @@ export default function ManhuasPage() {
             style={{
               width: "100%", padding: "10px 14px 10px 38px",
               background: "var(--arc-elevated)", border: "1px solid var(--arc-border)",
-              borderRadius: "var(--arc-radius)", color: "var(--arc-text)", fontSize: 13, outline: "none",
+              borderRadius: 10, color: "var(--arc-text)", fontSize: 13, outline: "none",
+              fontFamily: "var(--font-body,'DM Sans',sans-serif)", transition: "border-color .15s",
             }}
             onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)")}
             onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
           />
         </div>
 
-        {/* Genre pills */}
-        <div>
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--arc-muted)" }}>Жанр</div>
-          <div className="flex flex-wrap gap-1.5">
+        {/* Genre row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--arc-muted)", whiteSpace: "nowrap" }}>Жанр</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {GENRES.map((g) => (
               <button
                 key={g}
                 onClick={() => setGenre(g)}
-                style={genre === g ? pillActive : pillBase}
+                style={genre === g ? pillOn : pill}
                 onMouseEnter={(e) => { if (genre !== g) { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; } }}
                 onMouseLeave={(e) => { if (genre !== g) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; } }}
               >
@@ -196,15 +188,15 @@ export default function ManhuasPage() {
         </div>
 
         {/* Status + Sort row */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--arc-muted)" }}>Статус</div>
-            <div className="flex flex-wrap gap-1.5">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--arc-muted)", whiteSpace: "nowrap" }}>Статус</span>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {STATUSES.map((s) => (
                 <button
                   key={s.value}
                   onClick={() => setStatus(s.value)}
-                  style={status === s.value ? pillActive : pillBase}
+                  style={status === s.value ? pillOn : pill}
                   onMouseEnter={(e) => { if (status !== s.value) { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; } }}
                   onMouseLeave={(e) => { if (status !== s.value) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; } }}
                 >
@@ -213,65 +205,49 @@ export default function ManhuasPage() {
               ))}
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[12px]" style={{ color: "var(--arc-muted)" }}>Дараалал</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 12, color: "var(--arc-muted)" }}>Дараалал</span>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
-              style={{
-                padding: "7px 12px", background: "var(--arc-elevated)",
-                border: "1px solid var(--arc-border)", borderRadius: "var(--arc-radius)",
-                color: "var(--arc-text)", fontSize: 12, cursor: "pointer", outline: "none",
-                fontFamily: "var(--font-body,'DM Sans',sans-serif)",
-              }}
+              style={{ padding: "8px 12px", background: "var(--arc-elevated)", border: "1px solid var(--arc-border)", borderRadius: 10, color: "var(--arc-text)", fontSize: 12, cursor: "pointer", outline: "none", fontFamily: "var(--font-body,'DM Sans',sans-serif)" }}
             >
               {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Team filter + clear */}
-        {(teams.length > 0 || hasActiveFilters) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {teams.length > 0 && (
-              <select
-                value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
-                style={{
-                  padding: "7px 12px", background: "var(--arc-elevated)",
-                  border: "1px solid var(--arc-border)", borderRadius: "var(--arc-radius)",
-                  color: "var(--arc-text)", fontSize: 12, cursor: "pointer", outline: "none",
-                  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
-                }}
-              >
-                <option value="all">Бүх баг</option>
-                {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
-              </select>
-            )}
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                style={{ ...pillBase, borderColor: "oklch(0.65 0.22 15/.3)", color: "oklch(0.75 0.18 15)" }}
-              >
-                Цэвэрлэх ×
-              </button>
-            )}
+        {/* Team filter */}
+        {teams.length > 0 && (
+          <div>
+            <select
+              value={teamId}
+              onChange={(e) => setTeamId(e.target.value)}
+              style={{ padding: "8px 12px", background: "var(--arc-elevated)", border: "1px solid var(--arc-border)", borderRadius: 10, color: "var(--arc-text)", fontSize: 12, cursor: "pointer", outline: "none", fontFamily: "var(--font-body,'DM Sans',sans-serif)" }}
+            >
+              <option value="all">Бүх баг</option>
+              {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
+            </select>
           </div>
         )}
       </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-4 rounded-[10px] px-4 py-3 text-[13px]" style={{ background: "oklch(0.65 0.22 15/.08)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "oklch(0.85 0.12 15)" }}>
+        <div style={{ marginBottom: 16, borderRadius: 10, padding: "12px 16px", fontSize: 13, background: "oklch(0.65 0.22 15/.08)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "oklch(0.85 0.12 15)" }}>
           {error}
         </div>
       )}
 
-      {/* Results count */}
-      {!loading && items.length > 0 && (
-        <div className="mb-4 text-[12px]" style={{ color: "var(--arc-muted)" }}>
-          Нийт <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{total}</span> манхуа
+      {/* Results info */}
+      {!loading && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <span style={{ fontSize: 12, color: "var(--arc-muted)" }}>
+            Нийт <b style={{ color: "var(--arc-text)" }}>{total}</b> манхуа · хуудас <b style={{ color: "var(--arc-text)" }}>{page}</b>/{totalPages}
+          </span>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} style={{ ...pill, fontSize: 11 }}>✕ Цэвэрлэх</button>
+          )}
         </div>
       )}
 
@@ -281,25 +257,20 @@ export default function ManhuasPage() {
           <div className="grid grid-cols-1 gap-3 sm:hidden">
             {Array.from({ length: 6 }).map((_, i) => <ManhuaSkeletonHorizontal key={i} />)}
           </div>
-          <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" style={{ gap: 16 }}>
             {Array.from({ length: 10 }).map((_, i) => <ManhuaSkeleton key={i} />)}
           </div>
         </>
       ) : items.length === 0 ? (
-        <div
-          className="flex min-h-[40vh] flex-col items-center justify-center px-4 py-12 text-center"
-          style={{ borderRadius: "var(--arc-radius-lg)", border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
-        >
-          <div className="mb-4 text-[40px]" aria-hidden>📭</div>
-          <h3 className="mb-2 text-[17px] font-semibold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 24px", textAlign: "center", border: "1px solid var(--arc-border)", borderRadius: 14, background: "var(--arc-card)" }}>
+          <div style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontSize: 17, fontWeight: 600, color: "var(--arc-text)", marginBottom: 8 }}>
             Тохирох манхуа олдсонгүй
-          </h3>
-          <p className="text-[13px]" style={{ color: "var(--arc-muted)", maxWidth: 300 }}>Filter-ээ арилгаад дахин хайна уу.</p>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--arc-muted)", maxWidth: 300 }}>Filter-ээ арилгаад дахин хайна уу.</p>
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="mt-5 rounded-full px-6 py-2 text-[13px] font-semibold transition hover:brightness-110"
-              style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
+              style={{ marginTop: 20, padding: "8px 22px", borderRadius: 20, background: "var(--arc-cyan)", color: "#07070e", fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "var(--font-body,'DM Sans',sans-serif)" }}
             >
               Filter цэвэрлэх
             </button>
@@ -307,10 +278,12 @@ export default function ManhuasPage() {
         </div>
       ) : (
         <>
+          {/* Mobile: horizontal */}
           <div className="grid grid-cols-1 gap-3 sm:hidden">
             {items.map((m) => <ManhuaCard key={m._id} manhua={m} variant="horizontal" />)}
           </div>
-          <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {/* Desktop: grid */}
+          <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" style={{ gap: 16 }}>
             {items.map((m) => <ManhuaCard key={m._id} manhua={m} />)}
           </div>
         </>
@@ -318,25 +291,42 @@ export default function ManhuasPage() {
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="mt-9 flex items-center justify-center gap-2">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 36, flexWrap: "wrap" }}>
           <button
             disabled={!hasPrev}
             onClick={() => hasPrev && setPage((p) => p - 1)}
-            className="rounded-[10px] px-5 py-2 text-[13px] font-medium transition disabled:opacity-35"
-            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-text)", cursor: hasPrev ? "pointer" : "default" }}
+            style={{ ...pagBtn, opacity: hasPrev ? 1 : 0.35, cursor: hasPrev ? "pointer" : "default" }}
             onMouseEnter={(e) => { if (hasPrev) { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195/.5)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-elevated)"; } }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-card)"; }}
           >
             ← Өмнөх
           </button>
-          <span className="px-2 text-[13px]" style={{ color: "var(--arc-muted)" }}>
-            Хуудас <b style={{ color: "var(--arc-text)" }}>{page}</b> / {totalPages}
-          </span>
+
+          {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+            const pg = Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+            const isActive = pg === page;
+            return (
+              <button
+                key={pg}
+                onClick={() => setPage(pg)}
+                style={{
+                  ...pagBtn, padding: "8px 16px",
+                  borderColor: isActive ? "oklch(0.72 0.17 195/.5)" : "var(--arc-border)",
+                  background: isActive ? "oklch(0.72 0.17 195/.1)" : "var(--arc-card)",
+                  color: isActive ? "var(--arc-cyan)" : "var(--arc-text)",
+                }}
+                onMouseEnter={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195/.5)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-elevated)"; } }}
+                onMouseLeave={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-card)"; } }}
+              >
+                {pg}
+              </button>
+            );
+          })}
+
           <button
             disabled={!hasNext}
             onClick={() => hasNext && setPage((p) => p + 1)}
-            className="rounded-[10px] px-5 py-2 text-[13px] font-medium transition disabled:opacity-35"
-            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-text)", cursor: hasNext ? "pointer" : "default" }}
+            style={{ ...pagBtn, opacity: hasNext ? 1 : 0.35, cursor: hasNext ? "pointer" : "default" }}
             onMouseEnter={(e) => { if (hasNext) { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195/.5)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-elevated)"; } }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-card)"; }}
           >

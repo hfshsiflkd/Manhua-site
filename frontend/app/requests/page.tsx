@@ -78,8 +78,7 @@ export default function ReaderRequestsPage() {
 
   const topRequests = useMemo(() => [...items].sort((a, b) => b.votesThisMonth - a.votesThisMonth), [items]);
 
-  const hasVipAccess =
-    !!user && (user.isVIP || (user.vipExpiresAt && new Date(user.vipExpiresAt).getTime() > Date.now()));
+  const isLoggedIn = !!user;
 
   const hasVoted = (id: string) => {
     if (typeof window === "undefined") return false;
@@ -97,7 +96,7 @@ export default function ReaderRequestsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasVipAccess) { toast.error("Зөвхөн VIP хэрэглэгч хүсэлт нэмэх боломжтой."); return; }
+    if (!isLoggedIn) { toast.error("Нэвтэрсэн байх шаардлагатай."); return; }
     const trimmed = title.trim();
     if (!trimmed) { toast.error("Манхуа нэр оруулна уу"); return; }
     try {
@@ -122,7 +121,7 @@ export default function ReaderRequestsPage() {
   };
 
   const handleVote = async (id: string) => {
-    if (!hasVipAccess) { toast.error("Зөвхөн VIP хэрэглэгч санал өгөх боломжтой."); return; }
+    if (!isLoggedIn) { toast.error("Нэвтэрсэн байх шаардлагатай."); return; }
     if (hasVoted(id)) { toast.info("Та энэ сард санал өгсөн байна"); return; }
     try {
       const data = await voteRequest(id);
@@ -161,9 +160,9 @@ export default function ReaderRequestsPage() {
               </div>
             )}
             <div className="flex items-center justify-end gap-2 px-5 py-4" style={{ borderTop: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
-              {!hasVipAccess && (
-                <div className="mr-auto rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: "oklch(0.82 0.16 85/.1)", border: "1px solid oklch(0.82 0.16 85/.3)", color: "var(--arc-amber)" }}>
-                  VIP хэрэгтэй
+              {!isLoggedIn && (
+                <div className="mr-auto rounded-full px-2.5 py-1 text-[10px] font-semibold" style={{ background: "oklch(0.72 0.17 195/.1)", border: "1px solid oklch(0.72 0.17 195/.3)", color: "var(--arc-cyan)" }}>
+                  Нэвтрэх шаардлагатай
                 </div>
               )}
               {hasVoted(voteTarget.id) && (
@@ -182,7 +181,7 @@ export default function ReaderRequestsPage() {
               <button
                 type="button"
                 onClick={async () => { const id = voteTarget.id; setVoteTarget(null); await handleVote(id); }}
-                disabled={!hasVipAccess || hasVoted(voteTarget.id)}
+                disabled={!isLoggedIn || hasVoted(voteTarget.id)}
                 className="rounded-full px-4 py-1.5 text-[12px] font-bold transition-all hover:brightness-110 disabled:opacity-50"
                 style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
               >
@@ -241,9 +240,9 @@ export default function ReaderRequestsPage() {
             </div>
           </div>
 
-          {!hasVipAccess && (
-            <div className="mt-4 rounded-[10px] px-4 py-3 text-[12px]" style={{ background: "oklch(0.82 0.16 85/.08)", border: "1px solid oklch(0.82 0.16 85/.3)", color: "var(--arc-amber)" }}>
-              Зөвхөн VIP хэрэглэгч хүсэлт нэмэх болон санал өгөх боломжтой.
+          {!isLoggedIn && (
+            <div className="mt-4 rounded-[10px] px-4 py-3 text-[12px]" style={{ background: "oklch(0.72 0.17 195/.08)", border: "1px solid oklch(0.72 0.17 195/.3)", color: "var(--arc-cyan)" }}>
+              Хүсэлт нэмэхийн тулд нэвтэрнэ үү.
             </div>
           )}
 
@@ -257,7 +256,7 @@ export default function ReaderRequestsPage() {
                   style={inputStyle}
                   placeholder="Жишээ: Solo Leveling"
                   maxLength={120}
-                  disabled={!hasVipAccess}
+                  disabled={!isLoggedIn}
                 />
               </div>
               <div className="space-y-2">
@@ -268,7 +267,7 @@ export default function ReaderRequestsPage() {
                   onChange={(e) => setImage(e.target.files?.[0] || null)}
                   className="block w-full text-[12px] file:mr-3 file:rounded-full file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold"
                   style={{ color: "var(--arc-dim)" }}
-                  disabled={!hasVipAccess}
+                  disabled={!isLoggedIn}
                 />
                 {uploadProgress !== null && (
                   <div className="space-y-1">
@@ -286,7 +285,7 @@ export default function ReaderRequestsPage() {
               <div className="flex items-end">
                 <button
                   type="submit"
-                  disabled={submitting || uploading || !hasVipAccess}
+                  disabled={submitting || uploading || !isLoggedIn}
                   className="w-full rounded-[9px] px-4 py-2.5 text-[12px] font-bold transition-all hover:brightness-110 disabled:opacity-60"
                   style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
                 >
@@ -419,11 +418,11 @@ export default function ReaderRequestsPage() {
                           <td className="px-4 py-3 text-right">
                             <button
                               onClick={() => setVoteTarget(item)}
-                              disabled={hasVoted(item.id) || !hasVipAccess}
+                              disabled={hasVoted(item.id) || !isLoggedIn}
                               className="rounded-full px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
                               style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: hasVoted(item.id) ? "var(--arc-muted)" : "var(--arc-dim)", cursor: "pointer" }}
                             >
-                              {hasVoted(item.id) ? "Санал өгсөн" : hasVipAccess ? "Санал өгөх" : "VIP хэрэгтэй"}
+                              {hasVoted(item.id) ? "Санал өгсөн" : isLoggedIn ? "Санал өгөх" : "Нэвтрэх"}
                             </button>
                           </td>
                         </tr>

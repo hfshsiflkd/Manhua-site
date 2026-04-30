@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { api, adminGetManhuas, Manhua } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import AdminShell from "./components/AdminShell";
-import AdminHeader from "./components/AdminHeader";
 import AdminStatsCards from "./components/AdminStatsCards";
 import AdminQuickLinks from "./components/AdminQuickLinks";
 import AdminRecentManhuas from "./components/AdminRecentManhuas";
@@ -32,7 +31,6 @@ export default function AdminDashboardPage() {
           api.get<AdminStats>("/admin/stats"),
           adminGetManhuas(),
         ]);
-
         setStats(statsRes.data);
         setManhuas(Array.isArray(manhuasData) ? manhuasData : []);
       } catch (err: any) {
@@ -47,14 +45,13 @@ export default function AdminDashboardPage() {
         setLoadingManhuas(false);
       }
     }
-
     load();
   }, [router]);
 
   return (
     <AdminShell
       title="Admin dashboard"
-      subtitle="Систэмийн ерөнхий статистик, хурдан линк, сүүлийн манхуа."
+      stats={stats ? { totalManhuas: stats.totalManhuas, totalUsers: stats.totalUsers, totalVIP: stats.totalVIP } : undefined}
     >
       {loadingStats && !stats ? (
         <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ color: "var(--arc-muted)" }}>
@@ -66,10 +63,21 @@ export default function AdminDashboardPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <AdminHeader statsLoaded={!loadingStats} />
+          {/* Page heading */}
+          <div style={{ marginBottom: 4 }}>
+            <h1 style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontSize: 22, fontWeight: 700, letterSpacing: "-0.025em", color: "#fff", marginBottom: 3 }}>
+              Admin dashboard
+            </h1>
+            <p style={{ fontSize: 13, color: "var(--arc-muted)" }}>Системийн ерөнхий статистик, хурдан линк, сүүлийн манхуа.</p>
+          </div>
+
           <AdminStatsCards stats={stats} />
           <AdminQuickLinks />
-          <AdminRecentManhuas manhuas={manhuas} loading={loadingManhuas} />
+
+          {/* Bottom grid: table + (future activity feed) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+            <AdminRecentManhuas manhuas={manhuas.slice(0, 8)} loading={loadingManhuas} />
+          </div>
         </div>
       )}
     </AdminShell>

@@ -136,17 +136,11 @@ exports.updateVipSettings = async (req, res, next) => {
     }
 
     // Validate payment
-    if (!payment.bankName || typeof payment.bankName !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Payment bankName is required",
-      });
+    if (payment.bankName && typeof payment.bankName !== "string") {
+      return res.status(400).json({ success: false, message: "Payment bankName must be a string" });
     }
-    if (!payment.accountName || typeof payment.accountName !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Payment accountName is required",
-      });
+    if (payment.accountName && typeof payment.accountName !== "string") {
+      return res.status(400).json({ success: false, message: "Payment accountName must be a string" });
     }
     if (
       !payment.accountNumber ||
@@ -159,10 +153,10 @@ exports.updateVipSettings = async (req, res, next) => {
       });
     }
     if (payment.note && typeof payment.note !== "string") {
-      return res.status(400).json({
-        success: false,
-        message: "Payment note must be a string",
-      });
+      return res.status(400).json({ success: false, message: "Payment note must be a string" });
+    }
+    if (payment.qpayUrl && typeof payment.qpayUrl !== "string") {
+      return res.status(400).json({ success: false, message: "Payment qpayUrl must be a string" });
     }
 
     // Sanitize and prepare data
@@ -180,10 +174,11 @@ exports.updateVipSettings = async (req, res, next) => {
     }));
 
     const sanitizedPayment = {
-      bankName: payment.bankName.trim(),
-      accountName: payment.accountName.trim(),
+      bankName: payment.bankName ? payment.bankName.trim() : "",
+      accountName: payment.accountName ? payment.accountName.trim() : "",
       accountNumber: payment.accountNumber.trim(),
       note: payment.note ? payment.note.trim() : "",
+      qpayUrl: payment.qpayUrl ? payment.qpayUrl.trim() : "",
     };
 
     // Update or create setting

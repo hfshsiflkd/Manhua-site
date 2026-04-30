@@ -83,33 +83,6 @@ export default function ChapterHeader({
           )}
         </div>
 
-        {/* Right: prev / next */}
-        {chapter && (
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={onPrev}
-              disabled={!hasPrev}
-              className="flex items-center gap-1 rounded-[9px] px-2.5 py-1.5 text-[11px] font-medium transition-all disabled:opacity-30"
-              style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: hasPrev ? "pointer" : "default" }}
-              onMouseEnter={(e) => { if (hasPrev) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-cyan)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)"; } }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-              <span className="hidden sm:inline">Өмнөх</span>
-            </button>
-            <button
-              onClick={onNext}
-              disabled={!hasNext}
-              className="flex items-center gap-1 rounded-[9px] px-2.5 py-1.5 text-[11px] font-medium transition-all disabled:opacity-30"
-              style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: hasNext ? "pointer" : "default" }}
-              onMouseEnter={(e) => { if (hasNext) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-cyan)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)"; } }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; }}
-            >
-              <span className="hidden sm:inline">Дараах</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-          </div>
-        )}
       </header>
 
       {/* 2px cyan progress bar fixed below header */}

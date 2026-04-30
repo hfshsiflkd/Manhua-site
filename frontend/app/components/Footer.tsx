@@ -1,6 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const Footer = () => {
+  const pathname = usePathname();
+  if (/\/manhua\/.+\/chapter\//.test(pathname)) return null;
+
   return (
     <footer
       className="mt-12"
