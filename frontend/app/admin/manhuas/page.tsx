@@ -174,7 +174,7 @@ export default function AdminManhuasPage() {
                         {/* Chapters */}
                         <td style={{ padding: "10px 16px" }}>
                           <span style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", fontWeight: 600, fontSize: 12, color: "var(--arc-text)" }}>
-                            {(m as any).chaptersCount ?? "—"}
+                            {(m as any).chapterCount ?? (m as any).chaptersCount ?? "—"}
                           </span>
                         </td>
 

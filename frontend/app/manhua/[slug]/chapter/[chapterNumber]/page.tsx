@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, getPublicFreeReadMode } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { ChapterNav } from "../components/ChapterNav";
 import VipGateOverlay from "@/app/components/VipGateOverlay";
@@ -37,8 +37,9 @@ export default function ChapterReaderPage() {
   const [imagesLoading, setImagesLoading] = useState(true);
   const [loadedPagesCount, setLoadedPagesCount] = useState(0);
   const [totalPagesCount, setTotalPagesCount] = useState(0);
+  const [freeReadActive, setFreeReadActive] = useState(false);
 
-  const canRead = user?.isVIP === true;
+  const canRead = user?.isVIP === true || freeReadActive;
   const showVipGate = !canRead || vipGateFromApi;
 
   // ✅ slug/chapter солигдох бүрт локал state reset
@@ -56,14 +57,15 @@ export default function ChapterReaderPage() {
 
     async function run() {
       try {
-        // 1) эхлээд ME
+        // 1) ME + free read mode хамт авах
         let me: UserMe | null = null;
         try {
-          const r = await api.get("/auth/me", {
-            headers: { "Cache-Control": "no-store" }, // bonus
-          });
-          // Backend returns { success: true, user: {...} }
-          me = r.data?.user || r.data;
+          const [meRes, freeRes] = await Promise.all([
+            api.get("/auth/me", { headers: { "Cache-Control": "no-store" } }),
+            getPublicFreeReadMode().catch(() => ({ active: false, expiresAt: null })),
+          ]);
+          me = meRes.data?.user || meRes.data;
+          if (!cancelled) setFreeReadActive(freeRes.active);
         } catch (err: any) {
           console.error("Failed to fetch user:", err);
           me = null;

@@ -234,16 +234,24 @@ export function ManhuaChapters({ slug, chapters, manhua }: ManhuaChaptersProps) 
                   style={idx < arr.length - 1 ? { borderBottom: "1px solid var(--arc-border)" } : {}}
                 >
                   <span style={{ color: "var(--arc-muted)" }}>{label}</span>
-                  <span className="font-medium" style={{ color: "var(--arc-text)", fontFamily: "var(--font-head,'Space Grotesk',sans-serif)" }}>{value}</span>
+                  <span className="font-medium text-right" style={{ color: "var(--arc-text)", fontFamily: "var(--font-head,'Space Grotesk',sans-serif)" }}>{value}</span>
                 </div>
               ))}
             </div>
+
+            {/* Description */}
+            {manhua.description && manhua.description !== "..." && (
+              <div className="rounded-[14px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--arc-muted)" }}>Тайлбар</div>
+                <p className="text-[13px] leading-relaxed" style={{ color: "var(--arc-dim)" }}>{manhua.description}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* RIGHT: Sidebar */}
-      <div className="hidden lg:flex flex-col gap-4">
+      <div className="hidden lg:flex flex-col gap-4 sticky top-24">
         {/* Rating card */}
         {typeof manhua.ratingAverage === "number" && (
           <div className="rounded-[14px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>

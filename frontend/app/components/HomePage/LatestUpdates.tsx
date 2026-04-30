@@ -68,43 +68,45 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
             const chapters = (item.latestChapters?.length ? item.latestChapters : item.chapters).slice(0, 3);
 
             return (
-              <Link
+              <div
                 key={item.manhuaId}
-                href={`/manhua/${item.slug}`}
-                prefetch={false}
                 className="group flex gap-3 rounded-[10px] transition-colors"
                 style={{ padding: "12px", margin: "0 -12px" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 {/* COVER */}
-                <div
-                  className="shrink-0 overflow-hidden"
-                  style={{
-                    width: 50,
-                    height: 70,
-                    borderRadius: 7,
-                    background: "var(--arc-elevated)",
-                  }}
-                >
-                  <img
-                    src={item.cover}
-                    alt={item.title}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+                <Link href={`/manhua/${item.slug}`} prefetch={false} className="shrink-0 block">
+                  <div
+                    className="overflow-hidden"
+                    style={{
+                      width: 50,
+                      height: 70,
+                      borderRadius: 7,
+                      background: "var(--arc-elevated)",
+                    }}
+                  >
+                    <img
+                      src={item.cover}
+                      alt={item.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </Link>
 
                 {/* BODY */}
                 <div className="flex flex-1 flex-col min-w-0 gap-1.5">
-                  <h3
-                    className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
-                    style={{
-                      fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
-                      color: "var(--arc-text)",
-                    }}
-                  >
-                    {item.title}
-                  </h3>
+                  <Link href={`/manhua/${item.slug}`} prefetch={false}>
+                    <h3
+                      className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
+                      style={{
+                        fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                        color: "var(--arc-text)",
+                      }}
+                    >
+                      {item.title}
+                    </h3>
+                  </Link>
 
                   <div className="flex flex-col gap-1">
                     {chapters.map((ch, idx) => {
@@ -134,7 +136,6 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
                             href={href}
                             prefetch={false}
                             className="flex-1 min-w-0 truncate hover:text-white transition-colors"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             {label}
                           </Link>
@@ -154,7 +155,7 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
                     })}
                   </div>
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

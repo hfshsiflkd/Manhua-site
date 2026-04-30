@@ -115,15 +115,17 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   ) : null;
 
   return (
-    <section className="relative overflow-hidden md:rounded-[14px]"
+    <section className="relative md:rounded-[14px]"
       style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
       {/* Blurred bg */}
-      {coverSrc && (
-        <div className="pointer-events-none absolute inset-0 opacity-20"
-          style={{ backgroundImage: `url(${coverSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(40px)", transform: "scale(1.1)" }} />
-      )}
-      <div className="pointer-events-none absolute inset-0"
-        style={{ background: "linear-gradient(135deg,rgba(7,7,14,.97) 0%,rgba(7,7,14,.88) 60%,rgba(7,7,14,.7) 100%)" }} />
+      <div className="overflow-hidden pointer-events-none absolute inset-0 md:rounded-[14px]">
+        {coverSrc && (
+          <div className="absolute inset-0 opacity-20"
+            style={{ backgroundImage: `url(${coverSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(40px)", transform: "scale(1.1)" }} />
+        )}
+        <div className="absolute inset-0"
+          style={{ background: "linear-gradient(135deg,rgba(7,7,14,.97) 0%,rgba(7,7,14,.88) 60%,rgba(7,7,14,.7) 100%)" }} />
+      </div>
 
       <div className="relative z-10 p-4 sm:p-6">
 
@@ -200,7 +202,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
           </div>
 
           {/* Info column */}
-          <div className="flex flex-col gap-3.5 justify-center">
+          <div className="flex flex-col gap-3.5">
             <div className="flex flex-wrap items-start gap-2">
               <h1 className="text-[24px] sm:text-[28px] font-bold leading-tight flex-1 min-w-[160px]"
                 style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "#fff", letterSpacing: "-0.025em" }}>
@@ -247,7 +249,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
             )}
 
             {manhua.description && (
-              <p className="text-[13px] leading-relaxed line-clamp-3" style={{ color: "var(--arc-dim)", maxWidth: 600 }}>
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--arc-dim)", maxWidth: 600 }}>
                 {manhua.description}
               </p>
             )}

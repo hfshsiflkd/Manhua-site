@@ -77,22 +77,22 @@ export default function ManhuaDetailPage() {
     <div className="flex justify-center">
       <div className="w-full max-w-5xl sm:px-4 space-y-4 sm:pt-6 pb-12">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 px-3 text-[12px]" style={{ color: "var(--arc-muted)" }}>
-          <Link href="/" className="transition-colors" style={{ color: "var(--arc-muted)" }}
+        <div className="hidden sm:flex items-center gap-1.5 px-3 text-[12px] min-w-0" style={{ color: "var(--arc-muted)" }}>
+          <Link href="/" className="transition-colors shrink-0" style={{ color: "var(--arc-muted)" }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-muted)")}
           >
             Нүүр
           </Link>
-          <span style={{ opacity: 0.4 }}>›</span>
-          <Link href="/manhuas" className="transition-colors" style={{ color: "var(--arc-muted)" }}
+          <span className="shrink-0" style={{ opacity: 0.4 }}>›</span>
+          <Link href="/manhuas" className="transition-colors shrink-0" style={{ color: "var(--arc-muted)" }}
             onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-muted)")}
           >
             Жагсаалт
           </Link>
-          <span style={{ opacity: 0.4 }}>›</span>
-          <span style={{ color: "var(--arc-text)" }}>{manhua.title}</span>
+          <span className="shrink-0" style={{ opacity: 0.4 }}>›</span>
+          <span className="truncate min-w-0" style={{ color: "var(--arc-text)" }}>{manhua.title}</span>
         </div>
 
         <ManhuaHero manhua={manhua} chapters={chapters} />

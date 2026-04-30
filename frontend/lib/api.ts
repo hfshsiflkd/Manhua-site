@@ -816,6 +816,11 @@ export interface FreeReadMode {
   expiresAt: string | null;
 }
 
+export async function getPublicFreeReadMode(): Promise<{ active: boolean; expiresAt: string | null }> {
+  const res = await api.get<{ active: boolean; expiresAt: string | null }>("/settings/free-read");
+  return res.data;
+}
+
 export async function adminGetFreeReadMode(): Promise<FreeReadMode> {
   const res = await api.get<FreeReadMode & { success: boolean }>("/admin/settings/free-read");
   return { enabled: res.data.enabled, expiresAt: res.data.expiresAt };
