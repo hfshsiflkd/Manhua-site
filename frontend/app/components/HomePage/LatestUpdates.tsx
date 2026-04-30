@@ -5,8 +5,6 @@ import Link from "next/link";
 import { SectionHeader } from "./SectionHeader";
 import { isChapterRead } from "@/lib/useReadState";
 
-/* ================= TYPES ================= */
-
 type LatestChapter = {
   name?: string;
   time?: string;
@@ -31,138 +29,132 @@ type LatestUpdatesProps = {
   limitDesktop?: number;
 };
 
-/* ================= HELPERS ================= */
-
-// Chapter NEW эсэх (8 цаг)
 function isNewWithinHours(date?: string | Date, hours = 8): boolean {
   if (!date) return false;
-  const d = date instanceof Date ? date : new Date(date);
+  const d = date instanceof Date ? date : new Date(date as string);
   if (isNaN(d.getTime())) return false;
-
   const diffMs = Date.now() - d.getTime();
-  return diffMs >= 0 && diffMs <= hours * 60 * 60 * 1000;
+  return diffMs >= 0 && diffMs <= hours * 3600000;
 }
 
-function formatTimeAgoSafe(date?: string | Date): string {
+function formatTimeAgo(date?: string | Date): string {
   if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
+  const d = date instanceof Date ? date : new Date(date as string);
   if (isNaN(d.getTime())) return "";
-
   const diffMs = Date.now() - d.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays === 0) {
-    if (diffHours >= 1) return `${diffHours}ц өмнө`;
-    if (diffMinutes >= 1) return `${diffMinutes}м өмнө`;
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+  if (days === 0) {
+    if (hours >= 1) return `${hours}ц өмнө`;
+    if (mins >= 1) return `${mins}м өмнө`;
     return "Саяхан";
   }
-
-  if (diffDays === 1) return "1 өдөр өмнө";
-  if (diffDays < 7) return `${diffDays} өдөр өмнө`;
-
-  return `${Math.floor(diffDays / 7)} долоо хоног өмнө`;
+  if (days === 1) return "1 өдөр өмнө";
+  if (days < 7) return `${days} өдөр өмнө`;
+  return `${Math.floor(days / 7)} дол. өмнө`;
 }
-
-/* ================= COMPONENT ================= */
 
 const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
   const items = updates.slice(0, limitDesktop);
 
   return (
-    <section className="w-full px-4 py-6 text-white">
-      <div className="mx-auto max-w-7xl">
+    <section className="w-full px-4 py-6">
+      <div className="mx-auto" style={{ maxWidth: "var(--arc-max-w)" }}>
         <SectionHeader title="Latest Updates" />
 
-        <div className="flex flex-col divide-y divide-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "2px" }}>
           {items.map((item) => {
-            const chapters = item.latestChapters?.length
-              ? item.latestChapters.slice(0, 3)
-              : item.chapters.slice(0, 3);
+            const chapters = (item.latestChapters?.length ? item.latestChapters : item.chapters).slice(0, 3);
 
             return (
-              <div key={item.manhuaId} className="flex gap-3 py-3">
+              <Link
+                key={item.manhuaId}
+                href={`/manhua/${item.slug}`}
+                prefetch={false}
+                className="group flex gap-3 rounded-[10px] transition-colors"
+                style={{ padding: "12px", margin: "0 -12px" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
                 {/* COVER */}
-                <Link
-                  href={`/manhua/${item.slug}`}
-                  prefetch={false}
-                  className="shrink-0"
+                <div
+                  className="shrink-0 overflow-hidden"
+                  style={{
+                    width: 50,
+                    height: 70,
+                    borderRadius: 7,
+                    background: "var(--arc-elevated)",
+                  }}
                 >
-                  <div className="w-14 h-[84px] overflow-hidden rounded-xl bg-slate-800">
-                    <img
-                      src={item.cover}
-                      alt={item.title}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                </Link>
+                  <img
+                    src={item.cover}
+                    alt={item.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
 
-                {/* CONTENT */}
-                <div className="flex flex-1 flex-col min-w-0">
-                  <Link href={`/manhua/${item.slug}`} prefetch={false}>
-                    <h3 className="line-clamp-2 text-sm font-semibold">
-                      {item.title}
-                    </h3>
-                  </Link>
+                {/* BODY */}
+                <div className="flex flex-1 flex-col min-w-0 gap-1.5">
+                  <h3
+                    className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
+                    style={{
+                      fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                      color: "var(--arc-text)",
+                    }}
+                  >
+                    {item.title}
+                  </h3>
 
-                  {/* ===== CHAPTER LIST ===== */}
-                  <div className="mt-2 space-y-1">
+                  <div className="flex flex-col gap-1">
                     {chapters.map((ch, idx) => {
-                      const isRead = isChapterRead(
-                        item.slug,
-                        ch.chapterNumber ?? null
-                      );
-
-                      // 🔥 CHAPTER NEW
-                      const isNewChapter =
-                        !isRead && isNewWithinHours(ch.createdAt, 8);
-
-                      const label =
-                        ch.chapterNumber != null
-                          ? `Chapter ${ch.chapterNumber}`
-                          : `Chapter ${idx + 1}`;
-
-                      const href =
-                        ch.chapterNumber != null
-                          ? `/manhua/${item.slug}/chapter/${ch.chapterNumber}`
-                          : `/manhua/${item.slug}`;
+                      const isRead = isChapterRead(item.slug, ch.chapterNumber ?? null);
+                      const isNew = !isRead && isNewWithinHours(ch.createdAt, 8);
+                      const label = ch.chapterNumber != null ? `Chapter ${ch.chapterNumber}` : `Chapter ${idx + 1}`;
+                      const href = ch.chapterNumber != null
+                        ? `/manhua/${item.slug}/chapter/${ch.chapterNumber}`
+                        : `/manhua/${item.slug}`;
 
                       return (
-                        <Link
+                        <div
                           key={`${item.slug}-${idx}`}
-                          href={href}
-                          prefetch={false}
-                          className={`flex items-center gap-2 text-[12px] md:text-sm truncate ${
-                            isRead
-                              ? "text-gray-500"
-                              : "text-gray-300 hover:text-white"
-                          }`}
+                          className="flex items-center gap-1.5 text-[12px]"
+                          style={{ color: isRead ? "var(--arc-muted)" : "var(--arc-dim)" }}
                         >
                           <span
-                            className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                              isRead ? "bg-gray-600" : "bg-red-500"
-                            }`}
+                            className="shrink-0 rounded-full"
+                            style={{
+                              width: 5,
+                              height: 5,
+                              background: isRead ? "var(--arc-muted)" : "var(--arc-rose)",
+                              opacity: isRead ? 0.4 : 1,
+                            }}
                           />
-
-                          <span className="truncate">{label}</span>
-
-                          {/* 🔴 NEW BADGE */}
-                          {isNewChapter && (
-                            <span className="ml-1 rounded bg-red-500 px-1.5 py-[1px] text-[9px] font-bold text-white">
+                          <Link
+                            href={href}
+                            prefetch={false}
+                            className="flex-1 min-w-0 truncate hover:text-white transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {label}
+                          </Link>
+                          {isNew && (
+                            <span
+                              className="shrink-0 rounded text-[9px] font-bold px-1 py-px"
+                              style={{ background: "var(--arc-rose)", color: "#fff" }}
+                            >
                               NEW
                             </span>
                           )}
-
-                          <span className="ml-auto text-[11px] text-gray-500">
-                            {formatTimeAgoSafe(ch.createdAt)}
+                          <span className="ml-auto shrink-0 text-[10px]" style={{ color: "var(--arc-muted)" }}>
+                            {formatTimeAgo(ch.createdAt)}
                           </span>
-                        </Link>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

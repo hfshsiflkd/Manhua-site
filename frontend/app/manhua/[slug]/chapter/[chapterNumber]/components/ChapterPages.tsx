@@ -74,7 +74,7 @@ function PageItem({
 
       {/* Error state */}
       {error && (
-        <div className="flex min-h-[60vh] items-center justify-center bg-slate-900 text-sm text-red-400">
+        <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ background: "var(--arc-card)", color: "oklch(0.75 0.18 15)" }}>
           Зургийг ачаалж чадсангүй...
         </div>
       )}

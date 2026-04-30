@@ -1,6 +1,42 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ── Arc Read design tokens ── */
+:root {
+  --arc-bg: #07070e;
+  --arc-card: #0d0d1a;
+  --arc-elevated: #111120;
+  --arc-border: rgba(255,255,255,0.07);
+  --arc-border-h: rgba(255,255,255,0.14);
+  --arc-text: #e4e4f0;
+  --arc-muted: #6b6b80;
+  --arc-dim: #9494a8;
+  --arc-cyan: oklch(0.72 0.17 195);
+  --arc-cyan-glow: oklch(0.72 0.17 195 / 0.18);
+  --arc-cyan-dim: oklch(0.72 0.17 195 / 0.12);
+  --arc-rose: oklch(0.65 0.22 15);
+  --arc-rose-glow: oklch(0.65 0.22 15 / 0.2);
+  --arc-amber: oklch(0.82 0.16 85);
+  --arc-radius: 10px;
+  --arc-radius-lg: 14px;
+  --arc-max-w: 1280px;
+}
+
+/* Body */
+.arc-body {
+  background-color: var(--arc-bg);
+  color: var(--arc-text);
+  font-family: var(--font-body, 'DM Sans', sans-serif);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--arc-bg); }
+::-webkit-scrollbar-thumb { background: var(--arc-elevated); border-radius: 9px; }
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

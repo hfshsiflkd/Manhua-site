@@ -15,29 +15,21 @@ export default function PageWithLoader({ page }: { page: ChapterPage }) {
 
   return (
     <div className="relative w-full">
-      {/* Skeleton placeholder - shown until image loads */}
       {!loaded && !error && <PageSkeleton />}
 
-      {/* Error state */}
       {error && (
-        <div className="flex min-h-[60vh] items-center justify-center bg-slate-900 text-sm text-red-400">
+        <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ background: "var(--arc-card)", color: "oklch(0.75 0.18 15)" }}>
           Зургийг ачаалж чадсангүй...
         </div>
       )}
 
-      {/* Image - positioned absolutely over skeleton, fades in when loaded */}
       <img
         src={page.imageUrl}
         alt={`Page ${page.pageNumber}`}
         loading={page.pageNumber <= 2 ? "eager" : "lazy"}
-        className={`block w-full select-none transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0 absolute inset-0"
-        }`}
+        className={`block w-full select-none transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0 absolute inset-0"}`}
         onLoad={() => setLoaded(true)}
-        onError={() => {
-          setError(true);
-          setLoaded(true);
-        }}
+        onError={() => { setError(true); setLoaded(true); }}
       />
     </div>
   );

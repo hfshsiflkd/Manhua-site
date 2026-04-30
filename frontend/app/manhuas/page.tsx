@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/manhuas/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -22,41 +21,48 @@ interface TeamOption {
 }
 
 const GENRES = [
-  { value: "all", label: "Бүгд" },
-  { value: "Romance", label: "Romance" },
-  { value: "Comedy", label: "Comedy" },
-  { value: "Drama", label: "Drama" },
-  { value: "Action", label: "Action" },
-  { value: "Fantasy", label: "Fantasy" },
-  { value: "Slice of Life", label: "Slice of Life" },
-  { value: "School", label: "School" },
-  { value: "Isekai", label: "Isekai" },
-  { value: "Adventure", label: "Adventure" },
+  "Бүгд", "Romance", "Comedy", "Drama", "Action", "Fantasy",
+  "Slice of Life", "School", "Isekai", "Adventure", "System", "Mystery", "Martial Arts",
 ];
 
-const STATUS_OPTIONS = [
+const STATUSES = [
   { value: "all", label: "Бүгд" },
   { value: "ongoing", label: "Ongoing" },
   { value: "completed", label: "Completed" },
   { value: "hiatus", label: "Hiatus" },
 ];
 
-// Debounce hook
+const SORTS = [
+  { value: "popular", label: "Trending" },
+  { value: "rating", label: "Top Rated" },
+  { value: "latest", label: "Latest" },
+  { value: "az", label: "A–Z" },
+];
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
   }, [value, delay]);
-
   return debouncedValue;
 }
+
+const pillBase: React.CSSProperties = {
+  padding: "5px 13px", borderRadius: 20,
+  border: "1px solid var(--arc-border)", background: "transparent",
+  color: "var(--arc-dim)", fontSize: 12, fontWeight: 500,
+  cursor: "pointer", whiteSpace: "nowrap",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+  transition: "all .15s",
+};
+
+const pillActive: React.CSSProperties = {
+  ...pillBase,
+  borderColor: "oklch(0.72 0.17 195/.5)",
+  background: "oklch(0.72 0.17 195/.1)",
+  color: "var(--arc-cyan)",
+};
 
 export default function ManhuasPage() {
   const [items, setItems] = useState<Manhua[]>([]);
@@ -65,29 +71,20 @@ export default function ManhuasPage() {
   const limit = 20;
 
   const [searchInput, setSearchInput] = useState("");
-  const [genre, setGenre] = useState("all");
+  const [genre, setGenre] = useState("Бүгд");
   const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState("popular");
   const [teamId, setTeamId] = useState("all");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [teams, setTeams] = useState<TeamOption[]>([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debounce search input (300ms)
   const debouncedSearch = useDebounce(searchInput.trim(), 300);
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / limit)),
-    [total, limit]
-  );
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
   const hasActiveFilters = useMemo(
-    () =>
-      debouncedSearch !== "" ||
-      genre !== "all" ||
-      status !== "all" ||
-      teamId !== "all",
+    () => debouncedSearch !== "" || genre !== "Бүгд" || status !== "all" || teamId !== "all",
     [debouncedSearch, genre, status, teamId]
   );
 
@@ -95,359 +92,258 @@ export default function ManhuasPage() {
     try {
       setLoading(true);
       setError(null);
-
       const params: any = { page, limit };
-
       if (debouncedSearch) params.q = debouncedSearch;
-      if (genre !== "all") params.genre = genre;
+      if (genre !== "Бүгд") params.genre = genre;
       if (status !== "all") params.status = status;
       if (teamId !== "all") params.teamId = teamId;
-
-      const res = await api.get<ManhuaListResponse>("/manhuas", {
-        params,
-      });
-
+      if (sort !== "popular") params.sort = sort;
+      const res = await api.get<ManhuaListResponse>("/manhuas", { params });
       setItems(res.data.items || []);
       setTotal(res.data.total || 0);
     } catch (e: any) {
-      console.error(e);
       setError(e?.response?.data?.message || "Өгөгдөл ачаалахад алдаа гарлаа");
     } finally {
       setLoading(false);
     }
-  }, [page, genre, status, teamId, debouncedSearch, limit]);
+  }, [page, genre, status, teamId, sort, debouncedSearch, limit]);
 
-  useEffect(() => {
-    setPage(1); // Reset to page 1 when filters change
-  }, [debouncedSearch, genre, status, teamId]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, genre, status, teamId, sort]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     let active = true;
-    api
-      .get<TeamOption[]>("/manhuas/teams")
-      .then((res) => {
-        if (!active) return;
-        setTeams(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setTeams([]);
-      });
-    return () => {
-      active = false;
-    };
+    api.get<TeamOption[]>("/manhuas/teams")
+      .then((res) => { if (active) setTeams(Array.isArray(res.data) ? res.data : []); })
+      .catch(() => { if (active) setTeams([]); });
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
   const clearFilters = () => {
-    setSearchInput("");
-    setGenre("all");
-    setStatus("all");
-    setTeamId("all");
-    setPage(1);
+    setSearchInput(""); setGenre("Бүгд"); setStatus("all"); setTeamId("all"); setSort("popular"); setPage(1);
   };
 
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4 sm:py-6 lg:px-6 lg:py-8">
-      <div className="space-y-4 sm:space-y-6">
-        {/* Page Header - Compact on Mobile */}
-        <div className="space-y-1 sm:space-y-2">
-          <h1 className="bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-xl font-bold text-transparent sm:text-2xl lg:text-3xl">
-            Манхуа жагсаалт
-          </h1>
-          <p className="text-xs text-slate-400 sm:text-sm lg:text-base">
-            Нэрээр хайх • Жанраар шүүх • Статус • Баг
-          </p>
+    <div className="mx-auto w-full px-4 py-8 pb-16" style={{ maxWidth: "var(--arc-max-w)" }}>
+
+      {/* Page header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1
+          className="text-[28px] font-bold"
+          style={{
+            fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
+            letterSpacing: "-0.03em",
+            background: "linear-gradient(90deg,var(--arc-cyan),oklch(0.72 0.17 240))",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+          }}
+        >
+          Манхуа жагсаалт
+        </h1>
+        <p className="mt-1 text-[13px]" style={{ color: "var(--arc-muted)" }}>
+          Нэрээр хайх · жанраар шүүх · статус · дараалал
+        </p>
+      </div>
+
+      {/* Filter bar */}
+      <div
+        style={{
+          background: "var(--arc-card)", border: "1px solid var(--arc-border)",
+          borderRadius: "var(--arc-radius-lg)", padding: 18, marginBottom: 24,
+          display: "flex", flexDirection: "column", gap: 14,
+        }}
+      >
+        {/* Search */}
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--arc-muted)" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+          </span>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Хайх..."
+            style={{
+              width: "100%", padding: "10px 14px 10px 38px",
+              background: "var(--arc-elevated)", border: "1px solid var(--arc-border)",
+              borderRadius: "var(--arc-radius)", color: "var(--arc-text)", fontSize: 13, outline: "none",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
+          />
         </div>
 
-        {/* Filter Bar - Mobile Optimized */}
-        <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-900/80 p-3 sm:rounded-2xl sm:p-4 lg:p-6">
-          {/* Search Input - Always Visible */}
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <svg
-                className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        {/* Genre pills */}
+        <div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--arc-muted)" }}>Жанр</div>
+          <div className="flex flex-wrap gap-1.5">
+            {GENRES.map((g) => (
+              <button
+                key={g}
+                onClick={() => setGenre(g)}
+                style={genre === g ? pillActive : pillBase}
+                onMouseEnter={(e) => { if (genre !== g) { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; } }}
+                onMouseLeave={(e) => { if (genre !== g) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; } }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Хайх..."
-              className="w-full rounded-lg border border-slate-700 bg-slate-950/70 pl-9 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 sm:rounded-xl sm:pl-10 sm:py-3"
-            />
+                {g}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Mobile: Team Filter (always visible) */}
-          <div className="sm:hidden">
-            <label className="mb-1.5 block text-xs font-medium text-slate-400">
-              Баг
-            </label>
-            <select
-              value={teamId}
-              onChange={(e) => {
-                setTeamId(e.target.value);
-                setPage(1);
-              }}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-            >
-              <option value="all">Бүгд</option>
-              {teams.map((t) => (
-                <option key={t._id} value={t._id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Mobile: Collapsible Filters */}
-          <div className="sm:hidden">
-            <button
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-900"
-            >
-              <span>Шүүлт</span>
-              <svg
-                className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-
-            {filtersOpen && (
-              <div className="mt-3 space-y-3">
-                {/* Genre Filter */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-400">
-                    Жанр
-                  </label>
-                  <select
-                    value={genre}
-                    onChange={(e) => {
-                      setGenre(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                  >
-                    {GENRES.map((g) => (
-                      <option key={g.value} value={g.value}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Status Filter - Scrollable Pills */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-400">
-                    Статус
-                  </label>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {STATUS_OPTIONS.map((s) => (
-                      <button
-                        key={s.value}
-                        onClick={() => {
-                          setStatus(s.value);
-                          setPage(1);
-                        }}
-                        className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-all ${
-                          status === s.value
-                            ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-300"
-                            : "border-slate-700 bg-slate-950/70 text-slate-400 active:bg-slate-900"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            )}
-          </div>
-
-          {/* Desktop: Always Visible Filters */}
-          <div className="hidden sm:flex sm:items-center sm:gap-3 sm:justify-between">
-            {/* Genre Filter */}
-            <div className="flex-1 max-w-[200px]">
-              <select
-                value={genre}
-                onChange={(e) => {
-                  setGenre(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-              >
-                {GENRES.map((g) => (
-                  <option key={g.value} value={g.value}>
-                    {g.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Team Filter */}
-            <div className="flex-1 max-w-[220px]">
-              <select
-                value={teamId}
-                onChange={(e) => {
-                  setTeamId(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-              >
-                <option value="all">Бүх баг</option>
-                {teams.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status Filter - Segmented Pills */}
-            <div className="flex gap-1 rounded-xl border border-slate-700 bg-slate-950/70 p-1">
-              {STATUS_OPTIONS.map((s) => (
+        {/* Status + Sort row */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--arc-muted)" }}>Статус</div>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUSES.map((s) => (
                 <button
                   key={s.value}
-                  onClick={() => {
-                    setStatus(s.value);
-                    setPage(1);
-                  }}
-                  className={`rounded-lg px-4 py-2 text-xs font-medium transition-all sm:text-sm ${
-                    status === s.value
-                      ? "bg-cyan-500/20 text-cyan-300 shadow shadow-cyan-500/20"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
+                  onClick={() => setStatus(s.value)}
+                  style={status === s.value ? pillActive : pillBase}
+                  onMouseEnter={(e) => { if (status !== s.value) { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; } }}
+                  onMouseLeave={(e) => { if (status !== s.value) { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; } }}
                 >
                   {s.label}
                 </button>
               ))}
             </div>
+          </div>
 
+          <div className="flex items-center gap-2">
+            <span className="text-[12px]" style={{ color: "var(--arc-muted)" }}>Дараалал</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              style={{
+                padding: "7px 12px", background: "var(--arc-elevated)",
+                border: "1px solid var(--arc-border)", borderRadius: "var(--arc-radius)",
+                color: "var(--arc-text)", fontSize: 12, cursor: "pointer", outline: "none",
+                fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+              }}
+            >
+              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
           </div>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-            {error}
+        {/* Team filter + clear */}
+        {(teams.length > 0 || hasActiveFilters) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {teams.length > 0 && (
+              <select
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                style={{
+                  padding: "7px 12px", background: "var(--arc-elevated)",
+                  border: "1px solid var(--arc-border)", borderRadius: "var(--arc-radius)",
+                  color: "var(--arc-text)", fontSize: 12, cursor: "pointer", outline: "none",
+                  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+                }}
+              >
+                <option value="all">Бүх баг</option>
+                {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
+              </select>
+            )}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                style={{ ...pillBase, borderColor: "oklch(0.65 0.22 15/.3)", color: "oklch(0.75 0.18 15)" }}
+              >
+                Цэвэрлэх ×
+              </button>
+            )}
           </div>
         )}
-
-        {/* Loading / List */}
-        {loading ? (
-          <>
-            {/* Mobile: Horizontal Skeletons */}
-            <div className="grid grid-cols-1 gap-3 sm:hidden">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ManhuaSkeletonHorizontal key={i} />
-              ))}
-            </div>
-            {/* Desktop: Grid Skeletons */}
-            <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <ManhuaSkeleton key={i} />
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Results Count */}
-            {items.length > 0 && (
-              <div className="text-xs text-slate-400 sm:text-sm">
-                Нийт <span className="font-semibold text-slate-300">{total}</span>{" "}
-                манхуа олдлоо
-              </div>
-            )}
-
-            {/* Empty State */}
-            {items.length === 0 ? (
-              <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-12 text-center sm:rounded-2xl sm:px-6">
-                <div className="mb-4 text-4xl sm:text-5xl">📭</div>
-                <h3 className="mb-2 text-base font-semibold text-slate-100 sm:text-lg">
-                  Тохирох манхуа олдсонгүй
-                </h3>
-                <p className="mb-6 max-w-md text-xs text-slate-400 sm:text-sm">
-                  Filter-ээ арилгаад дахин хайна уу.
-                </p>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 transition active:scale-95"
-                  >
-                    Filter цэвэрлэх
-                  </button>
-                )}
-              </div>
-            ) : (
-              <>
-                {/* Mobile: Horizontal Cards (1 column) */}
-                <div className="grid grid-cols-1 gap-3 sm:hidden">
-                  {items.map((m) => (
-                    <ManhuaCard key={m._id} manhua={m} variant="horizontal" />
-                  ))}
-                </div>
-
-                {/* Desktop: Grid Cards */}
-                <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4">
-                  {items.map((m) => (
-                    <ManhuaCard key={m._id} manhua={m} />
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-300 sm:text-sm">
-                <button
-                  disabled={!hasPrev}
-                  onClick={() => hasPrev && setPage((p) => p - 1)}
-                  className="min-h-[44px] rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 hover:border-cyan-500/60 hover:bg-slate-800 sm:px-6"
-                >
-                  ← Өмнөх
-                </button>
-                <span className="text-xs sm:text-sm">
-                  Хуудас <span className="font-semibold">{page}</span> /{" "}
-                  {totalPages}
-                </span>
-                <button
-                  disabled={!hasNext}
-                  onClick={() => hasNext && setPage((p) => p + 1)}
-                  className="min-h-[44px] rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 active:scale-95 hover:border-cyan-500/60 hover:bg-slate-800 sm:px-6"
-                >
-                  Дараах →
-                </button>
-              </div>
-            )}
-          </>
-        )}
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 rounded-[10px] px-4 py-3 text-[13px]" style={{ background: "oklch(0.65 0.22 15/.08)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "oklch(0.85 0.12 15)" }}>
+          {error}
+        </div>
+      )}
+
+      {/* Results count */}
+      {!loading && items.length > 0 && (
+        <div className="mb-4 text-[12px]" style={{ color: "var(--arc-muted)" }}>
+          Нийт <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{total}</span> манхуа
+        </div>
+      )}
+
+      {/* Grid */}
+      {loading ? (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:hidden">
+            {Array.from({ length: 6 }).map((_, i) => <ManhuaSkeletonHorizontal key={i} />)}
+          </div>
+          <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {Array.from({ length: 10 }).map((_, i) => <ManhuaSkeleton key={i} />)}
+          </div>
+        </>
+      ) : items.length === 0 ? (
+        <div
+          className="flex min-h-[40vh] flex-col items-center justify-center px-4 py-12 text-center"
+          style={{ borderRadius: "var(--arc-radius-lg)", border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+        >
+          <div className="mb-4 text-[40px]" aria-hidden>📭</div>
+          <h3 className="mb-2 text-[17px] font-semibold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
+            Тохирох манхуа олдсонгүй
+          </h3>
+          <p className="text-[13px]" style={{ color: "var(--arc-muted)", maxWidth: 300 }}>Filter-ээ арилгаад дахин хайна уу.</p>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="mt-5 rounded-full px-6 py-2 text-[13px] font-semibold transition hover:brightness-110"
+              style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
+            >
+              Filter цэвэрлэх
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:hidden">
+            {items.map((m) => <ManhuaCard key={m._id} manhua={m} variant="horizontal" />)}
+          </div>
+          <div className="hidden grid-cols-2 gap-4 sm:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {items.map((m) => <ManhuaCard key={m._id} manhua={m} />)}
+          </div>
+        </>
+      )}
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="mt-9 flex items-center justify-center gap-2">
+          <button
+            disabled={!hasPrev}
+            onClick={() => hasPrev && setPage((p) => p - 1)}
+            className="rounded-[10px] px-5 py-2 text-[13px] font-medium transition disabled:opacity-35"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-text)", cursor: hasPrev ? "pointer" : "default" }}
+            onMouseEnter={(e) => { if (hasPrev) { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195/.5)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-elevated)"; } }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-card)"; }}
+          >
+            ← Өмнөх
+          </button>
+          <span className="px-2 text-[13px]" style={{ color: "var(--arc-muted)" }}>
+            Хуудас <b style={{ color: "var(--arc-text)" }}>{page}</b> / {totalPages}
+          </span>
+          <button
+            disabled={!hasNext}
+            onClick={() => hasNext && setPage((p) => p + 1)}
+            className="rounded-[10px] px-5 py-2 text-[13px] font-medium transition disabled:opacity-35"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-text)", cursor: hasNext ? "pointer" : "default" }}
+            onMouseEnter={(e) => { if (hasNext) { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195/.5)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-elevated)"; } }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; (e.currentTarget as HTMLElement).style.background = "var(--arc-card)"; }}
+          >
+            Дараах →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,93 +3,45 @@
 
 import type { UserRole } from "@/lib/api";
 
-type CreateForm = {
-  username: string;
-  email: string;
-  password: string;
-  role: UserRole;
+const fieldStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "9px 14px", fontSize: 13,
+  color: "var(--arc-text)", outline: "none",
 };
 
+type CreateForm = { username: string; email: string; password: string; role: UserRole };
 type Props = {
-  open: boolean;
-  saving: boolean;
-  form: CreateForm;
-  onClose: () => void;
-  onChange: (next: CreateForm) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  open: boolean; saving: boolean; form: CreateForm;
+  onClose: () => void; onChange: (next: CreateForm) => void; onSubmit: (e: React.FormEvent) => void;
 };
 
-export default function CreateUserModal({
-  open,
-  saving,
-  form,
-  onClose,
-  onChange,
-  onSubmit,
-}: Props) {
+export default function CreateUserModal({ open, saving, form, onClose, onChange, onSubmit }: Props) {
   if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl shadow-black/60">
+    <div className="fixed inset-0 z-40 flex items-center justify-center" style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(8px)" }}>
+      <div className="w-full max-w-md rounded-[16px] p-6 shadow-2xl" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold">Create new user</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 text-sm"
-          >
-            ✕
-          </button>
+          <h2 className="text-[15px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>Create new user</h2>
+          <button onClick={onClose} className="text-[16px] leading-none opacity-50 hover:opacity-100" style={{ color: "var(--arc-dim)", background: "none", border: "none", cursor: "pointer" }}>✕</button>
         </div>
 
         <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400">
-              Username<span className="text-red-400">*</span>
-            </label>
-            <input
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={form.username}
-              onChange={(e) => onChange({ ...form, username: e.target.value })}
-              required
-            />
-          </div>
+          {[
+            { label: "Username", type: "text", key: "username" as const, required: true },
+            { label: "Email", type: "email", key: "email" as const, required: true },
+            { label: "Password", type: "password", key: "password" as const, required: true },
+          ].map(({ label, type, key, required }) => (
+            <div key={key} className="space-y-1">
+              <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                {label}{required && <span style={{ color: "var(--arc-rose)" }}>*</span>}
+              </label>
+              <input type={type} style={fieldStyle} value={form[key]} onChange={(e) => onChange({ ...form, [key]: e.target.value })} required={required} />
+            </div>
+          ))}
 
           <div className="space-y-1">
-            <label className="text-xs text-slate-400">
-              Email<span className="text-red-400">*</span>
-            </label>
-            <input
-              type="email"
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={form.email}
-              onChange={(e) => onChange({ ...form, email: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400">
-              Password<span className="text-red-400">*</span>
-            </label>
-            <input
-              type="password"
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={form.password}
-              onChange={(e) => onChange({ ...form, password: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs text-slate-400">Role</label>
-            <select
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={form.role}
-              onChange={(e) =>
-                onChange({ ...form, role: e.target.value as any })
-              }
-            >
+            <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Role</label>
+            <select style={fieldStyle} value={form.role} onChange={(e) => onChange({ ...form, role: e.target.value as any })}>
               <option value="user">User</option>
               <option value="translator">Translator</option>
               <option value="admin">Admin</option>
@@ -97,18 +49,12 @@ export default function CreateUserModal({
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 transition"
-            >
+            <button type="button" onClick={onClose} className="rounded-[9px] px-3 py-2 text-[12px] font-medium transition-colors"
+              style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: "pointer" }}>
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow shadow-cyan-500/40 disabled:opacity-60"
-            >
+            <button type="submit" disabled={saving} className="rounded-[9px] px-4 py-2 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-60"
+              style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}>
               {saving ? "Creating..." : "Create user"}
             </button>
           </div>

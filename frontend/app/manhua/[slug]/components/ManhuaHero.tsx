@@ -2,256 +2,267 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import type { Manhua, Chapter } from "@/types/manhua";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useBookmarks } from "@/lib/hooks/useBookmarks";
 import { useAuth } from "@/context/AuthContext";
 
-type ManhuaHeroProps = {
-  manhua: Manhua;
-  chapters: Chapter[];
+type ManhuaHeroProps = { manhua: Manhua; chapters: Chapter[] };
+
+function getTimeAgo(d?: string | number | Date | null) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  const ms = Date.now() - date.getTime();
+  if (ms < 0) return "Soon";
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const dy = Math.floor(h / 24);
+  return dy === 1 ? "1 day ago" : `${dy} days ago`;
+}
+
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  ongoing:   { background: "oklch(0.72 0.17 155/.12)", color: "oklch(0.8 0.14 155)",  border: "1px solid oklch(0.72 0.17 155/.25)" },
+  completed: { background: "oklch(0.72 0.17 195/.12)", color: "var(--arc-cyan)",       border: "1px solid oklch(0.72 0.17 195/.25)" },
+  hiatus:    { background: "oklch(0.82 0.16 85/.12)",  color: "var(--arc-amber)",      border: "1px solid oklch(0.82 0.16 85/.25)" },
 };
 
-// ⏱️ English time-ago formatter
-function getTimeAgoEN(dateLike?: string | number | Date | null) {
-  if (!dateLike) return "";
-
-  const date = new Date(dateLike);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const diffMs = Date.now() - date.getTime();
-
-  if (diffMs < 0) return "Soon";
-
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  if (diffMinutes < 1) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} hours ago`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "1 day ago";
-  return `${diffDays} days ago`;
+function HeartIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+    </svg>
+  );
 }
 
 export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   const { user } = useAuth();
-  const manhuaId = (manhua as any)._id || null;
-  const favorites = useFavorites(manhuaId);
-  const bookmarks = useBookmarks(manhuaId);
+  const manhuaId = (manhua as { _id?: string })._id || null;
+  const fav = useFavorites(manhuaId);
+  const bm = useBookmarks(manhuaId);
 
-  const coverSrc =
-    manhua.coverImage || "https://via.placeholder.com/450x600?text=No+Cover";
-
+  const coverSrc = manhua.coverImage || "";
   const totalChapters = chapters.length;
-  const latestChapter = totalChapters > 0 ? chapters[0] : null;
-  const firstChapter = totalChapters > 0 ? chapters[totalChapters - 1] : null;
+  const latestCh = totalChapters > 0 ? chapters[0] : null;
+  const firstCh = totalChapters > 0 ? chapters[totalChapters - 1] : null;
+  const lastUpdate = getTimeAgo(manhua.latestChapterAt || manhua.updatedAt);
+  const status = (manhua.status || "ongoing").toLowerCase();
+  const statusStyle = STATUS_STYLE[status] || STATUS_STYLE.ongoing;
 
-  const lastUpdateText = getTimeAgoEN(
-    manhua.latestChapterAt || manhua.updatedAt
-  );
-
-  const handleFavoriteClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    try {
-      await favorites.toggle();
-    } catch (err) {
-      // Error already handled in hook
-    }
+  const favStyle: React.CSSProperties = {
+    border: `1px solid ${fav.isFavorited ? "oklch(0.65 0.22 15/.5)" : "var(--arc-border)"}`,
+    background: fav.isFavorited ? "oklch(0.65 0.22 15/.08)" : "var(--arc-elevated)",
+    color: fav.isFavorited ? "var(--arc-rose)" : "var(--arc-dim)",
+    cursor: "pointer",
+  };
+  const bmStyle: React.CSSProperties = {
+    border: `1px solid ${bm.isBookmarked ? "oklch(0.82 0.16 85/.4)" : "var(--arc-border)"}`,
+    background: bm.isBookmarked ? "oklch(0.82 0.16 85/.08)" : "var(--arc-elevated)",
+    color: bm.isBookmarked ? "var(--arc-amber)" : "var(--arc-dim)",
+    cursor: "pointer",
   };
 
-  const handleBookmarkClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    try {
-      await bookmarks.toggle();
-    } catch (err) {
-      // Error already handled in hook
-    }
-  };
+  const CoverActions = () => user ? (
+    <div className="flex gap-2 mt-2.5">
+      <button onClick={async () => { try { await fav.toggle(); } catch {} }} disabled={fav.isLoading}
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2 text-[11px] font-medium transition-all"
+        style={favStyle}>
+        <HeartIcon filled={fav.isFavorited} />
+        <span>{fav.isFavorited ? "Saved" : "Дуртай"}</span>
+      </button>
+      <button onClick={async () => { try { await bm.toggle(); } catch {} }} disabled={bm.isLoading}
+        className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2 text-[11px] font-medium transition-all"
+        style={bmStyle}>
+        <BookmarkIcon filled={bm.isBookmarked} />
+        <span>{bm.isBookmarked ? "Saved" : "Хадгалах"}</span>
+      </button>
+    </div>
+  ) : null;
+
+  const CTAButtons = () => latestCh ? (
+    <div className="flex flex-wrap gap-2">
+      <Link
+        href={`/manhua/${manhua.slug}/chapter/${latestCh.chapterNumber}`}
+        className="flex items-center gap-2 rounded-[9px] px-4 py-2.5 text-[12px] font-bold transition-all hover:brightness-110"
+        style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", background: "var(--arc-cyan)", color: "#07070e", boxShadow: "0 0 20px var(--arc-cyan-glow)" }}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+        Read Latest – Ch. {latestCh.chapterNumber}
+      </Link>
+      {firstCh && firstCh.chapterNumber !== latestCh.chapterNumber && (
+        <Link
+          href={`/manhua/${manhua.slug}/chapter/${firstCh.chapterNumber}`}
+          className="rounded-[9px] px-4 py-2.5 text-[12px] font-medium transition-colors"
+          style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; }}
+        >
+          Ch. {firstCh.chapterNumber}-с эхлэх
+        </Link>
+      )}
+    </div>
+  ) : null;
 
   return (
-    <section className="relative overflow-hidden md:rounded-2xl border border-slate-800 bg-slate-950/90 shadow-xl shadow-black/50">
-      {/* Background image (cover) */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40"
-        style={{
-          backgroundImage: `url(${coverSrc})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
-      {/* Gradient overlay */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-slate-950/40" />
+    <section className="relative overflow-hidden md:rounded-[14px]"
+      style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+      {/* Blurred bg */}
+      {coverSrc && (
+        <div className="pointer-events-none absolute inset-0 opacity-20"
+          style={{ backgroundImage: `url(${coverSrc})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(40px)", transform: "scale(1.1)" }} />
+      )}
+      <div className="pointer-events-none absolute inset-0"
+        style={{ background: "linear-gradient(135deg,rgba(7,7,14,.97) 0%,rgba(7,7,14,.88) 60%,rgba(7,7,14,.7) 100%)" }} />
 
-      {/* Foreground content */}
-      <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-        <div className="grid items-stretch gap-5 md:grid-cols-[minmax(0,1.1fr),minmax(0,1.9fr)]">
-          {/* LEFT: small cover card */}
-          <div className="flex justify-center md:justify-start">
-            <div className="relative w-28 sm:w-32 md:w-40 lg:w-44">
-              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/90 shadow-lg shadow-black/60">
-                <img
-                  src={coverSrc}
-                  alt={manhua.title}
-                  className="h-auto w-full max-h-[380px] object-contain"
-                />
-              </div>
+      <div className="relative z-10 p-4 sm:p-6">
+
+        {/* ── MOBILE LAYOUT (< sm) ───────────────────── */}
+        <div className="flex flex-col gap-4 sm:hidden">
+          {/* Row: small cover + quick info */}
+          <div className="flex gap-3">
+            <div className="shrink-0 overflow-hidden rounded-[10px]"
+              style={{ width: 90, aspectRatio: "2/3", border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", boxShadow: "0 6px 24px rgba(0,0,0,.5)" }}>
+              {coverSrc && <img src={coverSrc} alt={manhua.title} className="h-full w-full object-cover" />}
             </div>
-          </div>
-
-          {/* RIGHT: info */}
-          <div className="flex flex-col justify-between gap-4">
-            <div className="space-y-3">
-              {/* Title + status chip + action buttons */}
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-semibold text-slate-50 sm:text-2xl">
-                    {manhua.title}
-                  </h1>
-
-                  <span className="rounded-full border border-emerald-500/50 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
-                    {manhua.status}
+            <div className="flex flex-col gap-2 min-w-0 justify-start pt-0.5">
+              <h1 className="text-[18px] font-bold leading-tight"
+                style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "#fff", letterSpacing: "-0.02em" }}>
+                {manhua.title}
+              </h1>
+              <span className="self-start rounded px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider" style={statusStyle}>
+                {manhua.status}
+              </span>
+              <div className="flex flex-wrap gap-2 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                {typeof manhua.ratingAverage === "number" && (
+                  <span className="flex items-center gap-1">
+                    <svg width="10" height="10" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)"><polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" /></svg>
+                    <b style={{ color: "var(--arc-text)" }}>{manhua.ratingAverage.toFixed(1)}</b>
                   </span>
-
-                  {/* Favorite & Bookmark buttons */}
-                  {user && (
-                    <div className="ml-auto flex items-center gap-2">
-                      <button
-                        onClick={handleFavoriteClick}
-                        disabled={favorites.isLoading}
-                        className={`rounded-lg p-1.5 transition-all ${
-                          favorites.isFavorited
-                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                            : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300"
-                        } ${favorites.isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                        title={
-                          favorites.isFavorited
-                            ? "Дуртай жагсаалтаас хасах"
-                            : "Дуртай жагсаалтад нэмэх"
-                        }
-                      >
-                        {favorites.isFavorited ? "❤️" : "🤍"}
-                      </button>
-                      <button
-                        onClick={handleBookmarkClick}
-                        disabled={bookmarks.isLoading}
-                        className={`rounded-lg p-1.5 transition-all ${
-                          bookmarks.isBookmarked
-                            ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
-                            : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50 hover:text-slate-300"
-                        } ${bookmarks.isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                        title={
-                          bookmarks.isBookmarked
-                            ? "Хавтсаас хасах"
-                            : "Хавтасанд нэмэх"
-                        }
-                      >
-                        {bookmarks.isBookmarked ? "🔖" : "📑"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Small meta row: rating, chapters, last update */}
-                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
-                  {typeof manhua.ratingAverage === "number" && (
-                    <span className="flex items-center gap-1">
-                      <span>⭐</span>
-                      <span className="font-medium text-slate-100">
-                        {manhua.ratingAverage.toFixed(1)}
-                      </span>
-                      <span className="text-slate-500">/ 5</span>
-                    </span>
-                  )}
-
-                  {totalChapters > 0 && <span>{totalChapters} chapters</span>}
-
-                  {manhua.views != null && (
-                    <span>{manhua.views.toLocaleString()} views</span>
-                  )}
-
-                  {lastUpdateText && (
-                    <span className="text-slate-500">
-                      Last update:{" "}
-                      <span className="text-slate-200">{lastUpdateText}</span>
-                    </span>
-                  )}
-                </div>
+                )}
+                {totalChapters > 0 && <span>{totalChapters} ch</span>}
+                {manhua.views != null && <span>{(manhua.views / 1000).toFixed(0)}k views</span>}
               </div>
-
-              {/* Genres */}
               {manhua.genres && manhua.genres.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 text-[11px] text-slate-200">
-                  {manhua.genres.map((g) => (
-                    <span
-                      key={g}
-                      className="rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px]"
-                    >
+                <div className="flex flex-wrap gap-1">
+                  {manhua.genres.slice(0, 3).map((g) => (
+                    <span key={g} className="rounded-full px-2 py-0.5 text-[10px]"
+                      style={{ background: "rgba(255,255,255,.05)", border: "1px solid var(--arc-border)", color: "var(--arc-dim)" }}>
                       {g}
                     </span>
                   ))}
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* Description */}
-              {manhua.description && (
-                <p className="mt-1 text-[13px] leading-relaxed text-slate-100/90">
-                  {manhua.description}
-                </p>
-              )}
+          {/* Description */}
+          {manhua.description && (
+            <p className="text-[12px] leading-relaxed" style={{ color: "var(--arc-dim)" }}>
+              {manhua.description}
+            </p>
+          )}
 
-              {/* Author / Artist */}
-              {(manhua.author || manhua.artist) && (
-                <div className="mt-2 grid gap-2 text-[12px] text-slate-300/90 sm:grid-cols-2">
-                  {manhua.author && (
-                    <p>
-                      Author:{" "}
-                      <span className="font-medium text-slate-50">
-                        {manhua.author}
-                      </span>
-                    </p>
-                  )}
-                  {manhua.artist && (
-                    <p>
-                      Artist:{" "}
-                      <span className="font-medium text-slate-50">
-                        {manhua.artist}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              )}
+          {/* Author */}
+          {(manhua.author || manhua.artist) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+              {manhua.author && <span>Автор: <b style={{ color: "var(--arc-dim)" }}>{manhua.author}</b></span>}
+              {manhua.artist && <span>Уран зурагч: <b style={{ color: "var(--arc-dim)" }}>{manhua.artist}</b></span>}
+            </div>
+          )}
+
+          {/* CTA */}
+          <CTAButtons />
+
+          {/* Fav / Bm */}
+          <CoverActions />
+        </div>
+
+        {/* ── DESKTOP LAYOUT (≥ sm) ─────────────────── */}
+        <div className="hidden sm:grid gap-6" style={{ gridTemplateColumns: "160px 1fr" }}>
+          {/* Cover column */}
+          <div className="flex flex-col">
+            <div className="overflow-hidden rounded-[10px]"
+              style={{ width: "100%", aspectRatio: "2/3", border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", boxShadow: "0 8px 32px rgba(0,0,0,.6)" }}>
+              {coverSrc && <img src={coverSrc} alt={manhua.title} className="h-full w-full object-cover" />}
+            </div>
+            <CoverActions />
+          </div>
+
+          {/* Info column */}
+          <div className="flex flex-col gap-3.5 justify-center">
+            <div className="flex flex-wrap items-start gap-2">
+              <h1 className="text-[24px] sm:text-[28px] font-bold leading-tight flex-1 min-w-[160px]"
+                style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "#fff", letterSpacing: "-0.025em" }}>
+                {manhua.title}
+              </h1>
+              <span className="rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider self-start mt-1 shrink-0" style={statusStyle}>
+                {manhua.status}
+              </span>
             </div>
 
-            {/* CTA buttons */}
-            {chapters.length > 0 && latestChapter && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {/* Latest */}
-                <Link
-                  href={`/manhua/${manhua.slug}/chapter/${latestChapter.chapterNumber}`}
-                  className="inline-flex items-center rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow shadow-cyan-500/40 hover:from-cyan-400 hover:to-emerald-300"
-                >
-                  Read latest – Ch. {latestChapter.chapterNumber}
-                </Link>
+            <div className="flex flex-wrap items-center gap-3 text-[12px]" style={{ color: "var(--arc-dim)" }}>
+              {typeof manhua.ratingAverage === "number" && (
+                <span className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)"><polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" /></svg>
+                  <b style={{ color: "var(--arc-text)" }}>{manhua.ratingAverage.toFixed(1)}</b>
+                  <span style={{ color: "var(--arc-muted)" }}>/ 5</span>
+                </span>
+              )}
+              {manhua.views != null && (
+                <span className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                  <b style={{ color: "var(--arc-text)" }}>{manhua.views.toLocaleString()}</b>
+                </span>
+              )}
+              {totalChapters > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                  <b style={{ color: "var(--arc-text)" }}>{totalChapters}</b>
+                  <span style={{ color: "var(--arc-muted)" }}>chapters</span>
+                </span>
+              )}
+              {lastUpdate && <span style={{ color: "var(--arc-muted)" }}>Сүүлд: <span style={{ color: "var(--arc-dim)" }}>{lastUpdate}</span></span>}
+            </div>
 
-                {/* Start from beginning */}
-                {firstChapter && (
-                  <Link
-                    href={`/manhua/${manhua.slug}/chapter/${firstChapter.chapterNumber}`}
-                    className="inline-flex items-center rounded-full border border-slate-700/80 bg-slate-950/80 px-3 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-slate-900"
-                  >
-                    Start from beginning – Ch. {firstChapter.chapterNumber}
-                  </Link>
-                )}
+            {manhua.genres && manhua.genres.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {manhua.genres.map((g) => (
+                  <span key={g} className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+                    style={{ background: "rgba(255,255,255,.06)", border: "1px solid var(--arc-border)", color: "var(--arc-dim)" }}>
+                    {g}
+                  </span>
+                ))}
               </div>
             )}
+
+            {manhua.description && (
+              <p className="text-[13px] leading-relaxed line-clamp-3" style={{ color: "var(--arc-dim)", maxWidth: 600 }}>
+                {manhua.description}
+              </p>
+            )}
+
+            {(manhua.author || manhua.artist) && (
+              <div className="grid gap-1.5 text-[12px] sm:grid-cols-2" style={{ maxWidth: 360 }}>
+                {manhua.author && <p style={{ color: "var(--arc-muted)" }}>Автор: <b style={{ color: "var(--arc-text)" }}>{manhua.author}</b></p>}
+                {manhua.artist && <p style={{ color: "var(--arc-muted)" }}>Уран зурагч: <b style={{ color: "var(--arc-text)" }}>{manhua.artist}</b></p>}
+              </div>
+            )}
+
+            <CTAButtons />
           </div>
         </div>
+
       </div>
     </section>
   );

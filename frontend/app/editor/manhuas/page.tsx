@@ -7,6 +7,24 @@ import { editorGetMyManhuas, editorUpdateManhua, Manhua } from "@/lib/api";
 import EmptyState from "../components/EmptyState";
 import { TableSkeleton } from "../components/LoadingSkeleton";
 
+const statusStyle = (status?: string): React.CSSProperties => {
+  switch (status) {
+    case "ongoing": return { border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" };
+    case "completed": return { border: "1px solid oklch(0.75 0.17 145/.4)", background: "oklch(0.75 0.17 145/.08)", color: "oklch(0.8 0.14 145)" };
+    case "hiatus": return { border: "1px solid oklch(0.82 0.18 75/.4)", background: "oklch(0.82 0.18 75/.08)", color: "var(--arc-amber)" };
+    default: return { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-muted)" };
+  }
+};
+
+const prettyStatus = (status?: string) => {
+  switch (status) {
+    case "ongoing": return "Ongoing";
+    case "completed": return "Completed";
+    case "hiatus": return "Hiatus";
+    default: return "Unknown";
+  }
+};
+
 export default function EditorManhuasPage() {
   const [manhuas, setManhuas] = useState<Manhua[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +39,6 @@ export default function EditorManhuasPage() {
       setManhuas(Array.isArray(data) ? data : []);
       setError(null);
     } catch (e: any) {
-      console.error("[EditorManhuas] load error:", e);
       setError(e?.response?.data?.message || "Manhuas ачаалж чадсангүй");
       setManhuas([]);
     } finally {
@@ -29,87 +46,48 @@ export default function EditorManhuasPage() {
     }
   }
 
-  useEffect(() => {
-    loadManhuas();
-  }, []);
+  useEffect(() => { loadManhuas(); }, []);
 
   const handleToggleStatus = async (m: Manhua) => {
-    const newStatus =
-      m.status === "completed"
-        ? "ongoing"
-        : m.status === "ongoing"
-        ? "hiatus"
-        : "completed";
-
+    const newStatus = m.status === "completed" ? "ongoing" : m.status === "ongoing" ? "hiatus" : "completed";
     try {
       setTogglingId(m._id);
       await editorUpdateManhua(m._id, { status: newStatus });
       await loadManhuas();
     } catch (e: any) {
-      console.error("[EditorManhuas] toggle status error:", e);
       setError(e?.response?.data?.message || "Status солих үед алдаа гарлаа");
     } finally {
       setTogglingId(null);
     }
   };
 
-  const prettyStatus = (status?: string) => {
-    switch (status) {
-      case "ongoing":
-        return "Ongoing";
-      case "completed":
-        return "Completed";
-      case "hiatus":
-        return "Hiatus";
-      default:
-        return "Unknown";
-    }
-  };
-
-  const statusClasses = (status?: string) => {
-    switch (status) {
-      case "ongoing":
-        return "bg-emerald-500/12 text-emerald-200 border border-emerald-500/40";
-      case "completed":
-        return "bg-sky-500/12 text-sky-200 border border-sky-500/40";
-      case "hiatus":
-        return "bg-amber-500/12 text-amber-200 border border-amber-500/40";
-      default:
-        return "bg-slate-700/70 text-slate-200 border border-slate-600/70";
-    }
-  };
-
-  // Filter manhuas by search query
   const filteredManhuas = manhuas.filter((m) => {
     if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      m.title?.toLowerCase().includes(query) ||
-      m.titleEn?.toLowerCase().includes(query) ||
-      m.slug?.toLowerCase().includes(query) ||
-      m.genres?.some((g) => g.toLowerCase().includes(query))
-    );
+    const q = searchQuery.toLowerCase();
+    return m.title?.toLowerCase().includes(q) || m.titleEn?.toLowerCase().includes(q) ||
+      m.slug?.toLowerCase().includes(q) || m.genres?.some((g) => g.toLowerCase().includes(q));
   });
+
+  const btnBase: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-1">My Manhuas</h1>
-          <p className="text-xs sm:text-sm text-slate-400">
+          <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>My Manhuas</h1>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>
             Өөрийн нэмсэн манхуа-гаа жагсааж, статус, chapters болон public page-ээ удирдана.
           </p>
         </div>
         <Link
           href="/editor/manhuas/new"
-          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 transition whitespace-nowrap w-full sm:w-auto"
+          className="inline-flex items-center justify-center rounded-full px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80 whitespace-nowrap w-full sm:w-auto"
+          style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}
         >
           + New Manhua
         </Link>
       </div>
 
-      {/* Search */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <input
@@ -117,356 +95,167 @@ export default function EditorManhuasPage() {
             placeholder="Хайх (title, slug, genre)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 pl-10 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+            className="w-full rounded-[9px] px-4 py-2.5 pl-10 text-sm outline-none"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
           />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-            🔍
-          </span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--arc-muted)" }}>🔍</span>
         </div>
         {searchQuery && (
           <button
             onClick={() => setSearchQuery("")}
-            className="rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800"
+            className="rounded-[9px] px-4 py-2.5 text-sm transition-opacity hover:opacity-80"
+            style={btnBase}
           >
             Цэвэрлэх
           </button>
         )}
       </div>
 
-      {/* Error */}
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
           {error}
         </div>
       )}
 
-      {/* Content */}
       {loading ? (
         <TableSkeleton />
       ) : filteredManhuas.length === 0 ? (
         <EmptyState
           title={searchQuery ? "Хайлтын үр дүн олдсонгүй" : "Одоогоор манхуа алга"}
-          description={
-            searchQuery
-              ? "Өөр түлхүүр үгээр хайж үзнэ үү."
-              : "Эхний манхуа-аа үүсгэж эхлээрэй."
-          }
-          action={
-            !searchQuery
-              ? {
-                  label: "+ Эхний манхуа үүсгэх",
-                  href: "/editor/manhuas/new",
-                }
-              : undefined
-          }
+          description={searchQuery ? "Өөр түлхүүр үгээр хайж үзнэ үү." : "Эхний манхуа-аа үүсгэж эхлээрэй."}
+          action={!searchQuery ? { label: "+ Эхний манхуа үүсгэх", href: "/editor/manhuas/new" } : undefined}
           icon={searchQuery ? "🔍" : "📚"}
         />
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="hidden lg:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-black/40">
+          <div className="hidden lg:block overflow-hidden rounded-[14px]" style={{ border: "1px solid var(--arc-border)" }}>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-800">
-                <thead className="bg-slate-950/80">
+              <table className="min-w-full text-[12px]">
+                <thead style={{ background: "var(--arc-elevated)", borderBottom: "1px solid var(--arc-border)" }}>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                      Manhua
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                      Updated
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                      Genres
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400">
-                      Actions
-                    </th>
+                    {["Manhua", "Status", "Updated", "Genres", "Actions"].map((h, i) => (
+                      <th key={h} className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wide${i === 4 ? " text-right" : " text-left"}`} style={{ color: "var(--arc-muted)" }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/70 bg-slate-900/50">
+                <tbody>
                   {filteredManhuas.map((m) => {
-                  const updated =
-                    (m as any).updatedAt || (m as any).createdAt;
-                  const updatedStr = updated
-                    ? new Date(updated).toLocaleDateString("mn-MN", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })
-                    : "-";
+                    const updated = (m as any).updatedAt || (m as any).createdAt;
+                    const updatedStr = updated ? new Date(updated).toLocaleDateString() : "-";
+                    const publicUrl = `/manhua/${m.slug ?? m._id}`;
+                    const chaptersUrl = m.slug ? `/editor/manhuas/${m.slug}/chapters` : undefined;
+                    const editUrl = m.slug ? `/editor/manhuas/${m.slug}` : undefined;
 
-                  const publicUrl = `/manhua/${m.slug ?? m._id}`;
-                  const editorChaptersUrl = m.slug
-                    ? `/editor/manhuas/${m.slug}/chapters`
-                    : undefined;
-                  const editorEditUrl = m.slug
-                    ? `/editor/manhuas/${m.slug}`
-                    : undefined;
-
-                  return (
-                    <tr
-                      key={m._id}
-                      className="hover:bg-slate-900/80 transition-colors"
-                    >
-                      {/* Manhua Info */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          {/* Cover Thumbnail */}
-                          <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-                            {m.coverImage || (m as any).coverImageUrl ? (
-                              <img
-                                src={m.coverImage || (m as any).coverImageUrl}
-                                alt={m.title}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-slate-600">
-                                📚
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-100 truncate">
-                              {m.title}
-                            </p>
-                            {m.titleEn && (
-                              <p className="text-xs text-slate-400 truncate">
-                                {m.titleEn}
-                              </p>
-                            )}
-                            <p className="text-xs text-slate-500 mt-0.5 truncate">
-                              {m.slug ? (
-                                <>
-                                  <span className="font-mono">/manhua/{m.slug}</span>
-                                </>
+                    return (
+                      <tr key={m._id} style={{ borderTop: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded-[8px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+                              {m.coverImage || (m as any).coverImageUrl ? (
+                                <img src={m.coverImage || (m as any).coverImageUrl} alt={m.title} className="h-full w-full object-cover" />
                               ) : (
-                                <span className="font-mono text-slate-600">
-                                  ID: {m._id.slice(0, 8)}…
-                                </span>
+                                <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--arc-muted)" }}>📚</div>
                               )}
-                            </p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[12px] font-semibold truncate" style={{ color: "var(--arc-text)" }}>{m.title}</p>
+                              {m.titleEn && <p className="text-[10px] truncate" style={{ color: "var(--arc-muted)" }}>{m.titleEn}</p>}
+                              <p className="text-[10px] mt-0.5 truncate font-mono" style={{ color: "var(--arc-muted)" }}>
+                                {m.slug ? `/manhua/${m.slug}` : `ID: ${m._id.slice(0, 8)}…`}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium ${statusClasses(
-                            m.status
-                          )}`}
-                        >
-                          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current" />
-                          {prettyStatus(m.status)}
-                        </span>
-                      </td>
-
-                      {/* Updated */}
-                      <td className="px-4 py-4 text-xs text-slate-400">
-                        {updatedStr}
-                      </td>
-
-                      {/* Genres */}
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {m.genres && m.genres.length > 0 ? (
-                            m.genres.slice(0, 2).map((genre, idx) => (
-                              <span
-                                key={idx}
-                                className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300"
-                              >
-                                {genre}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-slate-600">-</span>
-                          )}
-                          {m.genres && m.genres.length > 2 && (
-                            <span className="text-xs text-slate-500">
-                              +{m.genres.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={publicUrl}
-                            target="_blank"
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[10px] font-medium text-slate-200 hover:bg-slate-800 transition"
-                          >
-                            View
-                          </Link>
-                          {editorEditUrl && (
-                            <Link
-                              href={editorEditUrl}
-                              className="rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-medium text-cyan-200 hover:bg-cyan-500/20 transition"
-                            >
-                              Edit
-                            </Link>
-                          )}
-                          {editorChaptersUrl ? (
-                            <Link
-                              href={editorChaptersUrl}
-                              className="rounded-lg border border-emerald-500/60 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-200 hover:bg-emerald-500/20 transition"
-                            >
-                              Chapters
-                            </Link>
-                          ) : (
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <span className="inline-flex rounded-full px-2.5 py-1 text-[10px]" style={statusStyle(m.status)}>
+                            {prettyStatus(m.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-top text-[11px]" style={{ color: "var(--arc-muted)" }}>{updatedStr}</td>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-wrap gap-1">
+                            {m.genres && m.genres.length > 0 ? (
+                              <>
+                                {m.genres.slice(0, 2).map((g, i) => (
+                                  <span key={i} className="rounded-full px-2 py-0.5 text-[10px]" style={{ background: "var(--arc-elevated)", color: "var(--arc-muted)", border: "1px solid var(--arc-border)" }}>{g}</span>
+                                ))}
+                                {m.genres.length > 2 && <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>+{m.genres.length - 2}</span>}
+                              </>
+                            ) : <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>-</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link href={publicUrl} target="_blank" className="rounded-full px-2.5 py-1 text-[10px] transition-opacity hover:opacity-80" style={btnBase}>View</Link>
+                            {editUrl && <Link href={editUrl} className="rounded-full px-2.5 py-1 text-[10px] transition-opacity hover:opacity-80" style={{ border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" }}>Edit</Link>}
+                            {chaptersUrl ? (
+                              <Link href={chaptersUrl} className="rounded-full px-2.5 py-1 text-[10px] transition-opacity hover:opacity-80" style={{ border: "1px solid oklch(0.75 0.17 145/.4)", background: "oklch(0.75 0.17 145/.08)", color: "oklch(0.8 0.14 145)" }}>Chapters</Link>
+                            ) : (
+                              <button disabled className="rounded-full px-2.5 py-1 text-[10px] opacity-40 cursor-not-allowed" style={btnBase}>No slug</button>
+                            )}
                             <button
-                              disabled
-                              className="rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1 text-[10px] text-slate-600 cursor-not-allowed"
+                              onClick={() => handleToggleStatus(m)}
+                              disabled={togglingId === m._id}
+                              className="rounded-full px-2.5 py-1 text-[10px] transition-opacity hover:opacity-80 disabled:opacity-50"
+                              style={{ border: "1px solid oklch(0.72 0.18 310/.4)", background: "oklch(0.72 0.18 310/.08)", color: "oklch(0.8 0.16 310)" }}
                             >
-                              No slug
+                              {togglingId === m._id ? "..." : "Cycle"}
                             </button>
-                          )}
-                          <button
-                            onClick={() => handleToggleStatus(m)}
-                            disabled={togglingId === m._id}
-                            className="rounded-lg border border-purple-500/60 bg-purple-500/10 px-2.5 py-1 text-[10px] font-medium text-purple-200 hover:bg-purple-500/20 disabled:opacity-60 transition"
-                          >
-                            {togglingId === m._id ? "..." : "Cycle"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
           {/* Mobile Cards */}
-          <div className="lg:hidden space-y-4">
+          <div className="lg:hidden space-y-3">
             {filteredManhuas.map((m) => {
-              const updated =
-                (m as any).updatedAt || (m as any).createdAt;
-              const updatedStr = updated
-                ? new Date(updated).toLocaleDateString("mn-MN", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })
-                : "-";
-
+              const updated = (m as any).updatedAt || (m as any).createdAt;
+              const updatedStr = updated ? new Date(updated).toLocaleDateString() : "-";
               const publicUrl = `/manhua/${m.slug ?? m._id}`;
-              const editorChaptersUrl = m.slug
-                ? `/editor/manhuas/${m.slug}/chapters`
-                : undefined;
-              const editorEditUrl = m.slug
-                ? `/editor/manhuas/${m.slug}`
-                : undefined;
+              const chaptersUrl = m.slug ? `/editor/manhuas/${m.slug}/chapters` : undefined;
+              const editUrl = m.slug ? `/editor/manhuas/${m.slug}` : undefined;
 
               return (
-                <div
-                  key={m._id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-lg shadow-black/40"
-                >
+                <div key={m._id} className="rounded-[14px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
                   <div className="flex gap-3 mb-3">
-                    <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
+                    <div className="relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-[8px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
                       {m.coverImage || (m as any).coverImageUrl ? (
-                        <img
-                          src={m.coverImage || (m as any).coverImageUrl}
-                          alt={m.title}
-                          className="h-full w-full object-cover"
-                        />
+                        <img src={m.coverImage || (m as any).coverImageUrl} alt={m.title} className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-slate-600">
-                          📚
-                        </div>
+                        <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--arc-muted)" }}>📚</div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-slate-100 truncate mb-1">
-                        {m.title}
-                      </h3>
-                      {m.titleEn && (
-                        <p className="text-xs text-slate-400 truncate mb-1">
-                          {m.titleEn}
-                        </p>
-                      )}
-                      <p className="text-xs text-slate-500 mb-2 truncate">
-                        {m.slug ? (
-                          <span className="font-mono">/manhua/{m.slug}</span>
-                        ) : (
-                          <span className="font-mono text-slate-600">
-                            ID: {m._id.slice(0, 8)}…
-                          </span>
-                        )}
+                      <h3 className="text-sm font-semibold truncate mb-1" style={{ color: "var(--arc-text)" }}>{m.title}</h3>
+                      {m.titleEn && <p className="text-xs truncate mb-1" style={{ color: "var(--arc-muted)" }}>{m.titleEn}</p>}
+                      <p className="text-[10px] mb-2 truncate font-mono" style={{ color: "var(--arc-muted)" }}>
+                        {m.slug ? `/manhua/${m.slug}` : `ID: ${m._id.slice(0, 8)}…`}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClasses(
-                            m.status
-                          )}`}
-                        >
-                          <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-current" />
-                          {prettyStatus(m.status)}
-                        </span>
-                        {m.genres && m.genres.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {m.genres.slice(0, 2).map((genre, idx) => (
-                              <span
-                                key={idx}
-                                className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-300"
-                              >
-                                {genre}
-                              </span>
-                            ))}
-                            {m.genres.length > 2 && (
-                              <span className="text-[9px] text-slate-500">
-                                +{m.genres.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-[10px]" style={statusStyle(m.status)}>{prettyStatus(m.status)}</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
+                  <div className="flex items-center justify-between text-[11px] mb-3" style={{ color: "var(--arc-muted)" }}>
                     <span>Updated: {updatedStr}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={publicUrl}
-                      target="_blank"
-                      className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition text-center"
-                    >
-                      View
-                    </Link>
-                    {editorEditUrl && (
-                      <Link
-                        href={editorEditUrl}
-                        className="flex-1 rounded-lg border border-cyan-500/60 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-200 hover:bg-cyan-500/20 transition text-center"
-                      >
-                        Edit
-                      </Link>
-                    )}
-                    {editorChaptersUrl ? (
-                      <Link
-                        href={editorChaptersUrl}
-                        className="flex-1 rounded-lg border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-200 hover:bg-emerald-500/20 transition text-center"
-                      >
-                        Chapters
-                      </Link>
+                    <Link href={publicUrl} target="_blank" className="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 text-center" style={btnBase}>View</Link>
+                    {editUrl && <Link href={editUrl} className="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 text-center" style={{ border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" }}>Edit</Link>}
+                    {chaptersUrl ? (
+                      <Link href={chaptersUrl} className="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 text-center" style={{ border: "1px solid oklch(0.75 0.17 145/.4)", background: "oklch(0.75 0.17 145/.08)", color: "oklch(0.8 0.14 145)" }}>Chapters</Link>
                     ) : (
-                      <button
-                        disabled
-                        className="flex-1 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-600 cursor-not-allowed"
-                      >
-                        No slug
-                      </button>
+                      <button disabled className="flex-1 rounded-full px-3 py-1.5 text-xs opacity-40 cursor-not-allowed text-center" style={btnBase}>No slug</button>
                     )}
                     <button
                       onClick={() => handleToggleStatus(m)}
                       disabled={togglingId === m._id}
-                      className="rounded-lg border border-purple-500/60 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-200 hover:bg-purple-500/20 disabled:opacity-60 transition"
+                      className="rounded-full px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                      style={{ border: "1px solid oklch(0.72 0.18 310/.4)", background: "oklch(0.72 0.18 310/.08)", color: "oklch(0.8 0.16 310)" }}
                     >
                       {togglingId === m._id ? "..." : "Cycle"}
                     </button>
@@ -478,20 +267,10 @@ export default function EditorManhuasPage() {
         </>
       )}
 
-      {/* Stats */}
       {!loading && manhuas.length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-xs text-slate-400">
-          Нийт <span className="font-semibold text-slate-200">{manhuas.length}</span> манхуа
-          {searchQuery && (
-            <>
-              {" "}
-              (хайлтын үр дүн:{" "}
-              <span className="font-semibold text-slate-200">
-                {filteredManhuas.length}
-              </span>
-              )
-            </>
-          )}
+        <div className="rounded-[9px] px-4 py-3 text-[11px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-muted)" }}>
+          Нийт <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{manhuas.length}</span> манхуа
+          {searchQuery && <> (хайлтын үр дүн: <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{filteredManhuas.length}</span>)</>}
         </div>
       )}
     </div>

@@ -5,120 +5,67 @@ import { AuditLog } from "@/lib/api";
 import LogDetails from "./LogDetails";
 import { safeFormatDate } from "../utils/dateFormatter";
 
-interface LogRowProps {
-  log: AuditLog;
-}
-
-const levelColors = {
-  INFO: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
-  WARN: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-  ERROR: "bg-red-500/20 text-red-300 border-red-500/40",
+const levelStyle = (level: string) => {
+  if (level === "WARN") return { border: "1px solid oklch(0.82 0.16 85/.4)", background: "oklch(0.82 0.16 85/.08)", color: "var(--arc-amber)" };
+  if (level === "ERROR") return { border: "1px solid oklch(0.65 0.22 15/.4)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" };
+  return { border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" };
 };
 
-export default function LogRow({ log }: LogRowProps) {
+export default function LogRow({ log }: { log: AuditLog }) {
   const [expanded, setExpanded] = useState(false);
   const level = log.level || "INFO";
-  const levelColor = levelColors[level] || levelColors.INFO;
-
-  // Use canonical time field with fallback
   const timeValue = log.time || log.ts;
   const dateInfo = safeFormatDate(timeValue);
 
   return (
     <>
-      <tr
-        onClick={() => setExpanded(!expanded)}
-        className="border-t border-slate-800/80 hover:bg-slate-900/70 transition cursor-pointer"
-      >
-        {/* Level */}
+      <tr onClick={() => setExpanded(!expanded)} className="transition cursor-pointer" style={{ borderTop: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
         <td className="px-4 py-3">
-          <span
-            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${levelColor}`}
-          >
-            {level}
-          </span>
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold" style={levelStyle(level)}>{level}</span>
         </td>
-
-        {/* Time */}
-        <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">
+        <td className="px-4 py-3 whitespace-nowrap">
           <div className="flex flex-col">
-            <span>{dateInfo.relative}</span>
+            <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{dateInfo.relative}</span>
             {dateInfo.isValid && (
-              <span className="text-[10px] text-slate-600" title={dateInfo.exact}>
-                {new Date(timeValue!).toLocaleTimeString("mn-MN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+              <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>
+                {new Date(timeValue!).toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })}
               </span>
             )}
           </div>
         </td>
-
-        {/* Category/Action */}
-        <td className="px-4 py-3 text-xs">
+        <td className="px-4 py-3">
           <div className="flex flex-col gap-0.5">
-            <span className="text-slate-300 font-medium">{log.category}</span>
-            <span className="text-slate-500 text-[10px]">{log.action}</span>
+            <span className="text-[11px] font-medium" style={{ color: "var(--arc-dim)" }}>{log.category}</span>
+            <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>{log.action}</span>
           </div>
         </td>
-
-        {/* Message */}
-        <td className="px-4 py-3 text-xs">
-          <div className="line-clamp-2 text-slate-100 max-w-md">
-            {log.message}
-          </div>
+        <td className="px-4 py-3">
+          <div className="line-clamp-2 text-[12px] max-w-md" style={{ color: "var(--arc-text)" }}>{log.message}</div>
         </td>
-
-        {/* Actor */}
-        <td className="px-4 py-3 text-xs">
+        <td className="px-4 py-3">
           {log.user ? (
             <div className="flex flex-col">
-              <span className="text-slate-100">{log.user.username || "-"}</span>
-              <span className="text-slate-500 text-[10px]">{log.user.role || "-"}</span>
+              <span className="text-[11px]" style={{ color: "var(--arc-dim)" }}>{log.user.username || "-"}</span>
+              <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>{log.user.role || "-"}</span>
             </div>
-          ) : (
-            <span className="text-slate-600">-</span>
-          )}
+          ) : <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>-</span>}
         </td>
-
-        {/* IP/Path */}
-        <td className="px-4 py-3 text-xs text-slate-400">
+        <td className="px-4 py-3">
           <div className="flex flex-col gap-0.5">
-            {log.ip && (
-              <span className="font-mono text-[10px]" title={log.ip}>
-                {log.ip === "::1" ? "localhost" : log.ip}
-              </span>
-            )}
-            {log.path && (
-              <span className="text-[10px] text-slate-600 truncate max-w-[120px]" title={log.path}>
-                {log.method} {log.path.split("?")[0]}
-              </span>
-            )}
+            {log.ip && <span className="font-mono text-[10px]" style={{ color: "var(--arc-muted)" }}>{log.ip === "::1" ? "localhost" : log.ip}</span>}
+            {log.path && <span className="text-[10px] truncate max-w-[120px]" style={{ color: "var(--arc-muted)" }} title={log.path}>{log.method} {log.path.split("?")[0]}</span>}
           </div>
         </td>
-
-        {/* Expand Indicator */}
         <td className="px-4 py-3 text-center">
-          <svg
-            className={`h-4 w-4 text-slate-500 transition-transform ${expanded ? "rotate-180" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
+          <svg className={`h-4 w-4 transition-transform mx-auto ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: "var(--arc-muted)" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </td>
       </tr>
 
-      {/* Expanded Details */}
       {expanded && (
         <tr>
-          <td colSpan={7} className="px-4 py-4 bg-slate-900/50 border-t border-slate-800">
+          <td colSpan={7} className="px-4 py-4" style={{ borderTop: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
             <LogDetails log={log} />
           </td>
         </tr>

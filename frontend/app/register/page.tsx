@@ -79,88 +79,125 @@ export default function RegisterPage() {
     }
   };
 
+  const fieldStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 14px",
+    background: "var(--arc-elevated)",
+    border: "1px solid var(--arc-border)",
+    borderRadius: "var(--arc-radius)",
+    color: "var(--arc-text)",
+    fontSize: 13,
+    outline: "none",
+  };
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] w-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8">
-      <div className="mx-auto flex h-full max-w-md items-center justify-center">
-        <div className="w-full rounded-2xl bg-slate-900/80 p-6 shadow-xl shadow-cyan-500/10 ring-1 ring-slate-700/70">
-          {/* Толгой хэсэг */}
-          <div className="mb-4 text-center">
-            <h1 className="text-2xl font-semibold text-white">
-              Бүртгэл үүсгэх
-            </h1>
-            <p className="mt-1 text-sm text-slate-400">
-              Шинэ аккаунт үүсгээд манхуа унших эрхээ идэвхжүүлээрэй ✨
-            </p>
+    <div
+      className="flex min-h-[70vh] items-center justify-center px-4 py-8"
+      style={{
+        background:
+          "radial-gradient(ellipse 60% 50% at 20% 30%,oklch(0.72 0.17 195/.06),transparent), radial-gradient(ellipse 50% 40% at 80% 70%,oklch(0.65 0.22 15/.06),transparent)",
+      }}
+    >
+      <div
+        className="w-full max-w-sm p-8 shadow-2xl"
+        style={{
+          borderRadius: 20,
+          border: "1px solid var(--arc-border)",
+          background: "var(--arc-card)",
+          color: "var(--arc-text)",
+        }}
+      >
+        {/* LOGO */}
+        <div className="flex items-center justify-center gap-2 mb-7">
+          <div
+            className="flex items-center justify-center rounded-[10px]"
+            style={{ width: 38, height: 38, background: "var(--arc-elevated)", border: "1px solid var(--arc-border)" }}
+          >
+            <svg viewBox="0 0 48 48" width="22" height="22" fill="none">
+              <path d="M8 28 C14 14 34 14 40 28" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M16 34 C20 30 28 30 32 34" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="24" cy="12" r="3" fill="var(--arc-rose)" />
+            </svg>
+          </div>
+          <span
+            className="text-[19px] font-bold tracking-tight"
+            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
+          >
+            ARC<span style={{ color: "var(--arc-rose)" }}>•</span>READ
+          </span>
+        </div>
+
+        <h1
+          className="text-[20px] font-bold text-white text-center mb-1"
+          style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)" }}
+        >
+          Бүртгэл үүсгэх
+        </h1>
+        <p className="text-[12px] text-center mb-6" style={{ color: "var(--arc-muted)" }}>
+          Шинэ аккаунт үүсгээд манхуа унших эрхээ идэвхжүүлээрэй
+        </p>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <label className="block text-[12px] font-medium" style={{ color: "var(--arc-dim)" }}>Username</label>
+            <input
+              style={fieldStyle}
+              placeholder="Жишээ нь: manhua_lover"
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+            />
           </div>
 
-          <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-            {/* Username */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-300">
-                Username
-              </label>
-              <input
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
-                placeholder="Жишээ нь: manhua_lover"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-              />
-            </div>
-
-            {/* Email */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-300">
-                Email
-              </label>
-              <input
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
-                placeholder="example@mail.com"
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-slate-300">
-                Password
-              </label>
-              <input
-                type="password"
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-              <p className="text-xs text-slate-500">
-                Хамгийн багадаа 8 тэмдэгт байх ёстой.
-              </p>
-            </div>
-
-            {/* Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 flex w-full items-center justify-center rounded-lg bg-cyan-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {loading ? "Түр хүлээнэ үү..." : "Бүртгүүлэх"}
-            </button>
-          </form>
-
-          {/* Доод текст */}
-          <div className="mt-4 text-center text-xs text-slate-400">
-            <p>
-              Бүртгэлтэй юу?{" "}
-              <button
-                type="button"
-                onClick={() => router.push("/login")}
-                className="font-medium text-cyan-400 hover:text-cyan-300"
-              >
-                Нэвтрэх
-              </button>
-            </p>
+          <div className="space-y-1.5">
+            <label className="block text-[12px] font-medium" style={{ color: "var(--arc-dim)" }}>Email</label>
+            <input
+              type="email"
+              style={fieldStyle}
+              placeholder="example@mail.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
           </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-[12px] font-medium" style={{ color: "var(--arc-dim)" }}>Нууц үг</label>
+            <input
+              type="password"
+              style={fieldStyle}
+              placeholder="••••••••"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+            <p className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Хамгийн багадаа 8 тэмдэгт байх ёстой.</p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-[10px] py-3 text-[14px] font-bold transition-all disabled:opacity-50"
+            style={{
+              fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
+              background: loading ? "var(--arc-elevated)" : "var(--arc-cyan)",
+              color: loading ? "var(--arc-muted)" : "#07070e",
+              boxShadow: loading ? "none" : "0 0 22px var(--arc-cyan-glow)",
+              border: "none",
+              cursor: loading ? "default" : "pointer",
+            }}
+          >
+            {loading ? "Түр хүлээнэ үү..." : "Бүртгүүлэх"}
+          </button>
+        </form>
+
+        <div className="mt-5 text-center text-[12px]" style={{ color: "var(--arc-muted)" }}>
+          Бүртгэлтэй юу?{" "}
+          <button
+            type="button"
+            onClick={() => router.push("/login")}
+            className="font-medium"
+            style={{ color: "var(--arc-cyan)", background: "none", border: "none", cursor: "pointer" }}
+          >
+            Нэвтрэх
+          </button>
         </div>
       </div>
     </div>

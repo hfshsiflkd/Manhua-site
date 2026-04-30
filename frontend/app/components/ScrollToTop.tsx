@@ -7,8 +7,7 @@ export default function ScrollToTop() {
   const [show, setShow] = useState(false);
   const pathname = usePathname();
 
-  const isReading =
-    pathname?.includes("/manhua/") && pathname?.includes("/chapter/");
+  const isReading = pathname?.includes("/manhua/") && pathname?.includes("/chapter/");
 
   useEffect(() => {
     const onScroll = () => setShow(window.scrollY > 400);
@@ -17,21 +16,31 @@ export default function ScrollToTop() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const goTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-
   if (!show) return null;
 
   return (
     <button
-      onClick={goTop}
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="Scroll to top"
-      className={[
-        "fixed bottom-5 right-5 z-[60] h-11 w-11 rounded-full",
-        "border border-slate-700/70 bg-slate-950/85 backdrop-blur text-slate-100",
-        "shadow-lg shadow-black/40 transition active:scale-95",
-        "hover:border-cyan-400 hover:text-cyan-200 hover:bg-slate-900",
-        isReading ? "opacity-40 hover:opacity-80" : "opacity-100",
-      ].join(" ")}
+      className="fixed bottom-5 right-5 z-[60] h-11 w-11 rounded-full flex items-center justify-center transition-all active:scale-95"
+      style={{
+        border: "1px solid var(--arc-border)",
+        background: "var(--arc-card)",
+        backdropFilter: "blur(12px)",
+        color: "var(--arc-dim)",
+        opacity: isReading ? 0.4 : 1,
+        boxShadow: "0 4px 16px rgba(0,0,0,.4)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-cyan)";
+        (e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)";
+        (e.currentTarget as HTMLElement).style.opacity = "1";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)";
+        (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)";
+        (e.currentTarget as HTMLElement).style.opacity = isReading ? "0.4" : "1";
+      }}
     >
       <span className="text-lg leading-none">↑</span>
     </button>

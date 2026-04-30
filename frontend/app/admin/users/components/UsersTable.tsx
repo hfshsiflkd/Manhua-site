@@ -2,44 +2,40 @@
 
 import { AdminUser } from "@/lib/adminUsers";
 
-function vipLabel(user: AdminUser) {
-  if (!user.vipExpiresAt) return "No VIP";
+const AVATAR_GRADIENTS = [
+  ["linear-gradient(135deg,oklch(0.72 0.17 195),oklch(0.65 0.22 15))", "#fff"],
+  ["linear-gradient(135deg,oklch(0.65 0.2 290),oklch(0.72 0.17 195))", "#fff"],
+  ["linear-gradient(135deg,oklch(0.82 0.16 85),oklch(0.65 0.22 15))", "#07070e"],
+  ["linear-gradient(135deg,oklch(0.72 0.17 155),oklch(0.72 0.17 195))", "#07070e"],
+];
+
+function vipStatus(user: AdminUser) {
+  if (!user.vipExpiresAt) return null;
   const exp = new Date(user.vipExpiresAt);
-  return exp > new Date()
-    ? `VIP until ${exp.toLocaleDateString()}`
-    : "VIP expired";
+  if (exp <= new Date()) return null;
+  const days = Math.ceil((exp.getTime() - Date.now()) / 86400000);
+  return `VIP · ${days}д`;
 }
 
-function lockLabel(user: AdminUser) {
-  if (!user.lockUntil) return { locked: false, label: "—" };
+function lockStatus(user: AdminUser) {
+  if (!user.lockUntil) return null;
   const lockDate = new Date(user.lockUntil);
-  const now = new Date();
-  if (lockDate <= now) return { locked: false, label: "—" };
-
-  const diffMs = lockDate.getTime() - now.getTime();
-  const diffMin = Math.ceil(diffMs / (1000 * 60));
+  if (lockDate <= new Date()) return null;
+  const diffMin = Math.ceil((lockDate.getTime() - Date.now()) / 60000);
   const diffHr = Math.floor(diffMin / 60);
   const remMin = diffMin % 60;
-  const left = diffHr > 0 ? `${diffHr}h ${remMin}m` : `${diffMin}m`;
-
-  return {
-    locked: true,
-    label: `${user.lockReason || "Locked"} (${left} left)`,
-    until: lockDate,
-  };
+  return diffHr > 0 ? `${diffHr}h ${remMin}m` : `${diffMin}m`;
 }
 
-export default function UsersTable({
-  users,
-  loading,
-  onSelect,
-  onBlock,
-  onUnblock,
-  onLock,
-  onUnlock,
-  onForceLogout,
-  onResetPassword,
-}: {
+const actBtn: React.CSSProperties = {
+  padding: "3px 9px", borderRadius: 6,
+  border: "1px solid var(--arc-border)", background: "transparent",
+  color: "var(--arc-dim)", fontSize: 10, cursor: "pointer",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+  transition: "color .12s, border-color .12s",
+};
+
+export default function UsersTable({ users, loading, onSelect, onBlock, onUnblock, onLock, onUnlock, onForceLogout, onResetPassword }: {
   users: AdminUser[];
   loading: boolean;
   onSelect: (u: AdminUser) => void;
@@ -50,275 +46,196 @@ export default function UsersTable({
   onForceLogout: (u: AdminUser) => void;
   onResetPassword: (u: AdminUser) => void;
 }) {
-  // Mobile card view
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-slate-400 text-sm">
-        Loading users...
+      <div className="space-y-2">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-14 animate-pulse rounded-[10px]" style={{ background: "var(--arc-elevated)" }} />
+        ))}
       </div>
     );
   }
 
   if (users.length === 0) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center text-slate-500 text-sm">
-        No users found
+      <div className="py-12 text-center text-[13px] rounded-[14px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-muted)" }}>
+        Хэрэглэгч олдсонгүй
       </div>
     );
   }
 
   return (
-    <>
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
-        {users.map((user) => {
-          const lock = lockLabel(user);
-          return (
-            <div
-              key={user._id}
-              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <button
-                    onClick={() => onSelect(user)}
-                    className="text-left text-sm font-semibold text-slate-100 hover:underline truncate block w-full"
-                  >
-                    {user.username}
-                  </button>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">
-                    {user.email}
-                  </p>
-                  {user.phone && (
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      {user.phone}
-                    </p>
-                  )}
-                </div>
-                <span className="text-xs rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-slate-200 ml-2 flex-shrink-0">
-                  {user.role}
-                </span>
-              </div>
+    <div className="overflow-hidden rounded-[14px]" style={{ border: "1px solid var(--arc-border)" }}>
+      <div className="overflow-x-auto">
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead style={{ background: "rgba(0,0,0,.2)", borderBottom: "1px solid var(--arc-border)" }}>
+            <tr>
+              {["Хэрэглэгч", "Role", "VIP", "Статус", "Бүртгүүлсэн", ""].map((h, i) => (
+                <th key={i} style={{
+                  padding: "9px 16px", textAlign: i === 5 ? "right" : "left",
+                  fontSize: 10, fontWeight: 600, letterSpacing: "0.06em",
+                  textTransform: "uppercase", color: "var(--arc-muted)",
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user) => {
+              const grad = AVATAR_GRADIENTS[user.username.charCodeAt(0) % AVATAR_GRADIENTS.length];
+              const initial = user.username.charAt(0).toUpperCase();
+              const vip = vipStatus(user);
+              const lock = lockStatus(user);
 
-              <div className="flex flex-wrap gap-2 text-xs">
-                <span
-                  className={`px-2 py-0.5 rounded-full ${
-                    user.blocked
-                      ? "bg-rose-500/10 text-rose-300 border border-rose-500/30"
-                      : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
-                  }`}
+              return (
+                <tr
+                  key={user._id}
+                  style={{ borderTop: "1px solid var(--arc-border)" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.02)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ""; }}
                 >
-                  {user.blocked ? "Blocked" : "Active"}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                  {vipLabel(user)}
-                </span>
-                {lock.locked && (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/30">
-                    🔒 {lock.label}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
-                <button
-                  onClick={() => onSelect(user)}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-slate-100 hover:bg-slate-700"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => onResetPassword(user)}
-                  className="flex-1 rounded-lg border border-amber-500/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 hover:bg-amber-500/20"
-                >
-                  Reset PW
-                </button>
-                {lock.locked ? (
-                  <button
-                    onClick={() => onUnlock(user)}
-                    className="flex-1 rounded-lg border border-rose-500/70 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 hover:bg-rose-500/20"
-                  >
-                    Unlock
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => onLock(user)}
-                    className="flex-1 rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700"
-                  >
-                    Lock
-                  </button>
-                )}
-                {user.blocked ? (
-                  <button
-                    onClick={() => onUnblock(user)}
-                    className="flex-1 rounded-lg border border-emerald-500/70 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100 hover:bg-emerald-500/20"
-                  >
-                    Unblock
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => onBlock(user)}
-                    className="flex-1 rounded-lg border border-rose-500/70 bg-rose-500/10 px-3 py-2 text-xs text-rose-100 hover:bg-rose-500/20"
-                  >
-                    Block
-                  </button>
-                )}
-                <button
-                  onClick={() => onForceLogout(user)}
-                  className="flex-1 rounded-lg border border-cyan-500/70 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-500/20"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Desktop Table View */}
-      <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur shadow-xl shadow-black/40">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-900/90 border-b border-slate-800">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                  User
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                  Role
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                  VIP
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                  Blocked
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400">
-                  Locked
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 hidden md:table-cell">
-                  Created
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => {
-                const lock = lockLabel(user);
-                return (
-                  <tr
-                    key={user._id}
-                    className="border-t border-slate-800/80 hover:bg-slate-900/70 transition"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
+                  {/* User */}
+                  <td style={{ padding: "10px 16px" }}>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="shrink-0 flex items-center justify-center text-[12px] font-bold"
+                        style={{
+                          width: 32, height: 32, borderRadius: 8,
+                          background: grad[0], color: grad[1],
+                          fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
+                        }}
+                      >
+                        {initial}
+                      </div>
+                      <div className="min-w-0">
                         <button
-                          className="text-left text-sm font-semibold text-slate-100 hover:underline"
                           onClick={() => onSelect(user)}
+                          className="block font-semibold text-[12px] truncate transition-colors hover:underline text-left"
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--arc-text)", maxWidth: 160, padding: 0 }}
                         >
                           {user.username}
                         </button>
-                        <span className="text-xs text-slate-400">
+                        <div className="text-[10px] truncate mt-0.5" style={{ color: "var(--arc-muted)", maxWidth: 160 }}>
                           {user.email}
-                        </span>
-                        {user.phone && (
-                          <span className="text-[11px] text-slate-500">
-                            {user.phone}
-                          </span>
-                        )}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-slate-200">
-                        {user.role}
+                    </div>
+                  </td>
+
+                  {/* Role */}
+                  <td style={{ padding: "10px 16px" }}>
+                    <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: "var(--arc-elevated)", border: "1px solid var(--arc-border)", color: "var(--arc-dim)" }}>
+                      {user.role || "user"}
+                    </span>
+                  </td>
+
+                  {/* VIP */}
+                  <td style={{ padding: "10px 16px" }}>
+                    {vip ? (
+                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: "oklch(0.82 0.16 85/.1)", border: "1px solid oklch(0.82 0.16 85/.3)", color: "var(--arc-amber)" }}>
+                        ⭐ {vip}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs text-slate-300">
-                        {vipLabel(user)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
+                    ) : (
+                      <span style={{ fontSize: 11, color: "var(--arc-muted)" }}>—</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td style={{ padding: "10px 16px" }}>
+                    <div className="flex flex-col gap-1">
                       {user.blocked ? (
-                        <span className="text-xs text-rose-300">Blocked</span>
+                        <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, display: "inline-block", background: "oklch(0.65 0.22 15/.1)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "var(--arc-rose)" }}>
+                          🚫 Blocked
+                        </span>
+                      ) : lock ? (
+                        <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, display: "inline-block", background: "oklch(0.82 0.16 85/.08)", border: "1px solid oklch(0.82 0.16 85/.2)", color: "var(--arc-amber)" }}>
+                          🔒 {lock}
+                        </span>
                       ) : (
-                        <span className="text-xs text-emerald-300">Active</span>
+                        <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, display: "inline-block", background: "oklch(0.72 0.17 155/.1)", border: "1px solid oklch(0.72 0.17 155/.3)", color: "oklch(0.8 0.14 155)" }}>
+                          ✓ Active
+                        </span>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {lock.locked ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-rose-300">
-                            {lock.label}
-                          </span>
-                          <button
-                            onClick={() => onUnlock(user)}
-                            className="rounded-full border border-rose-500/60 bg-rose-500/10 px-2 py-0.5 text-[10px] text-rose-200 hover:bg-rose-500/20"
-                          >
-                            Unlock
-                          </button>
-                        </div>
+                    </div>
+                  </td>
+
+                  {/* Date */}
+                  <td style={{ padding: "10px 16px", fontSize: 11, color: "var(--arc-muted)" }}>
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString("mn-MN") : "—"}
+                  </td>
+
+                  {/* Actions */}
+                  <td style={{ padding: "10px 16px" }}>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => onSelect(user)}
+                        style={actBtn}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; }}
+                      >
+                        Дэлгэрэнгүй
+                      </button>
+                      <button
+                        onClick={() => onResetPassword(user)}
+                        style={{ ...actBtn, borderColor: "oklch(0.82 0.16 85/.3)", color: "var(--arc-amber)", background: "oklch(0.82 0.16 85/.08)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.82 0.16 85/.15)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.82 0.16 85/.08)"; }}
+                      >
+                        PW reset
+                      </button>
+                      <button
+                        onClick={() => onForceLogout(user)}
+                        style={{ ...actBtn, borderColor: "oklch(0.72 0.17 195/.3)", color: "var(--arc-cyan)", background: "oklch(0.72 0.17 195/.08)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.72 0.17 195/.15)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.72 0.17 195/.08)"; }}
+                      >
+                        Logout
+                      </button>
+                      {lock ? (
+                        <button
+                          onClick={() => onUnlock(user)}
+                          style={{ ...actBtn, borderColor: "oklch(0.72 0.17 155/.3)", color: "oklch(0.8 0.14 155)", background: "oklch(0.72 0.17 155/.08)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.72 0.17 155/.15)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.72 0.17 155/.08)"; }}
+                        >
+                          Unlock
+                        </button>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">—</span>
-                          <button
-                            onClick={() => onLock(user)}
-                            className="rounded-full border border-slate-600 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 hover:bg-slate-700"
-                          >
-                            Lock
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => onLock(user)}
+                          style={actBtn}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-text)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,.13)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--arc-dim)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)"; }}
+                        >
+                          Lock
+                        </button>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-400 hidden md:table-cell">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap justify-end gap-2 text-[11px]">
+                      {user.blocked ? (
                         <button
-                          onClick={() => onSelect(user)}
-                          className="rounded-full border border-slate-700 px-3 py-1 text-slate-100 hover:bg-slate-800"
+                          onClick={() => onUnblock(user)}
+                          style={{ ...actBtn, borderColor: "oklch(0.72 0.17 155/.3)", color: "oklch(0.8 0.14 155)", background: "oklch(0.72 0.17 155/.08)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.72 0.17 155/.15)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.72 0.17 155/.08)"; }}
                         >
-                          View / Edit
+                          Unblock
                         </button>
+                      ) : (
                         <button
-                          onClick={() => onResetPassword(user)}
-                          className="rounded-full border border-amber-500/70 text-amber-100 px-3 py-1 hover:bg-amber-500/10"
+                          onClick={() => onBlock(user)}
+                          style={{ ...actBtn, borderColor: "oklch(0.65 0.22 15/.3)", color: "var(--arc-rose)", background: "oklch(0.65 0.22 15/.08)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.65 0.22 15/.15)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "oklch(0.65 0.22 15/.08)"; }}
                         >
-                          Reset PW
+                          Block
                         </button>
-                        <button
-                          onClick={() => onForceLogout(user)}
-                          className="rounded-full border border-cyan-500/70 text-cyan-100 px-3 py-1 hover:bg-cyan-500/10"
-                        >
-                          Force logout
-                        </button>
-                        {user.blocked ? (
-                          <button
-                            onClick={() => onUnblock(user)}
-                            className="rounded-full border border-emerald-500/70 text-emerald-100 px-3 py-1 hover:bg-emerald-500/10"
-                          >
-                            Unblock
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => onBlock(user)}
-                            className="rounded-full border border-rose-500/70 text-rose-100 px-3 py-1 hover:bg-rose-500/10"
-                          >
-                            Block
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-    </>
+    </div>
   );
 }

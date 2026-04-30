@@ -4,17 +4,15 @@ import { useState } from "react";
 import { submitFeedback, type FeedbackType } from "@/lib/feedback";
 
 const typeOptions: Array<{ value: FeedbackType; label: string; hint: string }> = [
-  {
-    value: "suggestion_request",
-    label: "Санал / Хүсэлт",
-    hint: "Шинэ боломж, сайжруулалт, контентын хүсэлт гэх мэт.",
-  },
-  {
-    value: "complaint",
-    label: "Гомдол / Алдаа мэдэгдэх",
-    hint: "Сайт дээрх асуудал, алдаа, эвдрэл, буруу ажиллаж буй хэсэг.",
-  },
+  { value: "suggestion_request", label: "Санал / Хүсэлт", hint: "Шинэ боломж, сайжруулалт, контентын хүсэлт гэх мэт." },
+  { value: "complaint", label: "Гомдол / Алдаа мэдэгдэх", hint: "Сайт дээрх асуудал, алдаа, эвдрэл, буруу ажиллаж буй хэсэг." },
 ];
+
+const fieldStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "9px 14px", fontSize: 13,
+  color: "var(--arc-text)", outline: "none",
+};
 
 export default function FeedbackPage() {
   const [type, setType] = useState<FeedbackType>("suggestion_request");
@@ -29,42 +27,37 @@ export default function FeedbackPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
-    setOk(null);
-    setBusy(true);
+    setErr(null); setOk(null); setBusy(true);
     try {
-      await submitFeedback({
-        name: name.trim(),
-        type,
-        description: description.trim(),
-        image,
-      });
+      await submitFeedback({ name: name.trim(), type, description: description.trim(), image });
       setOk("Амжилттай илгээлээ. Баярлалаа!");
-      setName("");
-      setDescription("");
-      setImage(null);
+      setName(""); setDescription(""); setImage(null);
     } catch (e: any) {
       setErr(e?.response?.data?.message || "Илгээж чадсангүй. Дахин оролдоно уу.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="relative overflow-hidden border-b border-slate-800 bg-gradient-to-br from-slate-950 via-cyan-950/20 to-slate-950">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(34,211,238,0.10),transparent_55%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_30%,rgba(99,102,241,0.10),transparent_55%)]" />
+    <div className="min-h-screen" style={{ background: "var(--arc-bg)" }}>
+      {/* Hero */}
+      <div className="relative overflow-hidden" style={{ borderBottom: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 25% 20%,oklch(0.72 0.17 195/.08),transparent 55%)" }} />
+        <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(circle at 80% 30%,oklch(0.65 0.22 15/.06),transparent 55%)" }} />
         <div className="relative mx-auto w-full max-w-4xl px-4 py-14 text-center sm:px-6">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-[11px] font-semibold text-slate-300">
+          <div
+            className="mx-auto inline-flex items-center gap-2 text-[11px] font-semibold mb-4"
+            style={{ borderRadius: 99, border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", padding: "4px 12px", color: "var(--arc-dim)" }}
+          >
             ✉️ Санал хүсэлт
           </div>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-50 sm:text-4xl">
+          <h1
+            className="text-[30px] sm:text-[38px] font-extrabold tracking-tight"
+            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)", letterSpacing: "-0.025em" }}
+          >
             Санал, хүсэлт, гомдол илгээх
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-300">
-            Сайтыг сайжруулах санал, шинэ боломжийн хүсэлт, эсвэл асуудал/алдааг
-            зурагтай нь илгээнэ үү.
+          <p className="mx-auto mt-3 max-w-2xl text-[13px]" style={{ color: "var(--arc-dim)" }}>
+            Сайтыг сайжруулах санал, шинэ боломжийн хүсэлт, эсвэл асуудал/алдааг зурагтай нь илгээнэ үү.
           </p>
         </div>
       </div>
@@ -74,78 +67,64 @@ export default function FeedbackPage() {
           <div className="lg:col-span-3">
             <form
               onSubmit={onSubmit}
-              className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 shadow-lg shadow-black/30"
+              className="rounded-[14px] p-5"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
             >
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-400">Таны нэр</label>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    maxLength={120}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-                    placeholder="Нэр"
-                  />
+                  <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Таны нэр</label>
+                  <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} style={fieldStyle} placeholder="Нэр" />
                 </div>
-
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-400">Төрөл</label>
+                  <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Төрөл</label>
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as FeedbackType)}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                    style={{ ...fieldStyle, appearance: "none" }}
                   >
-                    {typeOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
+                    {typeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
-                  <div className="text-[11px] text-slate-500">{selected.hint}</div>
+                  <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{selected.hint}</div>
                 </div>
               </div>
 
               <div className="mt-4 space-y-1">
-                <label className="text-xs text-slate-400">Дэлгэрэнгүй тайлбар</label>
+                <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Дэлгэрэнгүй тайлбар</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  required
-                  maxLength={5000}
-                  rows={6}
-                  className="w-full resize-none rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                  required maxLength={5000} rows={6}
+                  style={{ ...fieldStyle, resize: "vertical" }}
                   placeholder="Юу болсон, хаана, хэрхэн давтагдаж байна гэх мэт…"
                 />
               </div>
 
               <div className="mt-4 space-y-1">
-                <label className="text-xs text-slate-400">Зураг хавсаргах (сонголтоор)</label>
+                <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Зураг хавсаргах (сонголтоор)</label>
                 <input
-                  type="file"
-                  accept="image/*"
+                  type="file" accept="image/*"
                   onChange={(e) => setImage(e.target.files?.[0] || null)}
-                  className="block w-full text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-cyan-500/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-cyan-200 hover:file:bg-cyan-500/25"
+                  className="block w-full text-[12px] file:mr-3 file:rounded-full file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold"
+                  style={{ color: "var(--arc-dim)" }}
                 />
-                <div className="text-[11px] text-slate-500">
-                  Screenshot эсвэл алдааны зургийг оруулбал хурдан шийдэхэд тус болно.
-                </div>
+                <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Screenshot эсвэл алдааны зургийг оруулбал хурдан шийдэхэд тус болно.</div>
               </div>
 
               {err && (
-                <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                <div className="mt-4 rounded-[10px] px-3 py-2 text-[12px]" style={{ background: "oklch(0.65 0.22 15/.08)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "oklch(0.85 0.12 15)" }}>
                   {err}
                 </div>
               )}
               {ok && (
-                <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                <div className="mt-4 rounded-[10px] px-3 py-2 text-[12px]" style={{ background: "oklch(0.75 0.16 145/.08)", border: "1px solid oklch(0.75 0.16 145/.35)", color: "oklch(0.8 0.14 145)" }}>
                   {ok}
                 </div>
               )}
 
               <button
                 disabled={busy}
-                className="mt-4 w-full rounded-full bg-gradient-to-r from-cyan-400 to-indigo-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-cyan-500/20 disabled:opacity-60"
+                className="mt-4 w-full rounded-[9px] px-4 py-2.5 text-[13px] font-bold transition-all hover:brightness-110 disabled:opacity-60"
+                style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
               >
                 {busy ? "Илгээж байна…" : "Илгээх"}
               </button>
@@ -153,12 +132,12 @@ export default function FeedbackPage() {
           </div>
 
           <div className="lg:col-span-2 space-y-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
-              <div className="text-sm font-semibold text-slate-100">Тайлбар</div>
-              <p className="mt-2 text-sm text-slate-300">
+            <div className="rounded-[14px] p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--arc-text)" }}>Тайлбар</div>
+              <p className="mt-2 text-[13px]" style={{ color: "var(--arc-dim)" }}>
                 Илгээсэн мэдээлэл админ хэсэгт очиж, тус бүрээр нь шалгагдана.
               </p>
-              <p className="mt-2 text-[11px] text-slate-500">
+              <p className="mt-2 text-[11px]" style={{ color: "var(--arc-muted)" }}>
                 Зураг хавсаргасан бол 10MB хүртэл зөвшөөрнө.
               </p>
             </div>
@@ -168,4 +147,3 @@ export default function FeedbackPage() {
     </div>
   );
 }
-

@@ -57,11 +57,11 @@ export default function AdminDashboardPage() {
       subtitle="Систэмийн ерөнхий статистик, хурдан линк, сүүлийн манхуа."
     >
       {loadingStats && !stats ? (
-        <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-400">
+        <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ color: "var(--arc-muted)" }}>
           Admin dashboard ачаалж байна...
         </div>
       ) : !stats ? (
-        <div className="flex min-h-[60vh] items-center justify-center text-sm text-red-400">
+        <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ color: "var(--arc-rose)" }}>
           Статистик ачаалж чадсангүй.
         </div>
       ) : (

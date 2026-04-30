@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ARC•READ — Solo Leveling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070e;--bg-card:#0d0d1a;--bg-el:#111120;
+  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.13);
+  --text:#e4e4f0;--muted:#6b6b80;--dim:#9494a8;
+  --cyan:oklch(0.72 0.17 195);--cyan-g:oklch(0.72 0.17 195/.2);--cyan-d:oklch(0.72 0.17 195/.1);
+  --rose:oklch(0.65 0.22 15);--amber:oklch(0.82 0.16 85);
+  --fh:'Space Grotesk',sans-serif;--fb:'DM Sans',sans-serif;
+  --r:10px;--rl:14px;--mx:1100px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:14px;line-height:1.6;overflow-x:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bg-el);border-radius:9px}
+img{display:block}
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);background:rgba(7,7,14,.9);backdrop-filter:blur(18px)}
+.hdr-in{max-width:1280px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;cursor:pointer}
+.logo-icon{width:34px;height:34px;border-radius:9px;background:var(--bg-el);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.logo-txt{font-family:var(--fh);font-size:17px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.logo-dot{color:var(--rose)}
+.nav{display:flex;align-items:center;gap:2px}
+.nl{padding:5px 12px;border-radius:20px;font-size:13px;font-weight:500;color:var(--dim);text-decoration:none;cursor:pointer;transition:color .15s,background .15s}
+.nl:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nl.act{color:var(--cyan);background:var(--cyan-d)}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.btn-s{width:34px;height:34px;border-radius:9px;background:transparent;border:1px solid var(--border);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .15s,color .15s}
+.btn-s:hover{border-color:var(--border-h);color:var(--text)}
+.btn-in{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--fb)}
+.btn-reg{padding:5px 14px;border-radius:20px;background:var(--cyan);color:#07070e;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:var(--fb);box-shadow:0 0 18px var(--cyan-g)}
+/* BREADCRUMB */
+.bc{max-width:var(--mx);margin:0 auto;padding:16px 24px 0;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.bc a{color:var(--muted);text-decoration:none;cursor:pointer}
+.bc a:hover{color:var(--cyan)}
+.bc-sep{opacity:.4}
+/* HERO SECTION */
+.hero{position:relative;overflow:hidden;margin:16px 24px 0;border-radius:var(--rl);border:1px solid var(--border);max-width:calc(var(--mx) - 48px + 48px);margin-left:auto;margin-right:auto}
+.hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(40px);opacity:.2;transform:scale(1.1)}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(7,7,14,.97) 0%,rgba(7,7,14,.88) 60%,rgba(7,7,14,.7) 100%)}
+.hero-inner{position:relative;z-index:2;display:grid;grid-template-columns:180px 1fr;gap:28px;padding:28px}
+.cover-card{width:180px;flex-shrink:0}
+.cover-img{width:100%;aspect-ratio:2/3;border-radius:var(--r);overflow:hidden;background:var(--bg-el);border:1px solid var(--border);box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.cover-ph{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:repeating-linear-gradient(-45deg,#0d0d1a,#0d0d1a 5px,#111120 5px,#111120 10px);color:var(--muted);font-size:9px;font-family:monospace;text-align:center;padding:10px;gap:5px}
+.cover-ph svg{opacity:.25}
+.cover-actions{display:flex;gap:8px;margin-top:12px}
+.cov-act-btn{flex:1;padding:8px 0;border-radius:var(--r);border:1px solid var(--border);background:var(--bg-el);color:var(--dim);font-size:12px;cursor:pointer;font-family:var(--fb);display:flex;align-items:center;justify-content:center;gap:5px;transition:border-color .15s,color .15s}
+.cov-act-btn:hover{border-color:var(--border-h);color:var(--text)}
+.cov-act-btn.on{border-color:oklch(0.65 0.22 15/.5);color:var(--rose);background:oklch(0.65 0.22 15/.08)}
+/* HERO INFO */
+.info{display:flex;flex-direction:column;gap:16px;justify-content:center}
+.info-top{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.info-title{font-family:var(--fh);font-size:28px;font-weight:700;letter-spacing:-.03em;color:#fff;line-height:1.15;flex:1;min-width:200px;text-wrap:pretty}
+.info-status{padding:3px 10px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;align-self:flex-start;margin-top:6px}
+.s-ongoing{background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.25)}
+.s-completed{background:rgba(59,130,246,.12);color:#93c5fd;border:1px solid rgba(59,130,246,.25)}
+.s-hiatus{background:rgba(245,158,11,.12);color:#fcd34d;border:1px solid rgba(245,158,11,.25)}
+.meta-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.meta-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)}
+.meta-val{font-weight:600;color:var(--text);font-family:var(--fh)}
+.genres{display:flex;flex-wrap:wrap;gap:6px}
+.genre-pill{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:500;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:border-color .15s,color .15s}
+.genre-pill:hover{border-color:var(--border-h);color:var(--text)}
+.desc{font-size:13px;color:var(--dim);line-height:1.7;max-width:600px;text-wrap:pretty}
+.author-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:360px}
+.author-item{font-size:12px;color:var(--muted)}
+.author-item b{color:var(--text);font-weight:600}
+.cta-row{display:flex;gap:10px;flex-wrap:wrap}
+.cta-main{padding:10px 24px;border-radius:var(--r);background:var(--cyan);color:#07070e;font-size:13px;font-weight:700;font-family:var(--fh);border:none;cursor:pointer;box-shadow:0 0 22px var(--cyan-g);transition:filter .15s,transform .1s;display:flex;align-items:center;gap:7px;letter-spacing:-.01em}
+.cta-main:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.cta-sec{padding:10px 18px;border-radius:var(--r);background:transparent;color:var(--dim);font-size:13px;font-weight:500;border:1px solid var(--border);cursor:pointer;font-family:var(--fb);transition:border-color .15s,color .15s}
+.cta-sec:hover{border-color:var(--border-h);color:var(--text)}
+/* CONTENT AREA */
+.content{max-width:var(--mx);margin:0 auto;padding:0 24px 60px;margin-top:28px;display:grid;grid-template-columns:1fr 300px;gap:24px}
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:4px;width:fit-content}
+.tab{padding:7px 18px;border-radius:7px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:transparent;font-family:var(--fh);transition:color .15s,background .15s}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--cyan);background:var(--cyan-d)}
+/* CHAPTERS */
+.ch-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ch-title{font-family:var(--fh);font-size:14px;font-weight:700;color:var(--text)}
+.ch-count{font-size:12px;color:var(--muted)}
+.sort-btn{padding:5px 12px;border-radius:var(--r);background:var(--bg-el);border:1px solid var(--border);color:var(--dim);font-size:11px;cursor:pointer;font-family:var(--fb);transition:color .15s}
+.sort-btn:hover{color:var(--text)}
+.ch-list{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;background:var(--bg-card)}
+.ch-item{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border);cursor:pointer;text-decoration:none;transition:background .12s}
+.ch-item:last-child{border-bottom:none}
+.ch-item:hover{background:rgba(255,255,255,.03)}
+.ch-item.read .ch-num,.ch-item.read .ch-name{color:var(--muted) !important}
+.ch-left{display:flex;align-items:center;gap:10px}
+.ch-num{font-size:11px;font-weight:600;color:var(--cyan);background:var(--cyan-d);padding:2px 8px;border-radius:5px;font-family:var(--fh);white-space:nowrap}
+.ch-name{font-size:13px;color:var(--dim);transition:color .12s}
+.ch-item:hover .ch-name{color:var(--text)}
+.ch-new{background:var(--rose);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:6px}
+.ch-time{font-size:11px;color:var(--muted);flex-shrink:0}
+/* SIDEBAR */
+.sidebar{display:flex;flex-direction:column;gap:16px}
+.side-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--rl);padding:18px}
+.side-title{font-family:var(--fh);font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.side-bar{width:3px;height:14px;border-radius:2px;background:var(--cyan)}
+.rating-big{text-align:center;padding:12px 0}
+.rating-num{font-family:var(--fh);font-size:48px;font-weight:700;color:#fff;line-height:1}
+.rating-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.rating-stars{display:flex;justify-content:center;gap:4px;margin:10px 0}
+.rating-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.rating-bar-lbl{font-size:11px;color:var(--muted);width:10px;text-align:right}
+.rating-bar-track{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+.rating-bar-fill{height:100%;border-radius:2px;background:var(--amber)}
+.rating-bar-ct{font-size:10px;color:var(--muted);width:24px;text-align:right}
+.info-grid{display:flex;flex-direction:column;gap:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.info-row-lbl{color:var(--muted)}
+.info-row-val{color:var(--text);font-weight:500;font-family:var(--fh)}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:6px}
+.tag{padding:4px 10px;border-radius:20px;font-size:11px;background:var(--bg-el);border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:border-color .15s,color .15s}
+.tag:hover{border-color:var(--border-h);color:var(--text)}
+@media(max-width:900px){
+  .hero-inner{grid-template-columns:140px 1fr;gap:18px;padding:20px}
+  .cover-card{width:140px}
+  .content{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .info-title{font-size:22px}
+}
+@media(max-width:600px){
+  .nav{display:none}
+  .hero{margin:12px 12px 0}
+  .hero-inner{grid-template-columns:1fr;padding:16px}
+  .cover-card{width:120px;margin:0 auto}
+  .bc{padding:12px 16px 0}
+  .content{padding:0 12px 40px}
+  .info-title{font-size:20px}
+}
+</style>
+</head>
+<body>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useMemo } = React;
+
+const MANHUA = {
+  title: 'Solo Leveling',
+  status: 'ongoing',
+  rating: 9.2,
+  ratingCount: 14820,
+  views: 142800,
+  author: 'Chugong',
+  artist: 'DUBU (Redice Studio)',
+  genres: ['Action', 'Fantasy', 'System', 'Adventure'],
+  desc: 'In a world where hunters—humans who have awakened special abilities—must battle deadly monsters to protect humanity, Sung Jin-Woo is the weakest of all. One day, he barely survives a seemingly impossible dungeon and comes out the other side with a unique ability no hunter has ever seen before: the ability to level up in strength, seemingly without limit.',
+  ratingDist: [{ s: 5, pct: 62 }, { s: 4, pct: 22 }, { s: 3, pct: 9 }, { s: 2, pct: 4 }, { s: 1, pct: 3 }]
+};
+
+const CHAPTERS = Array.from({ length: 30 }, (_, i) => {
+  const n = 179 - i;
+  return {
+    num: n,
+    title: n > 170 ? `The Monarch's Shadow` : n > 160 ? `Arise` : n > 150 ? `The Final Gate` : `Chapter ${n}`,
+    time: i === 0 ? '2ц өмнө' : i === 1 ? '1 өдөр өмнө' : i < 7 ? `${i} өдөр өмнө` : i < 14 ? `${Math.floor(i / 7)} дол. өмнө` : `${Math.floor(i / 30) + 1} сар өмнө`,
+    isNew: i < 2,
+    isRead: i > 3 && i < 20
+  };
+});
+
+const RELATED = [
+{ id: 1, title: 'Tower of God', ch: 610, rating: 8.8 },
+{ id: 2, title: 'The Beginning After the End', ch: 183, rating: 9.0 },
+{ id: 3, title: 'Omniscient Reader', ch: 147, rating: 9.3 }];
+
+
+function ArcMark() {
+  return (
+    <svg viewBox="0 0 48 48" width="22" height="22" fill="none">
+      <path d="M8 28 C14 14 34 14 40 28" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M16 34 C20 30 28 30 32 34" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="24" cy="12" r="3" fill="oklch(0.65 0.22 15)" />
+    </svg>);
+
+}
+
+function CoverPH() {
+  return (
+    <div className="cover-ph">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+      <span style={{ opacity: .4 }}>Solo Leveling</span>
+      <span style={{ opacity: .25 }}>cover art</span>
+    </div>);
+
+}
+
+function Header() {
+  const navItems = ['Нүүр', 'Жагсаалт', 'Leaderboard', 'Хүсэлт', 'Профайл'];
+  return (
+    <header className="hdr">
+      <div className="hdr-in">
+        <a className="logo" href="Arc Read Homepage.html">
+          <div className="logo-icon"><ArcMark /></div>
+          <span className="logo-txt">ARC<span className="logo-dot">•</span>READ</span>
+        </a>
+        <nav className="nav">
+          {navItems.map((n, i) =>
+          <a key={n} className="nl">{n}</a>
+          )}
+        </nav>
+        <div className="hdr-r">
+          <button className="btn-s">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" /></svg>
+          </button>
+          <button className="btn-in">Нэвтрэх</button>
+          <button className="btn-reg">Бүртгүүлэх</button>
+        </div>
+      </div>
+    </header>);
+
+}
+
+function StarsBig({ rating }) {
+  const r = Math.min(5, rating / 2);
+  return (
+    <div className="rating-stars">
+      {[1, 2, 3, 4, 5].map((s) => {
+        const filled = r >= s;
+        const half = !filled && r >= s - 0.5;
+        return (
+          <svg key={s} width="18" height="18" viewBox="0 0 20 20"
+          fill={filled ? 'oklch(0.82 0.16 85)' : half ? 'url(#half)' : 'rgba(255,255,255,0.1)'}>
+            {half &&
+            <defs>
+                <linearGradient id="half" x1="0" x2="1" y1="0" y2="0">
+                  <stop offset="50%" stopColor="oklch(0.82 0.16 85)" />
+                  <stop offset="50%" stopColor="rgba(255,255,255,0.1)" />
+                </linearGradient>
+              </defs>
+            }
+            <polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" />
+          </svg>);
+
+      })}
+    </div>);
+
+}
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "oklch(0.72 0.17 195)",
+  "showSidebar": true
+} /*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tab, setTab] = useState('chapters');
+  const [sort, setSort] = useState('desc');
+  const [fav, setFav] = useState(false);
+  const [bm, setBm] = useState(false);
+  const [chPage, setChPage] = useState(1);
+  const CH_PER = 15;
+
+  const sorted = useMemo(() => {
+    return sort === 'desc' ? [...CHAPTERS] : [...CHAPTERS].reverse();
+  }, [sort]);
+
+  const chTotal = Math.ceil(sorted.length / CH_PER);
+  const visibleChs = sorted.slice((chPage - 1) * CH_PER, chPage * CH_PER);
+
+  const statusClass = { ongoing: 's-ongoing', completed: 's-completed', hiatus: 's-hiatus' };
+
+  return (
+    <div style={{ minHeight: '100vh' }}>
+      <Header />
+
+      {/* BREADCRUMB */}
+      <div className="bc" style={{ maxWidth: 'calc(var(--mx) + 48px)', margin: '0 auto', padding: '16px 24px 0' }}>
+        <a href="Arc Read Homepage.html">Нүүр</a>
+        <span className="bc-sep">›</span>
+        <a href="Arc Read Browse.html">Жагсаалт</a>
+        <span className="bc-sep">›</span>
+        <span style={{ color: 'var(--text)' }}>Solo Leveling</span>
+      </div>
+
+      {/* HERO */}
+      <div style={{ maxWidth: 'calc(var(--mx) + 48px)', margin: '12px auto 0', padding: '0 24px' }}>
+        <div className="hero">
+          <div className="hero-bg" style={{ backgroundImage: 'linear-gradient(135deg,#1a0b3a,#0a1040)' }} />
+          <div className="hero-overlay" />
+          <div className="hero-inner">
+            {/* COVER */}
+            <div className="cover-card">
+              <div className="cover-img"><CoverPH /></div>
+              <div className="cover-actions">
+                <button className={`cov-act-btn${fav ? ' on' : ''}`} onClick={() => setFav((f) => !f)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill={fav ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
+                  {fav ? 'Saved' : 'Дуртай'}
+                </button>
+                <button className={`cov-act-btn${bm ? ' on' : ''}`} onClick={() => setBm((b) => !b)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill={bm ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                  {bm ? 'Saved' : 'Хадгалах'}
+                </button>
+              </div>
+            </div>
+
+            {/* INFO */}
+            <div className="info">
+              <div className="info-top">
+                <h1 className="info-title">{MANHUA.title}</h1>
+                <span className={`info-status ${statusClass[MANHUA.status]}`}>{MANHUA.status}</span>
+              </div>
+
+              <div className="meta-row">
+                <div className="meta-item">
+                  <svg width="13" height="13" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)"><polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" /></svg>
+                  <span className="meta-val">{MANHUA.rating.toFixed(1)}</span>
+                  <span>/ 10</span>
+                </div>
+                <div className="meta-item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                  <span className="meta-val">{MANHUA.views.toLocaleString()}</span>
+                </div>
+                <div className="meta-item">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                  <span className="meta-val">{CHAPTERS.length}</span>
+                  <span>chapters</span>
+                </div>
+              </div>
+
+              <div className="genres">
+                {MANHUA.genres.map((g) => <span key={g} className="genre-pill">{g}</span>)}
+              </div>
+
+              <p className="desc">{MANHUA.desc}</p>
+
+              <div className="author-row">
+                <div className="author-item">Author: <b>{MANHUA.author}</b></div>
+                <div className="author-item">Artist: <b>{MANHUA.artist}</b></div>
+              </div>
+
+              <div className="cta-row">
+                <button className="cta-main">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                  Read Latest – Ch. {CHAPTERS[0].num}
+                </button>
+                <button className="cta-sec">Start from Ch. 1</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div className="content">
+        <div>
+          {/* TABS */}
+          <div className="tabs">
+            {['chapters', 'comments', 'info'].map((t) =>
+            <button key={t} className={`tab${tab === t ? ' on' : ''}`} onClick={() => setTab(t)}>
+                {t === 'chapters' ? 'Chapters' : t === 'comments' ? 'Comments' : 'Info'}
+              </button>
+            )}
+          </div>
+
+          {tab === 'chapters' &&
+          <>
+              <div className="ch-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="ch-title">Chapters</span>
+                  <span className="ch-count">{CHAPTERS.length} total</span>
+                </div>
+                <button className="sort-btn" onClick={() => setSort((s) => s === 'desc' ? 'asc' : 'desc')}>
+                  {sort === 'desc' ? 'Newest ↓' : 'Oldest ↑'}
+                </button>
+              </div>
+
+              <div className="ch-list">
+                {visibleChs.map((ch) =>
+              <a key={ch.num} className={`ch-item${ch.isRead ? ' read' : ''}`} href="#">
+                    <div className="ch-left">
+                      <span className="ch-num" style={ch.isRead ? { color: 'var(--muted)', background: 'rgba(255,255,255,.04)' } : {}}>
+                        Ch. {ch.num}
+                      </span>
+                      <span className="ch-name">{ch.title}</span>
+                      {ch.isNew && <span className="ch-new">NEW</span>}
+                    </div>
+                    <span className="ch-time">{ch.time}</span>
+                  </a>
+              )}
+              </div>
+
+              {chTotal > 1 &&
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+                  <button className="sort-btn" style={{ padding: '6px 16px' }} disabled={chPage <= 1} onClick={() => setChPage((p) => p - 1)}>←</button>
+                  <span style={{ fontSize: 12, color: 'var(--muted)', padding: '6px 8px' }}>
+                    {chPage} / {chTotal}
+                  </span>
+                  <button className="sort-btn" style={{ padding: '6px 16px' }} disabled={chPage >= chTotal} onClick={() => setChPage((p) => p + 1)}>→</button>
+                </div>
+            }
+            </>
+          }
+
+          {tab === 'comments' &&
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: .3 }}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+              <div>Нэвтэрч сэтгэгдэл үлдээнэ үү</div>
+            </div>
+          }
+
+          {tab === 'info' &&
+          <div className="info-grid">
+              {[
+            ['Нэр', 'Solo Leveling'],
+            ['Монгол нэр', 'Ганцаарчилсан шатралт'],
+            ['Статус', 'Ongoing'],
+            ['Автор', 'Chugong'],
+            ['Уран зурагч', 'DUBU (Redice Studio)'],
+            ['Хэвлэгдсэн', '2018'],
+            ['Орчуулсан баг', 'ARC•READ Team'],
+            ['Нийт chapter', '179']].
+            map(([l, v]) =>
+            <div key={l} className="info-row">
+                  <span className="info-row-lbl">{l}</span>
+                  <span className="info-row-val">{v}</span>
+                </div>
+            )}
+            </div>
+          }
+        </div>
+
+        {/* SIDEBAR */}
+        <div className="sidebar">
+          {/* RATING */}
+          <div className="side-card">
+            <div className="side-title"><div className="side-bar" />Үнэлгээ</div>
+            <div className="rating-big">
+              <div className="rating-num">{MANHUA.rating.toFixed(1)}</div>
+              <StarsBig rating={MANHUA.rating} />
+              <div className="rating-sub">{MANHUA.ratingCount.toLocaleString()} үнэлгээ</div>
+            </div>
+            {MANHUA.ratingDist.map(({ s, pct }) =>
+            <div key={s} className="rating-bar-row">
+                <span className="rating-bar-lbl">{s}</span>
+                <div className="rating-bar-track">
+                  <div className="rating-bar-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="rating-bar-ct">{pct}%</span>
+              </div>
+            )}
+          </div>
+
+          {/* DETAILS */}
+          <div className="side-card">
+            <div className="side-title"><div className="side-bar" />Дэлгэрэнгүй</div>
+            <div className="info-grid">
+              {[
+              ['Статус', 'Ongoing'],
+              ['Хэвлэгдсэн', '2018'],
+              ['Chapter', '179'],
+              ['Үзэлт', '142,800'],
+              ['Дуртай', '8,420']].
+              map(([l, v]) =>
+              <div key={l} className="info-row">
+                  <span className="info-row-lbl">{l}</span>
+                  <span className="info-row-val">{v}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* TAGS */}
+          <div className="side-card">
+            <div className="side-title"><div className="side-bar" />Жанр / Таг</div>
+            <div className="tag-cloud">
+              {[...MANHUA.genres, 'Hunter', 'S-Rank', 'System', 'Level Up', 'Dungeon', 'Gate', 'Monster'].map((t) =>
+              <span key={t} className="tag">{t}</span>
+              )}
+            </div>
+          </div>
+
+          {/* RELATED */}
+          <div className="side-card">
+            <div className="side-title"><div className="side-bar" />Ижил төстэй</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {RELATED.map((r) =>
+              <a key={r.id} href="#" style={{ display: 'flex', gap: 10, textDecoration: 'none', cursor: 'pointer' }}>
+                  <div style={{ width: 44, height: 60, borderRadius: 6, overflow: 'hidden', background: 'var(--bg-el)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: .3 }}><rect x="3" y="3" width="18" height="18" rx="2" /></svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--fh)', fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
+                    <div style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--muted)' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <svg width="10" height="10" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)"><polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" /></svg>
+                        {r.rating}
+                      </span>
+                      <span>Ch. {r.ch}</span>
+                    </div>
+                  </div>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <TweaksPanel>
+        <TweakSection label="Colors" />
+        <TweakColor label="Accent color" tweakKey="accentColor" />
+        <TweakSection label="Layout" />
+        <TweakToggle label="Show sidebar" tweakKey="showSidebar" />
+      </TweaksPanel>
+    </div>);
+
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="80" fill="#07070e"/>
+    <rect width="120" height="14" fill="#0d0d1a"/>
+    <circle cx="10" cy="7" r="3.5" fill="oklch(0.65 0.22 15)"/>
+    <rect x="8" y="18" width="104" height="28" rx="6" fill="#1a0b3a" opacity="0.6"/>
+    <rect x="14" y="24" width="24" height="18" rx="3" fill="#111120"/>
+    <rect x="44" y="25" width="50" height="7" rx="2" fill="#fff" opacity="0.7"/>
+    <rect x="44" y="36" width="36" height="4" rx="2" fill="#fff" opacity="0.25"/>
+    <rect x="44" y="43" width="28" height="3" rx="1.5" fill="#fff" opacity="0.15"/>
+    <rect x="8" y="52" width="72" height="24" rx="4" fill="#0d0d1a"/>
+    <rect x="14" y="58" width="60" height="4" rx="2" fill="#111120"/>
+    <rect x="14" y="65" width="60" height="4" rx="2" fill="#111120"/>
+    <rect x="84" y="52" width="28" height="24" rx="4" fill="#0d0d1a"/>
+    <rect x="88" y="58" width="20" height="3" rx="1.5" fill="#111120"/>
+    <rect x="88" y="64" width="16" height="3" rx="1.5" fill="#111120"/>
+    <rect x="88" y="70" width="18" height="3" rx="1.5" fill="#111120"/>
+  </svg>
+</template>
+</body>
+</html>

@@ -190,26 +190,19 @@ export default function ChapterReaderPage() {
         vipExpiresAt={user?.vipExpiresAt ?? null}
       />
 
-      {/* Always show header, even when loading */}
+      {/* Sticky topbar with prev/next + progress bar */}
       <ChapterHeader
         slug={slug}
         chapter={chapter}
         onBack={() => router.back()}
+        onPrev={() => chapter?.hasPrev && chapterNumber > 1 && router.push(`/manhua/${slug}/chapter/${chapterNumber - 1}`)}
+        onNext={() => chapter?.hasNext && router.push(`/manhua/${slug}/chapter/${chapterNumber + 1}`)}
         isLoading={showSpinner}
         loadedCount={loadedPagesCount}
         totalPages={totalPagesCount}
       />
 
-      {chapter && (
-        <ChapterNav
-          slug={slug}
-          chapterNumber={chapter.chapterNumber}
-          hasPrev={chapter.hasPrev}
-          hasNext={chapter.hasNext}
-        />
-      )}
-
-      <div className="relative">
+      <div className="relative" style={{ paddingBottom: chapter ? 68 : 0 }}>
         {chapter && !showVipGate && (
           <ChapterPages
             chapter={chapter}
@@ -231,6 +224,7 @@ export default function ChapterReaderPage() {
           chapterNumber={chapter.chapterNumber}
           hasPrev={chapter.hasPrev}
           hasNext={chapter.hasNext}
+          totalPages={totalPagesCount}
         />
       )}
     </div>

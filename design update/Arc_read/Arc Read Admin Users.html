@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ARC•READ — Admin · Users</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070e;--bg-card:#0d0d1a;--bg-el:#111120;--bg-sidebar:#09090f;
+  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.12);
+  --text:#e4e4f0;--muted:#6b6b80;--dim:#9494a8;
+  --cyan:oklch(0.72 0.17 195);--cyan-g:oklch(0.72 0.17 195/.2);--cyan-d:oklch(0.72 0.17 195/.1);
+  --rose:oklch(0.65 0.22 15);--rose-d:oklch(0.65 0.22 15/.1);
+  --amber:oklch(0.82 0.16 85);--amber-d:oklch(0.82 0.16 85/.1);
+  --green:oklch(0.72 0.17 155);--green-d:oklch(0.72 0.17 155/.1);
+  --purple:oklch(0.65 0.2 290);--purple-d:oklch(0.65 0.2 290/.1);
+  --fh:'Space Grotesk',sans-serif;--fb:'DM Sans',sans-serif;
+  --r:10px;--rl:14px;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:14px;overflow-x:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg-sidebar)}::-webkit-scrollbar-thumb{background:var(--bg-el);border-radius:9px}
+#root{display:flex;min-height:100vh;width:100%}
+
+/* SIDEBAR */
+.sidebar{width:210px;flex-shrink:0;background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;cursor:pointer}
+.logo-icon{width:30px;height:30px;border-radius:8px;background:var(--bg-el);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.logo-txt{font-family:var(--fh);font-size:15px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.logo-dot{color:var(--rose)}
+.admin-badge{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--amber)}
+.sb-nav{padding:10px 8px;flex:1;display:flex;flex-direction:column;gap:2px}
+.sb-label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:7px 8px 3px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);font-size:13px;font-weight:500;color:var(--dim);cursor:pointer;transition:color .15s,background .15s;text-decoration:none;border:none;background:transparent;width:100%;text-align:left}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.nav-item.act{color:var(--cyan);background:var(--cyan-d)}
+.nav-item svg{flex-shrink:0;opacity:.7}
+.nav-item.act svg{opacity:1}
+.nav-ct{margin-left:auto;font-size:10px;font-weight:700;background:var(--cyan-d);color:var(--cyan);padding:1px 6px;border-radius:4px}
+.sb-user{padding:12px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.sb-avatar{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--amber),oklch(0.7 0.18 60));display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:12px;font-weight:700;color:#07070e;flex-shrink:0}
+.sb-name{font-size:12px;font-weight:600;color:var(--text)}
+.sb-role{font-size:10px;color:var(--muted)}
+
+/* MAIN */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:rgba(7,7,14,.7);backdrop-filter:blur(12px);position:sticky;top:0;z-index:50;flex-shrink:0}
+.topbar-title{font-family:var(--fh);font-size:15px;font-weight:700;color:var(--text)}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.tb-btn{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.tb-btn:hover{border-color:var(--border-h);color:var(--text)}
+.tb-btn.primary{background:var(--cyan);color:#07070e;border-color:transparent;font-weight:600}
+
+/* CONTENT */
+.content{padding:20px 24px 40px;flex:1;overflow-y:auto}
+.pg-title{font-family:var(--fh);font-size:20px;font-weight:700;letter-spacing:-.025em;color:#fff;margin-bottom:3px}
+.pg-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+
+/* FILTERS */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search-in{width:100%;padding:8px 12px 8px 34px;background:var(--bg-el);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--fb);font-size:13px;outline:none;transition:border-color .15s}
+.search-in::placeholder{color:var(--muted)}
+.search-in:focus{border-color:oklch(0.72 0.17 195/.5)}
+.filter-sel{padding:8px 12px;background:var(--bg-el);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--fb);font-size:12px;cursor:pointer;outline:none}
+.filter-results{font-size:12px;color:var(--muted);margin-bottom:12px}
+.filter-results b{color:var(--text)}
+
+/* TABLE */
+.tbl-outer{border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;background:var(--bg-card)}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:rgba(0,0,0,.25);border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* USER CELL */
+.u-avatar{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:13px;font-weight:700;flex-shrink:0;border:1px solid var(--border)}
+.u-name{font-family:var(--fh);font-size:13px;font-weight:600;color:var(--text)}
+.u-email{font-size:10px;color:var(--muted)}
+.u-cell{display:flex;align-items:center;gap:10px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;letter-spacing:.04em}
+.b-admin{background:oklch(0.82 0.16 85/.15);color:var(--amber);border:1px solid oklch(0.82 0.16 85/.25)}
+.b-editor{background:oklch(0.72 0.17 155/.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.25)}
+.b-user{background:rgba(255,255,255,.06);color:var(--dim);border:1px solid var(--border)}
+.b-vip{background:oklch(0.82 0.16 85/.12);color:var(--amber);border:1px solid oklch(0.82 0.16 85/.2)}
+.b-blocked{background:oklch(0.65 0.22 15/.12);color:oklch(0.8 0.12 15);border:1px solid oklch(0.65 0.22 15/.25)}
+.b-locked{background:oklch(0.82 0.16 85/.1);color:#fcd34d;border:1px solid oklch(0.82 0.16 85/.2)}
+.b-ok{background:oklch(0.72 0.17 155/.1);color:#6ee7b7;border:1px solid rgba(16,185,129,.2)}
+
+/* ACTIONS */
+.act-row{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.act-btn{padding:4px 9px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--fh);transition:all .12s;white-space:nowrap}
+.act-btn:hover{color:var(--text);border-color:var(--border-h)}
+.act-btn.view{color:var(--cyan);border-color:oklch(0.72 0.17 195/.3);background:var(--cyan-d)}
+.act-btn.block{color:var(--rose);border-color:oklch(0.65 0.22 15/.3);background:var(--rose-d)}
+.act-btn.unblock{color:var(--green);border-color:oklch(0.72 0.17 155/.3);background:var(--green-d)}
+.act-btn.logout{color:var(--amber);border-color:oklch(0.82 0.16 85/.3);background:var(--amber-d)}
+.act-btn.vip{color:var(--amber);border-color:oklch(0.82 0.16 85/.3)}
+.tbl-foot{padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
+
+/* DRAWER */
+.drawer-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:380px;z-index:101;background:var(--bg-card);border-left:1px solid var(--border);display:flex;flex-direction:column;box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+.drawer-hdr{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.drawer-title{font-family:var(--fh);font-size:15px;font-weight:700;color:#fff}
+.drawer-close{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.drawer-body{flex:1;overflow-y:auto;padding:20px}
+.drawer-avatar{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:22px;font-weight:700;margin:0 auto 14px;border:2px solid var(--border)}
+.drawer-name{font-family:var(--fh);font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:4px}
+.drawer-email{font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px}
+.drawer-badges{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.drawer-section{margin-bottom:18px}
+.drawer-sec-title{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.info-row:last-child{border-bottom:none}
+.info-lbl{color:var(--muted)}
+.info-val{color:var(--text);font-weight:500;font-family:var(--fh)}
+.drawer-actions{display:flex;flex-direction:column;gap:7px}
+.d-act-btn{width:100%;padding:9px;border-radius:var(--r);font-size:13px;font-weight:600;font-family:var(--fh);cursor:pointer;transition:filter .15s;border:none}
+.d-act-btn.danger{background:oklch(0.65 0.22 15/.12);color:var(--rose);border:1px solid oklch(0.65 0.22 15/.3)}
+.d-act-btn.danger:hover{background:oklch(0.65 0.22 15/.2)}
+.d-act-btn.warning{background:oklch(0.82 0.16 85/.1);color:var(--amber);border:1px solid oklch(0.82 0.16 85/.25)}
+.d-act-btn.safe{background:var(--green-d);color:var(--green);border:1px solid oklch(0.72 0.17 155/.3)}
+
+/* CONFIRM DIALOG */
+.dialog-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px}
+.dialog{width:100%;max-width:360px;background:var(--bg-card);border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+.dialog-title{font-family:var(--fh);font-size:16px;font-weight:700;color:#fff;margin-bottom:6px}
+.dialog-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5}
+.dialog-btns{display:flex;gap:8px;justify-content:flex-end}
+.dialog-cancel{padding:8px 18px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--dim);font-size:13px;cursor:pointer;font-family:var(--fb)}
+.dialog-confirm{padding:8px 18px;border-radius:var(--r);border:none;background:var(--rose);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fh)}
+
+/* PAGINATION */
+.pag{display:flex;align-items:center;gap:6px;padding:12px 14px;border-top:1px solid var(--border)}
+.pag-btn{padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:12px;cursor:pointer;font-family:var(--fb);transition:all .15s}
+.pag-btn:hover:not(:disabled){border-color:var(--border-h);color:var(--text)}
+.pag-btn:disabled{opacity:.35;cursor:default}
+.pag-info{font-size:12px;color:var(--muted);padding:0 6px}
+</style>
+</head>
+<body>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo} = React;
+
+const USERS = [
+  {id:'1',username:'StarReader_MN',email:'star@example.mn',role:'user',isVIP:true,vipExp:'2025-06-30',blocked:false,locked:false,joined:'2024-03-12',chapters:3841,spent:480000},
+  {id:'2',username:'ManhwaKing99',email:'king@gmail.com',role:'user',isVIP:true,vipExp:'2025-05-15',blocked:false,locked:false,joined:'2024-01-05',chapters:2100,spent:360000},
+  {id:'3',username:'admin_root',email:'admin@arcread.mn',role:'admin',isVIP:true,vipExp:'2099-12-31',blocked:false,locked:false,joined:'2023-11-01',chapters:0,spent:0},
+  {id:'4',username:'Orchilon_T',email:'orchilon@arcread.mn',role:'editor',isVIP:true,vipExp:'2025-12-31',blocked:false,locked:false,joined:'2024-02-20',chapters:220,spent:0},
+  {id:'5',username:'DarkSolo',email:'dark@mail.mn',role:'user',isVIP:true,vipExp:'2025-04-30',blocked:false,locked:false,joined:'2024-06-01',chapters:1540,spent:215000},
+  {id:'6',username:'spammer_bot',email:'spam@bot.net',role:'user',isVIP:false,vipExp:null,blocked:true,locked:false,joined:'2025-01-10',chapters:5,spent:0},
+  {id:'7',username:'CultivatorX',email:'cult@mail.mn',role:'user',isVIP:false,vipExp:null,blocked:false,locked:true,joined:'2024-08-14',chapters:890,spent:188000},
+  {id:'8',username:'TowerClimber',email:'tower@example.com',role:'user',isVIP:true,vipExp:'2025-07-01',blocked:false,locked:false,joined:'2024-05-22',chapters:2300,spent:162000},
+  {id:'9',username:'LevelUpHunter',email:'level@mail.mn',role:'user',isVIP:false,vipExp:null,blocked:false,locked:false,joined:'2024-09-30',chapters:450,spent:143000},
+  {id:'10',username:'OmniReader',email:'omni@mail.mn',role:'editor',isVIP:true,vipExp:'2025-08-15',blocked:false,locked:false,joined:'2024-04-18',chapters:180,spent:118000},
+];
+
+function ArcMark(){
+  return(
+    <svg viewBox="0 0 48 48" width="18" height="18" fill="none">
+      <path d="M8 28 C14 14 34 14 40 28" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M16 34 C20 30 28 30 32 34" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="24" cy="12" r="3" fill="oklch(0.65 0.22 15)"/>
+    </svg>
+  );
+}
+
+const AVATAR_COLORS=[
+  ['oklch(0.72 0.17 195/.2)','var(--cyan)'],
+  ['oklch(0.82 0.16 85/.2)','var(--amber)'],
+  ['oklch(0.72 0.17 155/.2)','var(--green)'],
+  ['oklch(0.65 0.2 290/.2)','var(--purple)'],
+  ['oklch(0.65 0.22 15/.2)','var(--rose)'],
+];
+
+const NAV_ITEMS=[
+  {label:'Dashboard',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>},
+  {label:'Manhuas',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>},
+  {label:'Users',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>,act:true,ct:'2.8k'},
+  {label:'VIP',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>},
+  {label:'Requests',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg>},
+  {label:'Logs',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>},
+  {label:'Settings',icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42"/></svg>},
+];
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "perPage": "10",
+  "showBlocked": true
+}/*EDITMODE-END*/;
+
+function App(){
+  const [tweaks,setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [users,setUsers] = useState(USERS);
+  const [search,setSearch] = useState('');
+  const [roleF,setRoleF] = useState('all');
+  const [vipF,setVipF] = useState('all');
+  const [statusF,setStatusF] = useState('all');
+  const [selected,setSelected] = useState(null);
+  const [confirm,setConfirm] = useState(null);
+  const [page,setPage] = useState(1);
+  const PER = parseInt(tweaks.perPage)||10;
+
+  const filtered = useMemo(()=>{
+    let d=[...users];
+    if(search.trim()) d=d.filter(u=>u.username.toLowerCase().includes(search.toLowerCase())||u.email.toLowerCase().includes(search.toLowerCase()));
+    if(roleF!=='all') d=d.filter(u=>u.role===roleF);
+    if(vipF==='true') d=d.filter(u=>u.isVIP);
+    if(vipF==='false') d=d.filter(u=>!u.isVIP);
+    if(statusF==='blocked') d=d.filter(u=>u.blocked);
+    if(statusF==='locked') d=d.filter(u=>u.locked);
+    if(statusF==='active') d=d.filter(u=>!u.blocked&&!u.locked);
+    return d;
+  },[users,search,roleF,vipF,statusF]);
+
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PER));
+  const pageItems=filtered.slice((page-1)*PER,page*PER);
+
+  const doConfirm=()=>{
+    if(!confirm) return;
+    const {id,action}=confirm;
+    setUsers(prev=>prev.map(u=>{
+      if(u.id!==id) return u;
+      if(action==='block') return {...u,blocked:true};
+      if(action==='unblock') return {...u,blocked:false};
+      if(action==='lock') return {...u,locked:true};
+      if(action==='unlock') return {...u,locked:false};
+      return u;
+    }));
+    if(selected?.id===id){
+      setSelected(prev=>({
+        ...prev,
+        blocked: action==='block'?true:action==='unblock'?false:prev.blocked,
+        locked: action==='lock'?true:action==='unlock'?false:prev.locked,
+      }));
+    }
+    setConfirm(null);
+  };
+
+  const roleClass={admin:'b-admin',editor:'b-editor',user:'b-user'};
+  const avatarColor=idx=>AVATAR_COLORS[idx%AVATAR_COLORS.length];
+
+  return(
+    <>
+      <div className="sidebar">
+        <div className="sb-logo">
+          <a className="logo" href="Arc Read Homepage.html">
+            <div className="logo-icon"><ArcMark/></div>
+            <div>
+              <div className="logo-txt">ARC<span className="logo-dot">•</span>READ</div>
+              <div className="admin-badge">Admin Panel</div>
+            </div>
+          </a>
+        </div>
+        <nav className="sb-nav">
+          <div className="sb-label">Ерөнхий</div>
+          {NAV_ITEMS.slice(0,1).map(n=>(
+            <a key={n.label} className="nav-item" href="Arc Read Admin.html">
+              {n.icon}{n.label}
+            </a>
+          ))}
+          <div className="sb-label">Контент</div>
+          {NAV_ITEMS.slice(1).map(n=>(
+            <button key={n.label} className={`nav-item${n.act?' act':''}`}>
+              {n.icon}{n.label}
+              {n.ct&&<span className="nav-ct">{n.ct}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="sb-user">
+          <div className="sb-avatar">A</div>
+          <div>
+            <div className="sb-name">Админ</div>
+            <div className="sb-role">Administrator</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="main">
+        <div className="topbar">
+          <div className="topbar-title">Users</div>
+          <div className="topbar-r">
+            <button className="tb-btn" onClick={()=>{}}>Refresh</button>
+            <button className="tb-btn primary">+ Create User</button>
+          </div>
+        </div>
+
+        <div className="content">
+          <div className="pg-title">Хэрэглэгчид</div>
+          <div className="pg-sub">Бүх хэрэглэгчийг удирдах, VIP олгох, блоклох, дэлгэрэнгүй харах.</div>
+
+          {/* FILTERS */}
+          <div className="filters">
+            <div className="search-wrap">
+              <span className="search-ico">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+              </span>
+              <input className="search-in" placeholder="Username эсвэл имэйлээр хайх..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}}/>
+            </div>
+            <select className="filter-sel" value={roleF} onChange={e=>{setRoleF(e.target.value);setPage(1)}}>
+              <option value="all">Бүх role</option>
+              <option value="admin">Admin</option>
+              <option value="editor">Editor</option>
+              <option value="user">User</option>
+            </select>
+            <select className="filter-sel" value={vipF} onChange={e=>{setVipF(e.target.value);setPage(1)}}>
+              <option value="all">VIP бүгд</option>
+              <option value="true">VIP тийм</option>
+              <option value="false">VIP үгүй</option>
+            </select>
+            <select className="filter-sel" value={statusF} onChange={e=>{setStatusF(e.target.value);setPage(1)}}>
+              <option value="all">Статус бүгд</option>
+              <option value="active">Идэвхтэй</option>
+              <option value="blocked">Блоклогдсон</option>
+              <option value="locked">Түгжигдсэн</option>
+            </select>
+          </div>
+          <div className="filter-results">
+            Нийт <b>{filtered.length}</b> хэрэглэгч · хуудас <b>{page}</b>/{totalPages}
+          </div>
+
+          {/* TABLE */}
+          <div className="tbl-outer">
+            <table>
+              <thead>
+                <tr>
+                  <th>Хэрэглэгч</th>
+                  <th>Role</th>
+                  <th>VIP</th>
+                  <th>Статус</th>
+                  <th>Нэгдсэн</th>
+                  <th>Зарцуулсан</th>
+                  <th style={{textAlign:'right'}}>Үйлдэл</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((u,i)=>{
+                  const [bg,fg]=avatarColor(i);
+                  return(
+                    <tr key={u.id}>
+                      <td>
+                        <div className="u-cell">
+                          <div className="u-avatar" style={{background:bg,color:fg}}>
+                            {u.username[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="u-name">{u.username}</div>
+                            <div className="u-email">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className={`badge ${roleClass[u.role]}`}>{u.role.toUpperCase()}</span></td>
+                      <td>
+                        {u.isVIP
+                          ? <span className="badge b-vip">⭐ VIP<span style={{opacity:.6,marginLeft:3,fontSize:9}}>{u.vipExp}</span></span>
+                          : <span style={{fontSize:11,color:'var(--muted)'}}>—</span>
+                        }
+                      </td>
+                      <td>
+                        {u.blocked ? <span className="badge b-blocked">🚫 Blocked</span>
+                          : u.locked ? <span className="badge b-locked">🔒 Locked</span>
+                          : <span className="badge b-ok">✓ Active</span>
+                        }
+                      </td>
+                      <td style={{fontSize:11,color:'var(--muted)'}}>{u.joined}</td>
+                      <td style={{fontFamily:'var(--fh)',fontWeight:600,color:'var(--amber)',fontSize:12}}>
+                        {u.spent>0?`${u.spent.toLocaleString()}₮`:'—'}
+                      </td>
+                      <td>
+                        <div className="act-row">
+                          <button className="act-btn view" onClick={()=>setSelected(u)}>Detail</button>
+                          {u.blocked
+                            ? <button className="act-btn unblock" onClick={()=>setConfirm({id:u.id,action:'unblock'})}>Unblock</button>
+                            : <button className="act-btn block" onClick={()=>setConfirm({id:u.id,action:'block'})}>Block</button>
+                          }
+                          {u.locked
+                            ? <button className="act-btn unblock" onClick={()=>setConfirm({id:u.id,action:'unlock'})}>Unlock</button>
+                            : <button className="act-btn logout" onClick={()=>setConfirm({id:u.id,action:'lock'})}>Lock</button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="pag">
+              <button className="pag-btn" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>← Өмнөх</button>
+              <span className="pag-info">Хуудас {page} / {totalPages}</span>
+              <button className="pag-btn" disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>Дараах →</button>
+              <span style={{marginLeft:'auto',fontSize:11,color:'var(--muted)'}}>{(page-1)*PER+1}–{Math.min(page*PER,filtered.length)} / {filtered.length}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* USER DETAIL DRAWER */}
+      {selected && (
+        <>
+          <div className="drawer-overlay" onClick={()=>setSelected(null)}/>
+          <div className="drawer">
+            <div className="drawer-hdr">
+              <div className="drawer-title">Хэрэглэгчийн дэлгэрэнгүй</div>
+              <button className="drawer-close" onClick={()=>setSelected(null)}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="drawer-body">
+              <div className="drawer-avatar" style={{background:AVATAR_COLORS[0][0],color:AVATAR_COLORS[0][1]}}>
+                {selected.username[0].toUpperCase()}
+              </div>
+              <div className="drawer-name">{selected.username}</div>
+              <div className="drawer-email">{selected.email}</div>
+              <div className="drawer-badges">
+                <span className={`badge ${roleClass[selected.role]}`}>{selected.role.toUpperCase()}</span>
+                {selected.isVIP && <span className="badge b-vip">⭐ VIP</span>}
+                {selected.blocked && <span className="badge b-blocked">🚫 Blocked</span>}
+                {selected.locked && <span className="badge b-locked">🔒 Locked</span>}
+                {!selected.blocked&&!selected.locked&&<span className="badge b-ok">✓ Active</span>}
+              </div>
+
+              <div className="drawer-section">
+                <div className="drawer-sec-title">Мэдээлэл</div>
+                {[
+                  ['Нэгдсэн огноо',selected.joined],
+                  ['Chapter уншсан',selected.chapters.toLocaleString()],
+                  ['VIP дуусах',selected.vipExp||'—'],
+                  ['Нийт зарцуулсан',selected.spent>0?`${selected.spent.toLocaleString()}₮`:'—'],
+                ].map(([l,v])=>(
+                  <div key={l} className="info-row">
+                    <span className="info-lbl">{l}</span>
+                    <span className="info-val">{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="drawer-section">
+                <div className="drawer-sec-title">Үйлдэл</div>
+                <div className="drawer-actions">
+                  <button className="d-act-btn warning">⭐ VIP сунгах / олгох</button>
+                  <button className="d-act-btn warning">🔑 Нууц үг сэргээх</button>
+                  {selected.blocked
+                    ? <button className="d-act-btn safe" onClick={()=>{setConfirm({id:selected.id,action:'unblock'});setSelected(null)}}>✓ Блок арилгах</button>
+                    : <button className="d-act-btn danger" onClick={()=>{setConfirm({id:selected.id,action:'block'});setSelected(null)}}>🚫 Блоклох</button>
+                  }
+                  {selected.locked
+                    ? <button className="d-act-btn safe" onClick={()=>{setConfirm({id:selected.id,action:'unlock'});setSelected(null)}}>🔓 Түгжээ арилгах</button>
+                    : <button className="d-act-btn warning" onClick={()=>{setConfirm({id:selected.id,action:'lock'});setSelected(null)}}>🔒 Түгжих (60 мин)</button>
+                  }
+                  <button className="d-act-btn danger">⚡ Force logout</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* CONFIRM DIALOG */}
+      {confirm && (
+        <div className="dialog-overlay">
+          <div className="dialog">
+            <div className="dialog-title">
+              {confirm.action==='block'?'Хэрэглэгч блоклох уу?'
+                :confirm.action==='unblock'?'Блок арилгах уу?'
+                :confirm.action==='lock'?'60 минут түгжих үү?'
+                :'Түгжээ арилгах уу?'}
+            </div>
+            <div className="dialog-sub">Энэ үйлдэл нь шууд хэрэгжиж, системд бүртгэгдэнэ.</div>
+            <div className="dialog-btns">
+              <button className="dialog-cancel" onClick={()=>setConfirm(null)}>Болих</button>
+              <button className="dialog-confirm" onClick={doConfirm}>Баталгаажуулах</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <TweaksPanel>
+        <TweakSection label="Table"/>
+        <TweakSelect label="Rows per page" tweakKey="perPage" options={[{label:'5 мөр',value:'5'},{label:'10 мөр',value:'10'},{label:'Бүгд',value:'100'}]}/>
+        <TweakToggle label="Show blocked" tweakKey="showBlocked"/>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="80" fill="#07070e"/>
+    <rect width="26" height="80" fill="#09090f"/>
+    <rect x="3" y="3" width="7" height="7" rx="2" fill="#111120"/>
+    <rect x="3" y="16" width="19" height="4" rx="2" fill="#111120"/>
+    <rect x="3" y="23" width="19" height="4" rx="2" fill="oklch(0.72 0.17 195/.3)"/>
+    <rect x="3" y="30" width="19" height="4" rx="2" fill="#111120"/>
+    <rect x="26" y="0" width="94" height="10" fill="#09090f" opacity="0.7"/>
+    <rect x="30" y="14" width="80" height="6" rx="3" fill="#0d0d1a"/>
+    <rect x="30" y="24" width="80" height="52" rx="4" fill="#0d0d1a"/>
+    <rect x="34" y="29" width="60" height="3" rx="1.5" fill="#111120"/>
+    <rect x="34" y="36" width="72" height="2" rx="1" fill="#111120"/>
+    <rect x="34" y="41" width="72" height="2" rx="1" fill="#111120"/>
+    <rect x="34" y="46" width="72" height="2" rx="1" fill="#111120"/>
+    <rect x="34" y="51" width="72" height="2" rx="1" fill="#111120"/>
+    <rect x="34" y="56" width="72" height="2" rx="1" fill="#111120"/>
+    <rect x="34" y="61" width="72" height="2" rx="1" fill="#111120"/>
+    <rect x="34" y="66" width="72" height="2" rx="1" fill="#111120"/>
+  </svg>
+</template>
+</body>
+</html>

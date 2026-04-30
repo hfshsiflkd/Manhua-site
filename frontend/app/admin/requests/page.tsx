@@ -4,24 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import AdminShell from "../components/AdminShell";
 import { adminGetRequests, type RequestItem } from "@/lib/requests";
 
-function RequestBadge({
-  title,
-  imageUrl,
-}: {
-  title: string;
-  imageUrl?: string;
-}) {
+function RequestBadge({ title, imageUrl }: { title: string; imageUrl?: string }) {
   const initial = (title || "?").trim().slice(0, 1).toUpperCase();
   if (imageUrl) {
     return (
-      <div className="h-10 w-10 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
+      <div className="h-10 w-10 overflow-hidden rounded-[10px]" style={{ border: "1px solid var(--arc-border)" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
       </div>
     );
   }
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/60 text-sm font-bold text-slate-100">
+    <div className="flex h-10 w-10 items-center justify-center rounded-[10px] text-[13px] font-bold" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}>
       {initial}
     </div>
   );
@@ -43,114 +37,65 @@ export default function AdminReaderRequestsPage() {
     } catch (e: any) {
       setError(e?.response?.data?.message || "Хүсэлтүүдийг уншиж чадсангүй");
       setItems([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const rows = useMemo(
-    () => [...items].sort((a, b) => b.votesThisMonth - a.votesThisMonth),
-    [items]
-  );
+  useEffect(() => { load(); }, []);
+  const rows = useMemo(() => [...items].sort((a, b) => b.votesThisMonth - a.votesThisMonth), [items]);
 
   return (
-    <AdminShell
-      title="Уншигчийн хүсэлтүүд"
-      subtitle="Уншигчдын хүсэлт, саналын жагсаалт (сарын дүнгээр эрэмбэлэгдсэн)."
-    >
+    <AdminShell title="Уншигчийн хүсэлтүүд" subtitle="Уншигчдын хүсэлт, саналын жагсаалт (сарын дүнгээр эрэмбэлэгдсэн).">
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="text-xs text-slate-400">
-            Сар: <span className="text-slate-200">{monthKey || "--"}</span>
+          <div className="text-[12px]" style={{ color: "var(--arc-muted)" }}>
+            Сар: <span style={{ color: "var(--arc-text)" }}>{monthKey || "--"}</span>
           </div>
-
-          <button
-            onClick={load}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
-          >
+          <button onClick={load} className="rounded-[9px] px-4 py-2 text-[12px] font-semibold transition-colors"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}>
             Refresh
           </button>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-            {error}
-          </div>
+          <div className="rounded-[9px] px-3 py-2 text-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>{error}</div>
         )}
 
         {loading ? (
-          <div className="text-sm text-slate-400">Loading…</div>
+          <div className="text-[13px]" style={{ color: "var(--arc-muted)" }}>Loading…</div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+          <div className="overflow-hidden rounded-[14px]" style={{ border: "1px solid var(--arc-border)" }}>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-950/60 text-xs text-slate-400">
+              <table className="min-w-full text-left text-[13px]">
+                <thead style={{ background: "var(--arc-elevated)", borderBottom: "1px solid var(--arc-border)" }}>
                   <tr>
-                    <th className="px-4 py-3">Rank</th>
-                    <th className="px-4 py-3">Manhua</th>
-                    <th className="px-4 py-3 text-right">This month</th>
-                    <th className="px-4 py-3 text-right">Total</th>
-                    <th className="px-4 py-3">Created</th>
+                    {["Rank", "Manhua", "This month", "Total", "Created"].map((h, i) => (
+                      <th key={h} className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wide${i >= 2 && i <= 3 ? " text-right" : ""}`} style={{ color: "var(--arc-muted)" }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody>
                   {rows.map((item, idx) => {
                     const rank = idx + 1;
-                    const highlight =
-                      rank === 1
-                        ? "bg-amber-500/5"
-                        : rank === 2
-                        ? "bg-slate-500/5"
-                        : rank === 3
-                        ? "bg-rose-500/5"
-                        : "";
                     return (
-                      <tr
-                        key={item.id}
-                        className={`hover:bg-slate-950/40 ${highlight}`}
-                      >
-                        <td className="px-4 py-3 text-slate-200">#{rank}</td>
+                      <tr key={item.id} style={{ borderTop: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+                        <td className="px-4 py-3 text-[13px]" style={{ color: "var(--arc-dim)" }}>#{rank}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <RequestBadge
-                              title={item.title}
-                              imageUrl={item.imageUrl}
-                            />
+                            <RequestBadge title={item.title} imageUrl={item.imageUrl} />
                             <div className="min-w-0">
-                              <div className="truncate font-semibold text-slate-100">
-                                {item.title}
-                              </div>
-                              <div className="text-[11px] text-slate-500">
-                                Manhua request
-                              </div>
+                              <div className="truncate font-semibold" style={{ color: "var(--arc-text)" }}>{item.title}</div>
+                              <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Manhua request</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold text-cyan-200">
-                          {item.votesThisMonth}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-300">
-                          {item.votes}
-                        </td>
-                        <td className="px-4 py-3 text-slate-400">
-                          {new Date(item.createdAt).toLocaleString()}
-                        </td>
+                        <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--arc-cyan)" }}>{item.votesThisMonth}</td>
+                        <td className="px-4 py-3 text-right" style={{ color: "var(--arc-dim)" }}>{item.votes}</td>
+                        <td className="px-4 py-3 text-[12px]" style={{ color: "var(--arc-muted)" }}>{new Date(item.createdAt).toLocaleString()}</td>
                       </tr>
                     );
                   })}
                   {rows.length === 0 && (
-                    <tr>
-                      <td
-                        className="px-4 py-6 text-sm text-slate-400"
-                        colSpan={5}
-                      >
-                        Хүсэлт алга.
-                      </td>
-                    </tr>
+                    <tr><td className="px-4 py-6 text-[13px]" colSpan={5} style={{ color: "var(--arc-muted)" }}>Хүсэлт алга.</td></tr>
                   )}
                 </tbody>
               </table>

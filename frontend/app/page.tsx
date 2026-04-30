@@ -49,7 +49,7 @@ export default function HomePage() {
   // LOADING UI
   if (loading) {
     return (
-      <div className="flex min-h-screen w-screen items-center justify-center bg-slate-950 text-white">
+      <div className="flex min-h-screen w-screen items-center justify-center text-white">
         <ManhuaDetailLoading />
       </div>
     );
@@ -58,13 +58,14 @@ export default function HomePage() {
   // ERROR UI
   if (error || !data) {
     return (
-      <div className="flex min-h-screen w-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-200">
+      <div className="flex min-h-screen w-screen items-center justify-center px-4 text-center" style={{ color: "var(--arc-text)" }}>
         <div className="max-w-md space-y-3">
           <h1 className="text-xl font-semibold">Алдаа гарлаа</h1>
-          <p className="text-sm text-slate-400">{error}</p>
+          <p className="text-sm" style={{ color: "var(--arc-dim)" }}>{error}</p>
           <button
             onClick={() => location.reload()}
-            className="mt-2 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+            className="mt-2 rounded-[9px] px-4 py-2 text-sm font-semibold"
+            style={{ background: "var(--arc-cyan)", color: "#07070e" }}
           >
             Дахин ачаалах
           </button>
@@ -75,16 +76,11 @@ export default function HomePage() {
 
   // NORMAL UI
   return (
-    <div className="m-0 min-h-screen w-screen overflow-x-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* <SnowBackground /> */}
-
+    <div className="m-0 min-h-screen w-screen overflow-x-hidden" style={{ color: "var(--arc-text)" }}>
       <HomePageHeader slides={data.hero} />
       <VipTrialReminder isVIP={user?.isVIP} vipExpiresAt={user?.vipExpiresAt} />
       <PopularToday />
-      <LatestUpdates
-        updates={data.latestUpdates}
-        limitDesktop={6}
-      />
+      <LatestUpdates updates={data.latestUpdates} limitDesktop={6} />
       <TrialSurprise />
     </div>
   );

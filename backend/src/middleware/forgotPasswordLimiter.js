@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = rateLimit;
 const { getRedisClient } = require("../config/redis");
 const { createRedisRateLimitStore } = require("../utils/rateLimitRedisStore");
 
@@ -52,7 +53,7 @@ const loginLimiter = rateLimit({
   ...(redisClient
     ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
     : {}),
-  keyGenerator: (req) => `login:ip:${req.ip}`,
+  keyGenerator: (req) => `login:ip:${ipKeyGenerator(req)}`,
   message: {
     success: false,
     message: "Хэт олон нэвтрэх оролдлого. 15 минутын дараа дахин оролдоно уу.",
@@ -70,7 +71,7 @@ const registerLimiter = rateLimit({
   ...(redisClient
     ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
     : {}),
-  keyGenerator: (req) => `register:ip:${req.ip}`,
+  keyGenerator: (req) => `register:ip:${ipKeyGenerator(req)}`,
   message: {
     success: false,
     message: "Хэт олон бүртгэлийн оролдлого. 1 цагийн дараа дахин оролдоно уу.",

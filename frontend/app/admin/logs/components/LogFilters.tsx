@@ -105,23 +105,18 @@ export default function LogFilters({
     { value: "30d", label: "Сүүлийн 30 хоног" },
   ];
 
+  const selectStyle: React.CSSProperties = {
+    width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+    background: "var(--arc-elevated)", padding: "9px 16px", fontSize: 13,
+    color: "var(--arc-text)", outline: "none",
+  };
+
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 sm:p-6">
-      {/* Search Input */}
+    <div className="space-y-4 rounded-[14px] p-4 sm:p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <svg
-            className="h-4 w-4 text-slate-500 sm:h-5 sm:w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: "var(--arc-muted)" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
         <input
@@ -129,65 +124,36 @@ export default function LogFilters({
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Хайх (message, action, user, IP, path)..."
-          className="w-full rounded-xl border border-slate-700 bg-slate-950/70 pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+          className="w-full pl-10 pr-4 py-2.5 text-[13px] rounded-[9px] outline-none"
+          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
         />
       </div>
 
-      {/* Filters Row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Level Filter */}
         <div className="flex-1 sm:max-w-[140px]">
-          <select
-            value={filters.level}
-            onChange={(e) => handleFilterChange("level", e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-          >
-            {levelOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+          <select value={filters.level} onChange={(e) => handleFilterChange("level", e.target.value)} style={selectStyle}>
+            {levelOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
         </div>
-
-        {/* Category Filter */}
         <div className="flex-1 sm:max-w-[140px]">
-          <select
-            value={filters.category}
-            onChange={(e) => handleFilterChange("category", e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-          >
-            {categoryOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+          <select value={filters.category} onChange={(e) => handleFilterChange("category", e.target.value)} style={selectStyle}>
+            {categoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
           </select>
         </div>
-
-        {/* Date Range Pills */}
         <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {dateRangeOptions.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => handleFilterChange("dateRange", opt.value)}
-              className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-all ${
-                filters.dateRange === opt.value
-                  ? "border-cyan-500/60 bg-cyan-500/20 text-cyan-300"
-                  : "border-slate-700 bg-slate-950/70 text-slate-400 hover:border-slate-600"
-              }`}
-            >
+            <button key={opt.value} onClick={() => handleFilterChange("dateRange", opt.value)}
+              className="flex-shrink-0 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all"
+              style={filters.dateRange === opt.value
+                ? { border: "1px solid oklch(0.72 0.17 195/.6)", background: "oklch(0.72 0.17 195/.15)", color: "var(--arc-cyan)", cursor: "pointer" }
+                : { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}>
               {opt.label}
             </button>
           ))}
         </div>
-
-        {/* Clear Button */}
         {hasActiveFilters && (
-          <button
-            onClick={onClear}
-            className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-600 hover:bg-slate-900 sm:px-6"
-          >
+          <button onClick={onClear} className="rounded-[9px] px-4 py-2.5 text-[13px] font-medium transition-colors"
+            style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: "pointer" }}>
             Цэвэрлэх
           </button>
         )}

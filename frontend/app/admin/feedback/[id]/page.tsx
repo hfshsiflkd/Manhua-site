@@ -9,6 +9,12 @@ function labelType(t: AdminFeedback["type"]) {
   return t === "complaint" ? "Complaint / Report" : "Suggestion / Request";
 }
 
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  new:      { border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" },
+  reviewed: { border: "1px solid oklch(0.82 0.16 85/.4)",  background: "oklch(0.82 0.16 85/.08)",  color: "var(--arc-amber)" },
+  resolved: { border: "1px solid oklch(0.72 0.17 155/.4)", background: "oklch(0.72 0.17 155/.08)", color: "oklch(0.8 0.14 155)" },
+};
+
 export default function AdminFeedbackDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -49,80 +55,103 @@ export default function AdminFeedbackDetailPage() {
   };
 
   return (
-    <AdminShell title="Feedback detail" subtitle="View one submission.">
+    <AdminShell title="Feedback дэлгэрэнгүй" subtitle="Нэг санал, хүсэлт харах.">
       <div className="space-y-4">
         <button
           onClick={() => router.push("/admin/feedback")}
-          className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800"
+          className="rounded-[9px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
+          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
         >
-          ← Back
+          ← Буцах
         </button>
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+          <div className="rounded-[10px] px-3 py-2 text-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
             {error}
           </div>
         )}
 
         {loading && !data ? (
-          <div className="text-sm text-slate-400">Loading…</div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-12 animate-pulse rounded-[10px]" style={{ background: "var(--arc-elevated)" }} />
+            ))}
+          </div>
         ) : !data ? null : (
           <div className="grid gap-4 lg:grid-cols-5">
-            <div className="lg:col-span-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+            {/* Main info */}
+            <div
+              className="lg:col-span-3 rounded-[14px] p-5 space-y-4"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+            >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-slate-700 bg-slate-950/50 px-2 py-1 text-[11px] text-slate-200">
+                <span
+                  className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold"
+                  style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}
+                >
                   {labelType(data.type)}
                 </span>
-                <span className="rounded-full border border-slate-700 bg-slate-950/50 px-2 py-1 text-[11px] text-slate-200">
-                  status: <b>{data.status}</b>
+                <span
+                  className="rounded-[6px] px-2.5 py-1 text-[10px] font-semibold"
+                  style={STATUS_STYLE[data.status] || STATUS_STYLE.new}
+                >
+                  {data.status}
                 </span>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
                   {new Date(data.createdAt).toLocaleString()}
                 </span>
               </div>
 
               <div>
-                <div className="text-xs text-slate-400">Name</div>
-                <div className="text-lg font-semibold text-slate-100">{data.name}</div>
+                <div className="mb-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--arc-muted)" }}>Нэр</div>
+                <div className="text-[16px] font-semibold" style={{ color: "var(--arc-text)" }}>{data.name}</div>
               </div>
 
               <div>
-                <div className="text-xs text-slate-400">Description</div>
-                <div className="whitespace-pre-wrap text-sm text-slate-200">
+                <div className="mb-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--arc-muted)" }}>Тайлбар</div>
+                <div className="whitespace-pre-wrap text-[13px] leading-relaxed" style={{ color: "var(--arc-dim)" }}>
                   {data.description}
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div
+                className="flex flex-wrap gap-2 pt-3"
+                style={{ borderTop: "1px solid var(--arc-border)" }}
+              >
                 {(["new", "reviewed", "resolved"] as const).map((s) => (
                   <button
                     key={s}
                     disabled={busy}
                     onClick={() => setStatus(s)}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-60 ${
-                      data.status === s
-                        ? "border-cyan-500/50 bg-cyan-500/15 text-cyan-200"
-                        : "border-slate-700 bg-slate-950/40 text-slate-200 hover:bg-slate-950/70"
-                    }`}
+                    className="rounded-[8px] px-3 py-1.5 text-[11px] font-semibold disabled:opacity-60 transition-opacity hover:opacity-80"
+                    style={data.status === s ? STATUS_STYLE[s] : { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
                   >
-                    Mark {s}
+                    {s}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="lg:col-span-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="text-xs text-slate-400">Image</div>
+            {/* Image */}
+            <div
+              className="lg:col-span-2 rounded-[14px] p-5"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+            >
+              <div className="mb-2 text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--arc-muted)" }}>Зураг</div>
               {data.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={data.imageUrl}
                   alt="Feedback attachment"
-                  className="mt-2 w-full rounded-xl border border-slate-800 object-contain bg-slate-950/40"
+                  className="w-full rounded-[10px] object-contain"
+                  style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}
                 />
               ) : (
-                <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-6 text-center text-sm text-slate-500">
-                  No image uploaded.
+                <div
+                  className="rounded-[10px] px-3 py-8 text-center text-[12px]"
+                  style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-muted)" }}
+                >
+                  Зураг байхгүй
                 </div>
               )}
             </div>
@@ -132,4 +161,3 @@ export default function AdminFeedbackDetailPage() {
     </AdminShell>
   );
 }
-

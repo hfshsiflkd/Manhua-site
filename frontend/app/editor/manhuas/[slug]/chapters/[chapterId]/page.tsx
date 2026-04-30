@@ -8,19 +8,33 @@ import { api, uploadImage } from "@/lib/api";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
-interface ChapterPage {
-  pageNumber: number;
-  imageUrl: string;
-  originalName?: string;
-}
+interface ChapterPage { pageNumber: number; imageUrl: string; originalName?: string; }
+interface Chapter { _id: string; chapterNumber: number; title?: string; pages: ChapterPage[]; language?: string; status?: "published" | "draft"; }
 
-interface Chapter {
-  _id: string;
-  chapterNumber: number;
-  title?: string;
-  pages: ChapterPage[];
-  language?: string;
-  status?: "published" | "draft";
+function ChapterPreview({ pages, title, chapterNumber }: { pages: ChapterPage[]; title: string; chapterNumber: number }) {
+  return (
+    <div className="w-full max-h-[600px] overflow-y-auto rounded-[9px]" style={{ background: "var(--arc-bg)" }}>
+      <div className="mx-auto max-w-3xl">
+        {title && (
+          <div className="w-full px-4 py-4 sm:px-6" style={{ borderBottom: "1px solid var(--arc-border)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs sm:text-sm font-medium uppercase tracking-wide" style={{ color: "var(--arc-muted)" }}>Chapter {chapterNumber}</span>
+            </div>
+            <h2 className="text-base sm:text-lg font-semibold leading-relaxed" style={{ color: "var(--arc-text)" }}>
+              <span style={{ color: "var(--arc-muted)" }}>(</span>{title}<span style={{ color: "var(--arc-muted)" }}>)</span>
+            </h2>
+          </div>
+        )}
+        <div className="space-y-0">
+          {pages.map((p, idx) => (
+            <div key={`preview-${p.pageNumber}-${idx}`} className="w-full">
+              <img src={p.imageUrl} alt={`Page ${p.pageNumber}`} className="w-full h-auto block" loading="lazy" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function EditorEditChapterPage() {
@@ -39,469 +53,226 @@ export default function EditorEditChapterPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
   const [uploadTotal, setUploadTotal] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<
-    "idle" | "uploading" | "saving"
-  >("idle");
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-
   const [chapterNumber, setChapterNumber] = useState<number>(1);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<"published" | "draft">("published");
-
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const confirm = useConfirm();
   const toast = useToast();
 
-  // Load chapter
+  const fieldStyle: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)", borderRadius: 9, padding: "10px 16px", fontSize: 13, outline: "none", width: "100%" };
+  const btnBase: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" };
+
   useEffect(() => {
     if (!chapterId) return;
-
     async function load() {
       try {
         setLoading(true);
         const res = await api.get<Chapter>(`/editor/chapters/${chapterId}`);
         const ch = res.data;
         setChapter(ch);
-        setPages(
-          (ch.pages || []).slice().sort((a, b) => a.pageNumber - b.pageNumber)
-        );
-        setChapterNumber(ch.chapterNumber);
-        setTitle(ch.title || "");
-        setStatus((ch.status as "published" | "draft") || "published");
-      } catch (e: any) {
-        console.error(e);
-        setError("Chapter уншихад алдаа гарлаа");
-      } finally {
-        setLoading(false);
-      }
+        setPages((ch.pages || []).slice().sort((a, b) => a.pageNumber - b.pageNumber));
+        setChapterNumber(ch.chapterNumber); setTitle(ch.title || ""); setStatus((ch.status as "published" | "draft") || "published");
+      } catch (e: any) { setError("Chapter уншихад алдаа гарлаа"); }
+      finally { setLoading(false); }
     }
-
     load();
   }, [chapterId]);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files);
-  };
-
-  // Save metadata
   const handleSaveMeta = async (e: FormEvent) => {
     e.preventDefault();
     if (!chapter) return;
-
     try {
-      setSavingMeta(true);
-      setError(null);
-      await api.put(`/editor/chapters/${chapterId}`, {
-        chapterNumber,
-        title,
-        status,
-        pages,
-      });
-
-      setChapter({
-        ...chapter,
-        chapterNumber,
-        title,
-        status,
-        pages,
-      });
+      setSavingMeta(true); setError(null);
+      await api.put(`/editor/chapters/${chapterId}`, { chapterNumber, title, status, pages });
+      setChapter({ ...chapter, chapterNumber, title, status, pages });
       toast.success("Meta мэдээлэл хадгалагдлаа");
     } catch (err: any) {
-      console.error(err);
-      const message =
-        err?.response?.data?.message ||
-          "Chapter-ийн мэдээллийг хадгалах үед алдаа гарлаа"
-      setError(message);
-      toast.error(message);
-    } finally {
-      setSavingMeta(false);
-    }
+      const m = err?.response?.data?.message || "Chapter-ийн мэдээллийг хадгалах үед алдаа гарлаа"; setError(m); toast.error(m);
+    } finally { setSavingMeta(false); }
   };
 
-  // Save pages
   const saveChapterPages = async (updatedPages: ChapterPage[]) => {
     if (!chapter) return;
     setSavingPages(true);
     try {
       setError(null);
-      await api.put(`/editor/chapters/${chapterId}`, {
-        chapterNumber,
-        title,
-        status,
-        pages: updatedPages,
-      });
-      setChapter({ ...chapter, pages: updatedPages });
-      setPages(updatedPages);
-    } catch (e: any) {
-      console.error(e);
-      setError(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа");
-    } finally {
-      setSavingPages(false);
-    }
+      await api.put(`/editor/chapters/${chapterId}`, { chapterNumber, title, status, pages: updatedPages });
+      setChapter({ ...chapter, pages: updatedPages }); setPages(updatedPages);
+    } catch (e: any) { setError(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа"); }
+    finally { setSavingPages(false); }
   };
 
-  // Add images
   const handleAddImages = async () => {
-    if (!files || !chapter) {
-      const message = "Файл сонгоно уу";
-      setError(message);
-      toast.error(message);
-      return;
-    }
+    if (!files || !chapter) { const m = "Файл сонгоно уу"; setError(m); toast.error(m); return; }
     try {
-      setError(null);
-      setAddingImages(true);
+      setError(null); setAddingImages(true);
       const fileArr = Array.from(files);
-      if (fileArr.length === 0) return;
-
-      setUploadProgress(0);
-      setUploadingIndex(0);
-      setUploadTotal(fileArr.length);
-      setUploadPhase("uploading");
-
+      if (!fileArr.length) return;
+      setUploadProgress(0); setUploadingIndex(0); setUploadTotal(fileArr.length); setUploadPhase("uploading");
       const uploaded: string[] = [];
       for (const [index, file] of fileArr.entries()) {
         setUploadingIndex(index + 1);
-        const r = await uploadImage(file, (percent) => {
-          const overall = Math.round(
-            ((index + percent / 100) / fileArr.length) * 100
-          );
-          setUploadProgress(Math.min(100, Math.max(0, overall)));
-        });
-        const url = (r as any).url || (r as any).secure_url || r.url;
-        uploaded.push(url);
+        const r = await uploadImage(file, (p) => setUploadProgress(Math.min(100, Math.max(0, Math.round(((index + p / 100) / fileArr.length) * 100)))));
+        uploaded.push((r as any).url || (r as any).secure_url || r.url);
       }
-      setUploadProgress(100);
-      setUploadPhase("saving");
-
-      const currentLen = pages.length;
-      const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
-        pageNumber: currentLen + idx + 1,
-        imageUrl: url,
-        originalName: fileArr[idx]?.name || undefined,
-      }));
-
-      const merged = [...pages, ...newPages].map((p, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName,
-      }));
-
+      setUploadProgress(100); setUploadPhase("saving");
+      const newPages: ChapterPage[] = uploaded.map((url, idx) => ({ pageNumber: pages.length + idx + 1, imageUrl: url, originalName: fileArr[idx]?.name }));
+      const merged = [...pages, ...newPages].map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
       await saveChapterPages(merged);
-      setFiles(null);
-      toast.success("Шинэ page-үүд нэмэгдлээ");
-    } catch (e: any) {
-      console.error(e);
-      const message =
-        e.response?.data?.message || "Page нэмэхэд алдаа гарлаа";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setAddingImages(false);
-      setUploadProgress(null);
-      setUploadingIndex(0);
-      setUploadTotal(0);
-      setUploadPhase("idle");
-    }
+      setFiles(null); toast.success("Шинэ page-үүд нэмэгдлээ");
+    } catch (e: any) { const m = e.response?.data?.message || "Page нэмэхэд алдаа гарлаа"; setError(m); toast.error(m); }
+    finally { setAddingImages(false); setUploadProgress(null); setUploadingIndex(0); setUploadTotal(0); setUploadPhase("idle"); }
   };
 
-  // Remove page
   const handleRemovePage = async (index: number) => {
     if (!chapter) return;
-    const ok = await confirm({
-      title: "Page устгах уу?",
-      description: "Энэ page-ийг устгавал буцаах боломжгүй.",
-      confirmText: "Устгах",
-      cancelText: "Болих",
-    });
+    const ok = await confirm({ title: "Page устгах уу?", description: "Энэ page-ийг устгавал буцаах боломжгүй.", confirmText: "Устгах", cancelText: "Болих" });
     if (!ok) return;
-
-    const remaining = pages
-      .filter((_, i) => i !== index)
-      .map((p, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName,
-      }));
-
+    const remaining = pages.filter((_, i) => i !== index).map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
     await saveChapterPages(remaining);
-  };
-
-  // Drag & Drop
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    e.preventDefault();
   };
 
   const handleDrop = async (targetIndex: number) => {
     if (dragIndex === null || dragIndex === targetIndex) return;
-
     const updated = [...pages];
     const [moved] = updated.splice(dragIndex, 1);
     updated.splice(targetIndex, 0, moved);
-
-    const reIndexed = updated.map((p, idx) => ({
-      pageNumber: idx + 1,
-      imageUrl: p.imageUrl,
-      originalName: p.originalName,
-    }));
-
+    const reIndexed = updated.map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
     setDragIndex(null);
     await saveChapterPages(reIndexed);
   };
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-sm text-slate-400">Уншиж байна...</div>
-      </div>
-    );
-  if (!chapter)
-    return (
-      <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-        Chapter олдсонгүй
-      </div>
-    );
+  if (loading) return <div className="flex items-center justify-center py-12 text-sm" style={{ color: "var(--arc-muted)" }}>Уншиж байна...</div>;
+  if (!chapter) return (
+    <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>Chapter олдсонгүй</div>
+  );
 
   return (
     <div className="space-y-6">
       {addingImages && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-xl shadow-black/50">
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="font-medium">
-                {uploadPhase === "saving"
-                  ? "Page-үүд хадгалж байна..."
-                  : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}
-              </span>
-              <span className="font-mono text-slate-100">
-                {uploadPhase === "saving"
-                  ? "100%"
-                  : `${uploadProgress ?? 0}%`}
-              </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(7,7,14,0.85)" }}>
+          <div className="w-full max-w-sm space-y-3 rounded-[14px] p-4 text-[11px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+            <div className="flex items-center justify-between" style={{ color: "var(--arc-dim)" }}>
+              <span className="font-medium">{uploadPhase === "saving" ? "Page-үүд хадгалж байна..." : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}</span>
+              <span className="font-mono" style={{ color: "var(--arc-text)" }}>{uploadPhase === "saving" ? "100%" : `${uploadProgress ?? 0}%`}</span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
-                style={{
-                  width:
-                    uploadPhase === "saving"
-                      ? "100%"
-                      : `${uploadProgress ?? 0}%`,
-                }}
-              />
+            <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--arc-elevated)" }}>
+              <div className="h-full rounded-full transition-[width] duration-200" style={{ width: uploadPhase === "saving" ? "100%" : `${uploadProgress ?? 0}%`, background: "var(--arc-cyan)" }} />
             </div>
-            <p className="text-[10px] text-slate-500">
-              Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.
-            </p>
+            <p className="text-[10px]" style={{ color: "var(--arc-muted)" }}>Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.</p>
           </div>
         </div>
       )}
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              type="button"
-              onClick={() => router.push(`/editor/manhuas/${slug}/chapters`)}
-              className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition"
-            >
-              ← Chapters
-            </button>
-            <span className="text-sm text-slate-400">/</span>
-            <span className="text-sm font-mono text-slate-300">{slug}</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-1">
-            Edit Chapter {chapter.chapterNumber}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Chapter мэдээлэл болон page-үүдийг удирдана.
-          </p>
+
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <button type="button" onClick={() => router.push(`/editor/manhuas/${slug}/chapters`)}
+            className="rounded-[9px] px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80" style={btnBase}>
+            ← Chapters
+          </button>
+          <span className="text-sm" style={{ color: "var(--arc-muted)" }}>/</span>
+          <span className="text-sm font-mono" style={{ color: "var(--arc-dim)" }}>{slug}</span>
         </div>
+        <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>Edit Chapter {chapter.chapterNumber}</h1>
+        <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>Chapter мэдээлэл болон page-үүдийг удирдана.</p>
       </div>
 
-      {/* Error */}
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
+        <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>{error}</div>
       )}
 
-      {/* Two Column Layout */}
       <div className="grid gap-6 lg:grid-cols-[400px,1fr]">
-        {/* Left - Metadata */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
-          <h2 className="text-lg font-semibold text-slate-100 mb-4">
-            Chapter мэдээлэл
-          </h2>
+        <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+          <h2 className="text-base font-semibold mb-4" style={{ color: "var(--arc-text)" }}>Chapter мэдээлэл</h2>
           <form onSubmit={handleSaveMeta} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">
-                Chapter number
-              </label>
-              <input
-                type="number"
-                min={0}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                value={chapterNumber}
-                onChange={(e) => {
-                  const next = e.currentTarget.valueAsNumber;
-                  setChapterNumber(Number.isNaN(next) ? 0 : next);
-                }}
-              />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Chapter number</label>
+              <input type="number" min={0} style={fieldStyle} value={chapterNumber} onChange={(e) => { const n = e.currentTarget.valueAsNumber; setChapterNumber(Number.isNaN(n) ? 0 : n); }} />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Title</label>
-              <input
-                type="text"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                placeholder="Жишээ: First Encounter"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Title</label>
+              <input type="text" style={fieldStyle} placeholder="Жишээ: First Encounter" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">
-                Status
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                value={status}
-                onChange={(e) =>
-                  setStatus(e.target.value as "published" | "draft")
-                }
-              >
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Status</label>
+              <select style={fieldStyle} value={status} onChange={(e) => setStatus(e.target.value as "published" | "draft")}>
                 <option value="published">Published</option>
                 <option value="draft">Draft</option>
               </select>
             </div>
-
-            <button
-              type="submit"
-              disabled={savingMeta}
-              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
-            >
+            <button type="submit" disabled={savingMeta}
+              className="w-full rounded-[9px] px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-60"
+              style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}>
               {savingMeta ? "Хадгалж байна..." : "Meta хадгалах"}
             </button>
           </form>
         </section>
 
-        {/* Right - Pages */}
         <div className="space-y-6">
-          {/* Preview Toggle */}
           {pages.length > 0 && (
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+            <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-100">
-                  Preview
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 transition"
-                >
+                <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Preview</h2>
+                <button type="button" onClick={() => setShowPreview(!showPreview)}
+                  className="rounded-[9px] px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80" style={btnBase}>
                   {showPreview ? "Харуулахгүй" : "Харуулах"}
                 </button>
               </div>
               {showPreview && (
-                <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950 p-4">
+                <div className="mt-4 rounded-[9px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
                   <ChapterPreview pages={pages} title={title} chapterNumber={chapterNumber} />
                 </div>
               )}
             </section>
           )}
 
-          {/* Add Images */}
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">
-              Шинэ page-үүд нэмэх
-            </h2>
+          <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+            <h2 className="text-base font-semibold mb-4" style={{ color: "var(--arc-text)" }}>Шинэ page-үүд нэмэх</h2>
             <div className="space-y-4">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileChange}
-                className="w-full text-sm text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-cyan-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950 hover:file:bg-cyan-400 transition"
-              />
+              <input type="file" multiple accept="image/*" onChange={(e) => setFiles(e.target.files)}
+                className="w-full text-sm file:mr-3 file:rounded-full file:border-0 file:px-4 file:py-1.5 file:text-xs file:font-semibold file:cursor-pointer transition"
+                style={{ color: "var(--arc-dim)" }} />
               {files && files.length > 0 && (
-                <p className="text-xs text-slate-400">
-                  Сонгосон {files.length} файл – одоогийн {pages.length}{" "}
-                  page-ийн араас автоматаар залгаж, дахин 1..N гэж дугаарлана.
-                </p>
+                <p className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Сонгосон {files.length} файл – одоогийн {pages.length} page-ийн араас залгана.</p>
               )}
-              <button
-                disabled={savingPages || addingImages || !files?.length}
-                onClick={handleAddImages}
-                className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed transition"
-              >
+              <button disabled={savingPages || addingImages || !files?.length} onClick={handleAddImages}
+                className="rounded-[9px] px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: "var(--arc-cyan)", color: "#07070e" }}>
                 {savingPages ? "Хадгалж байна..." : "Шинэ page-үүд хадгалах"}
               </button>
             </div>
           </section>
 
-          {/* Pages List */}
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">
-              Pages жагсаалт ({pages.length})
-            </h2>
+          <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+            <h2 className="text-base font-semibold mb-4" style={{ color: "var(--arc-text)" }}>Pages жагсаалт ({pages.length})</h2>
             {pages.length === 0 ? (
-              <p className="text-sm text-slate-400">
-                Одоогоор page алга. Дээрээс зураг нэмж эхэлнэ үү.
-              </p>
+              <p className="text-sm" style={{ color: "var(--arc-muted)" }}>Одоогоор page алга. Дээрээс зураг нэмж эхэлнэ үү.</p>
             ) : (
               <ul className="space-y-2">
                 {pages.map((p, idx) => (
-                  <li
-                    key={`${p.imageUrl}-${idx}`}
-                    draggable
-                    onDragStart={() => handleDragStart(idx)}
-                    onDragOver={handleDragOver}
+                  <li key={`${p.imageUrl}-${idx}`} draggable
+                    onDragStart={() => setDragIndex(idx)}
+                    onDragOver={(e) => e.preventDefault()}
                     onDrop={() => handleDrop(idx)}
-                    className={`flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 transition ${
-                      dragIndex === idx ? "opacity-50" : "hover:bg-slate-900"
-                    }`}
-                  >
-                    {/* Drag handle */}
-                    <div className="flex h-full cursor-grab select-none items-center pr-1 text-slate-500">
+                    className={`flex items-center gap-3 rounded-[9px] px-3 py-2.5 transition ${dragIndex === idx ? "opacity-50" : ""}`}
+                    style={{ border: "1px solid var(--arc-border)", background: dragIndex === idx ? "var(--arc-elevated)" : "var(--arc-card)" }}>
+                    <div className="flex h-full cursor-grab select-none items-center pr-1" style={{ color: "var(--arc-muted)" }}>
                       <span className="leading-none">⋮⋮</span>
                     </div>
-
-                    {/* Thumbnail */}
-                    <div className="h-16 w-12 flex-shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-                      <img
-                        src={p.imageUrl}
-                        alt={`Page ${idx + 1}`}
-                        className="h-full w-full object-cover"
-                      />
+                    <div className="h-16 w-12 flex-shrink-0 overflow-hidden rounded-[7px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+                      <img src={p.imageUrl} alt={`Page ${idx + 1}`} className="h-full w-full object-cover" />
                     </div>
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-slate-100">
-                          Page {idx + 1}
-                        </span>
-                        {p.originalName && (
-                          <span className="text-xs text-slate-500 truncate" title={p.originalName}>
-                            {p.originalName}
-                          </span>
-                        )}
-                      </div>
+                      <span className="text-sm font-medium" style={{ color: "var(--arc-text)" }}>Page {idx + 1}</span>
+                      {p.originalName && <span className="block text-[10px] truncate" style={{ color: "var(--arc-muted)" }} title={p.originalName}>{p.originalName}</span>}
                     </div>
-
-                    {/* Delete */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePage(idx)}
-                      className="rounded-lg px-2 sm:px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition flex-shrink-0"
-                    >
+                    <button type="button" onClick={() => handleRemovePage(idx)}
+                      className="rounded-[7px] px-2 sm:px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 flex-shrink-0"
+                      style={{ color: "oklch(0.75 0.22 15)" }}>
                       <span className="hidden sm:inline">Устгах</span>
                       <span className="sm:hidden">×</span>
                     </button>
@@ -510,53 +281,6 @@ export default function EditorEditChapterPage() {
               </ul>
             )}
           </section>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Chapter Preview Component
-function ChapterPreview({
-  pages,
-  title,
-  chapterNumber,
-}: {
-  pages: ChapterPage[];
-  title: string;
-  chapterNumber: number;
-}) {
-  return (
-    <div className="w-full max-h-[600px] overflow-y-auto bg-slate-900 rounded-lg">
-      <div className="mx-auto max-w-3xl">
-        {/* Chapter Title Preview */}
-        {title && (
-          <div className="w-full px-4 py-4 sm:px-6 border-b border-slate-800">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wide">
-                Chapter {chapterNumber}
-              </span>
-            </div>
-            <h2 className="text-base sm:text-lg md:text-xl font-semibold text-slate-100 leading-relaxed">
-              <span className="text-slate-400">(</span>
-              {title}
-              <span className="text-slate-400">)</span>
-            </h2>
-          </div>
-        )}
-
-        {/* Pages Preview */}
-        <div className="space-y-0">
-          {pages.map((p, idx) => (
-            <div key={`preview-${p.pageNumber}-${idx}`} className="w-full">
-              <img
-                src={p.imageUrl}
-                alt={`Page ${p.pageNumber}`}
-                className="w-full h-auto block"
-                loading="lazy"
-              />
-            </div>
-          ))}
         </div>
       </div>
     </div>

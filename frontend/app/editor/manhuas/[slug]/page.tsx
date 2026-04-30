@@ -4,80 +4,32 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  editorGetMyManhuas,
-  editorUpdateManhua,
-  uploadImage,
-  Manhua,
-  editorGetTeams,
-  Team,
-} from "@/lib/api";
+import { editorGetMyManhuas, editorUpdateManhua, uploadImage, Manhua, editorGetTeams, Team } from "@/lib/api";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
-const GENRE_OPTIONS = [
-  "Romance",
-  "Comedy",
-  "Drama",
-  "Action",
-  "Fantasy",
-  "Slice of Life",
-  "School",
-  "Isekai",
-  "Adventure",
-];
+const GENRE_OPTIONS = ["Romance", "Comedy", "Drama", "Action", "Fantasy", "Slice of Life", "School", "Isekai", "Adventure"];
 
-// Slugify helper function (matches backend logic)
 function slugify(str: string): string {
-  return str
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
-    .replace(/^-+|-+$/g, "");
+  return str.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
 }
 
 function getSlugBase(title: string, titleEn?: string) {
   return (titleEn && titleEn.trim()) || title;
 }
 
-// Star Rating Display Component
 function StarRatingDisplay({ rating }: { rating: number }) {
-  const clampedRating = Math.min(5, Math.max(0, rating));
-  
+  const r = Math.min(5, Math.max(0, rating));
   return (
     <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => {
-        const isFull = clampedRating >= star;
-        const isHalf = clampedRating >= star - 0.5 && clampedRating < star;
-        
-        if (isFull) {
-          return (
-            <span key={star} className="text-amber-400 text-lg">
-              ★
-            </span>
-          );
-        } else if (isHalf) {
-          return (
-            <span key={star} className="text-amber-400/50 text-lg">
-              ★
-            </span>
-          );
-        } else {
-          return (
-            <span key={star} className="text-slate-600 text-lg">
-              ★
-            </span>
-          );
-        }
-      })}
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span key={star} className="text-lg" style={{ color: r >= star ? "var(--arc-amber)" : r >= star - 0.5 ? "oklch(0.82 0.18 75/.5)" : "var(--arc-border)" }}>★</span>
+      ))}
     </div>
   );
 }
 
-// ─────────────────────────────────────
-//  Үндсэн page component
-// ─────────────────────────────────────
-export default function AdminManhuaDetailPage() {
+export default function EditorManhuaDetailPage() {
   const { slug: routeSlug } = useParams() as { slug?: string };
   const router = useRouter();
   const decodedRouteSlug = routeSlug ? decodeURIComponent(routeSlug) : undefined;
@@ -93,732 +45,292 @@ export default function AdminManhuaDetailPage() {
   const confirm = useConfirm();
   const toast = useToast();
 
-  const [form, setForm] = useState({
-    title: "",
-    titleEn: "",
-    slug: "",
-    description: "",
-    coverImage: "",
-    status: "ongoing",
-    genres: "",
-    rating: "",
-    teamId: "",
-  });
+  const [form, setForm] = useState({ title: "", titleEn: "", slug: "", description: "", coverImage: "", status: "ongoing", genres: "", rating: "", teamId: "" });
   const [teams, setTeams] = useState<Team[]>([]);
 
-  // ─── LOAD DATA ─────────────────────
+  const fieldStyle: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)", borderRadius: 9, padding: "10px 16px", fontSize: 13, outline: "none", width: "100%" };
+
   useEffect(() => {
-    if (!decodedRouteSlug) {
-      setLoading(false);
-      setError("Manhua slug олдсонгүй.");
-      return;
-    }
-
-    const fetchManhua = async () => {
+    if (!decodedRouteSlug) { setLoading(false); setError("Manhua slug олдсонгүй."); return; }
+    const fetch = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        // Fetch all my manhuas and find the one with matching slug
+        setLoading(true); setError(null);
         const manhuas = await editorGetMyManhuas();
-        const found = manhuas.find(
-          (m) => m.slug === decodedRouteSlug || m._id === decodedRouteSlug
-        );
-
-        if (!found) {
-          setError("Манхуа олдсонгүй эсвэл та энэ манхуа-д хандах эрхгүй байна.");
-          setManhua(null);
-          return;
-        }
-
+        const found = manhuas.find((m) => m.slug === decodedRouteSlug || m._id === decodedRouteSlug);
+        if (!found) { setError("Манхуа олдсонгүй эсвэл та энэ манхуа-д хандах эрхгүй байна."); setManhua(null); return; }
         setManhua(found);
-
-        // Determine if slug was custom (differs from auto-generated)
-        const autoSlug = slugify(found.title);
-        const wasCustom = Boolean(found.slug && found.slug !== autoSlug);
-
+        setIsSlugLocked(Boolean(found.slug && found.slug !== slugify(found.title)));
         setForm({
-          title: found.title,
-          titleEn: (found as any).titleEn || "",
-          slug: found.slug || "",
-          description: found.description || "",
-          coverImage: found.coverImage || (found as any).coverImageUrl || "",
-          status: found.status || "ongoing",
-          genres: found.genres?.join(", ") || "",
+          title: found.title, titleEn: (found as any).titleEn || "", slug: found.slug || "",
+          description: found.description || "", coverImage: found.coverImage || (found as any).coverImageUrl || "",
+          status: found.status || "ongoing", genres: found.genres?.join(", ") || "",
           rating: found.rating?.toString() || "0",
-          teamId:
-            typeof found.team === "string"
-              ? found.team
-              : (found.team as any)?._id || "",
+          teamId: typeof found.team === "string" ? found.team : (found.team as any)?._id || "",
         });
-
-        setIsSlugLocked(wasCustom);
       } catch (e: any) {
-        console.error("[EditorManhuaDetail] load error:", e);
-        setError(
-          e?.response?.data?.message || "Манхуа ачаалж чадсангүй"
-        );
+        setError(e?.response?.data?.message || "Манхуа ачаалж чадсангүй");
         setManhua(null);
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
-
-    fetchManhua();
+    fetch();
   }, [decodedRouteSlug]);
 
   useEffect(() => {
     let active = true;
-    editorGetTeams()
-      .then((data) => {
-        if (!active) return;
-        setTeams(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (!active) return;
-        setTeams([]);
-      });
-    return () => {
-      active = false;
-    };
+    editorGetTeams().then((data) => { if (!active) return; setTeams(Array.isArray(data) ? data : []); })
+      .catch(() => { if (!active) return; setTeams([]); });
+    return () => { active = false; };
   }, []);
 
-  // ─── SAVE ─────────────────────────
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manhua || !manhua._id) return;
-
+    if (!manhua?._id) return;
     try {
-      setSaving(true);
-      setError(null);
-
-      const genresArray = form.genres
-        .split(",")
-        .map((g) => g.trim())
-        .filter(Boolean);
-
-      // Parse and validate rating
-      const ratingValue = form.rating
-        ? Math.min(5, Math.max(0, parseFloat(form.rating) || 0))
-        : 0;
-
-      // Normalize and clean slug
-      const cleanedSlug = form.slug.trim() 
-        ? slugify(form.slug.trim())
-        : undefined;
-      
-      // Update form if slug was cleaned
-      if (cleanedSlug && cleanedSlug !== form.slug) {
-        setForm((f) => ({ ...f, slug: cleanedSlug }));
-      }
-
-      const payload: any = {
-        title: form.title,
-        titleEn: form.titleEn?.trim() || undefined,
-        slug: cleanedSlug,
-        description: form.description || undefined,
-        coverImage: form.coverImage || undefined,
-        status: form.status,
-        genres: genresArray,
-        rating: ratingValue,
-        teamId: form.teamId || null,
-      };
-
-      const updated = await editorUpdateManhua(manhua._id, payload);
-
-      // If slug changed, update route
-      if (updated.slug && updated.slug !== decodedRouteSlug) {
-        router.replace(`/editor/manhuas/${updated.slug}`);
-      }
-
+      setSaving(true); setError(null);
+      const genresArray = form.genres.split(",").map((g) => g.trim()).filter(Boolean);
+      const ratingValue = form.rating ? Math.min(5, Math.max(0, parseFloat(form.rating) || 0)) : 0;
+      const cleanedSlug = form.slug.trim() ? slugify(form.slug.trim()) : undefined;
+      if (cleanedSlug && cleanedSlug !== form.slug) setForm((f) => ({ ...f, slug: cleanedSlug }));
+      const updated = await editorUpdateManhua(manhua._id, {
+        title: form.title, titleEn: form.titleEn?.trim() || undefined, slug: cleanedSlug,
+        description: form.description || undefined, coverImage: form.coverImage || undefined,
+        status: form.status, genres: genresArray, teamId: form.teamId || null,
+      } as any);
+      if (updated.slug && updated.slug !== decodedRouteSlug) router.replace(`/editor/manhuas/${updated.slug}`);
       setManhua(updated);
       toast.success("Манхуа хадгалагдлаа");
     } catch (e: any) {
-      console.error("[EditorManhuaDetail] save error:", e);
-      
-      // Handle uniqueness/conflict errors
-      if (e?.response?.status === 409 || 
-          e?.response?.data?.message?.toLowerCase().includes("slug") ||
-          e?.response?.data?.message?.toLowerCase().includes("unique")) {
-        const message = "Slug давхцаж байна. Өөр slug сонгоно уу.";
-        setError(message);
-        toast.error(message);
-      } else {
-        const message =
-          e?.response?.data?.message || "Манхуа хадгалах үед алдаа гарлаа"
-        setError(message);
-        toast.error(message);
-      }
-    } finally {
-      setSaving(false);
-    }
+      const msg = (e?.response?.status === 409 || e?.response?.data?.message?.toLowerCase().includes("slug"))
+        ? "Slug давхцаж байна. Өөр slug сонгоно уу."
+        : e?.response?.data?.message || "Манхуа хадгалах үед алдаа гарлаа";
+      setError(msg); toast.error(msg);
+    } finally { setSaving(false); }
   };
 
-  // ─── COVER UPLOAD ─────────────────
-  const handleCoverFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
-      setUploadingCover(true);
-      setError(null);
-
-      setCoverProgress(0);
-      const result = await uploadImage(file, (percent) => {
-        setCoverProgress(percent);
-      });
-      const url = (result as any).url;
-      setForm((f) => ({ ...f, coverImage: url }));
+      setUploadingCover(true); setError(null); setCoverProgress(0);
+      const result = await uploadImage(file, (p) => setCoverProgress(p));
+      setForm((f) => ({ ...f, coverImage: (result as any).url }));
       setCoverProgress(100);
       toast.success("Cover зураг шинэчлэгдлээ");
     } catch (e: any) {
-      console.error("[AdminManhuaDetail] upload error:", e);
-      const message =
-        e?.response?.data?.message || "Cover зураг upload хийх үед алдаа гарлаа"
-      setError(message);
-      toast.error(message);
-    } finally {
-      setUploadingCover(false);
-    }
+      const msg = e?.response?.data?.message || "Cover upload алдаа"; setError(msg); toast.error(msg);
+    } finally { setUploadingCover(false); }
   };
 
-  // ─── DELETE ───────────────────────
-  // Note: Editors may not have delete permission, so this might not work
-  // If delete is needed, implement editorDeleteManhua endpoint
   const handleDelete = async () => {
-    if (!manhua || !manhua._id) return;
-    const ok = await confirm({
-      title: "Манхуа устгах уу?",
-      description: `"${manhua.title}" манхуа-г үнэхээр устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
-      confirmText: "Устгах",
-      cancelText: "Болих",
-    });
+    if (!manhua?._id) return;
+    const ok = await confirm({ title: "Манхуа устгах уу?", description: `"${manhua.title}" устгах уу? Буцаах боломжгүй.`, confirmText: "Устгах", cancelText: "Болих" });
     if (!ok) return;
-
-    const message =
-      "Editor эрхтэй хэрэглэгч манхуа устгах боломжгүй. Админ-тай холбогдоно уу.";
-    setError(message);
-    toast.error(message);
-    setDeleting(false);
+    const msg = "Editor эрхтэй хэрэглэгч манхуа устгах боломжгүй. Админ-тай холбогдоно уу.";
+    setError(msg); toast.error(msg); setDeleting(false);
   };
 
-  // ─── STATE RENDER ─────────────────
+  const errorDiv = (msg: string) => (
+    <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>{msg}</div>
+  );
+
   if (loading && !manhua && !error) {
+    return <div className="flex min-h-[40vh] items-center justify-center text-sm" style={{ color: "var(--arc-muted)" }}>Манхуа ачаалж байна...</div>;
+  }
+  if ((error && !manhua) || !manhua) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="text-sm text-slate-400">Манхуа ачаалж байна...</div>
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold" style={{ color: "var(--arc-text)" }}>Манхуа удирдах</h1>
+        {error ? errorDiv(error) : <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-muted)" }}>Манхуа олдсонгүй.</div>}
       </div>
     );
   }
 
-  if (error && !manhua) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100 mb-1">
-            Манхуа удирдах
-          </h1>
-          <p className="text-sm text-slate-400">Нэг манхуаны дэлгэрэнгүй.</p>
-        </div>
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
-          <p className="mb-1">{error}</p>
-          <p className="text-slate-300">
-            Slug:{" "}
-            <span className="font-mono text-xs">{decodedRouteSlug ?? "(хоосон)"}</span>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!manhua) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100 mb-1">
-            Манхуа удирдах
-          </h1>
-          <p className="text-sm text-slate-400">Нэг манхуаны дэлгэрэнгүй.</p>
-        </div>
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
-          Манхуа олдсонгүй.
-        </div>
-      </div>
-    );
-  }
-
-  // ─── DERIVED ──────────────────────
-  const coverPreview =
-    form.coverImage ||
-    manhua.coverImage ||
-    (manhua as any).coverImage ||
-    "https://via.placeholder.com/450x600?text=No+Cover";
-
+  const coverPreview = form.coverImage || manhua.coverImage || "https://via.placeholder.com/450x600?text=No+Cover";
   const publicUrl = `/manhua/${manhua.slug ?? manhua._id}`;
+  const createdAt = manhua.createdAt ? new Date(manhua.createdAt).toLocaleString() : null;
+  const updatedAt = (manhua as any).updatedAt ? new Date((manhua as any).updatedAt).toLocaleString() : null;
 
-  const createdAt = manhua.createdAt
-    ? new Date(manhua.createdAt).toLocaleString()
-    : null;
-  const updatedAt =
-    (manhua as any).updatedAt &&
-    new Date((manhua as any).updatedAt).toLocaleString();
+  const ActionButtons = ({ full = false }: { full?: boolean }) => (
+    <div className={`flex gap-3 ${full ? "" : "flex-col"}`}>
+      <button type="submit" onClick={handleSave} disabled={saving}
+        className={`${full ? "flex-1" : "w-full"} rounded-[9px] px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-60`}
+        style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}>
+        {saving ? "Хадгалж байна..." : "Хадгалах"}
+      </button>
+      <button type="button" onClick={handleDelete} disabled={deleting}
+        className={`${full ? "flex-1" : "w-full"} rounded-[9px] px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-60`}
+        style={{ border: "1px solid oklch(0.65 0.22 15/.4)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
+        {deleting ? "Устгаж байна..." : "Устгах"}
+      </button>
+    </div>
+  );
 
-  const status = (manhua.status || "ongoing").toLowerCase();
-  const statusClass =
-    status === "completed"
-      ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/40"
-      : status === "ongoing"
-      ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/40"
-      : "bg-amber-500/20 text-amber-200 border border-amber-500/40";
-
-  // ─── MAIN UI ─
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <button
-              type="button"
-              onClick={() => router.push("/editor/manhuas")}
-              className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 transition"
-            >
+          <div className="mb-2">
+            <button type="button" onClick={() => router.push("/editor/manhuas")}
+              className="rounded-[9px] px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
               ← My Manhuas
             </button>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-100 mb-1">
-            Манхуа удирдах
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Манхуа мэдээлэл, cover, slug, жанр гээд бүх зүйлийг эндээс удирдана.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>Манхуа удирдах</h1>
+          <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>Манхуа мэдээлэл, cover, slug, жанр гээд бүх зүйлийг эндээс удирдана.</p>
         </div>
-        <a
-          href={publicUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center justify-center rounded-xl border border-cyan-500/60 bg-cyan-500/10 px-3 py-2 text-xs sm:text-sm font-medium text-cyan-200 hover:bg-cyan-500/20 transition w-full sm:w-auto"
-        >
-          <span className="hidden sm:inline">Public page</span>
-          <span className="sm:hidden">View</span>
-          <span className="ml-1">→</span>
+        <a href={publicUrl} target="_blank" rel="noreferrer"
+          className="inline-flex items-center justify-center rounded-[9px] px-3 py-2 text-xs sm:text-sm font-medium transition-opacity hover:opacity-80 w-full sm:w-auto"
+          style={{ border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" }}>
+          Public page →
         </a>
       </div>
-      {/* Error */}
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
 
-      {/* Main Content */}
+      {error && errorDiv(error)}
+
       <div className="space-y-6 pb-20 lg:pb-6">
-
-        {/* Main Grid */}
         <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
-          {/* Left - Form */}
           <div className="space-y-6">
-            {/* Basic Info */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
-              <h2 className="text-lg font-semibold text-slate-100 mb-4">
-                Үндсэн мэдээлэл
-              </h2>
-                {error && (
-                  <div className="mb-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[11px] text-red-200">
-                    {error}
-                  </div>
-                )}
-
+            <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+              <h2 className="text-base font-semibold mb-4" style={{ color: "var(--arc-text)" }}>Үндсэн мэдээлэл</h2>
               <form onSubmit={handleSave} className="space-y-4">
-                {/* Title */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Title <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                    value={form.title}
-                    onChange={(e) => {
-                      const newTitle = e.target.value;
-                      setForm((f) => {
-                        const newForm = { ...f, title: newTitle };
-                        // Auto-sync slug if not locked
-                        if (!isSlugLocked) {
-                          const base = getSlugBase(newTitle, f.titleEn);
-                          newForm.slug = slugify(base);
-                        }
-                        return newForm;
-                      });
-                    }}
-                    required
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Title <span style={{ color: "oklch(0.75 0.2 15)" }}>*</span></label>
+                  <input type="text" style={fieldStyle} value={form.title} required onChange={(e) => {
+                    const t = e.target.value;
+                    setForm((f) => { const nf = { ...f, title: t }; if (!isSlugLocked) nf.slug = slugify(getSlugBase(t, f.titleEn)); return nf; });
+                  }} />
                 </div>
 
-                {/* Title (English) */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Title (EN)
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                    value={form.titleEn}
-                    onChange={(e) => {
-                      const newTitleEn = e.target.value;
-                      setForm((f) => {
-                        const newForm = { ...f, titleEn: newTitleEn };
-                        if (!isSlugLocked) {
-                          const base = getSlugBase(f.title, newTitleEn);
-                          newForm.slug = slugify(base);
-                        }
-                        return newForm;
-                      });
-                    }}
-                    placeholder="English title (optional)"
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Title (EN)</label>
+                  <input type="text" style={fieldStyle} placeholder="English title (optional)" value={form.titleEn} onChange={(e) => {
+                    const te = e.target.value;
+                    setForm((f) => { const nf = { ...f, titleEn: te }; if (!isSlugLocked) nf.slug = slugify(getSlugBase(f.title, te)); return nf; });
+                  }} />
                 </div>
 
-                {/* Slug */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <label className="text-sm font-medium text-slate-300">
-                      Slug
-                      <span className="ml-2 text-xs text-slate-500 hidden sm:inline">
-                        (/manhua/slug – өөрчлөхдөө болгоомжтой)
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSlugLocked(false);
-                        setForm((f) => ({
-                          ...f,
-                          slug: slugify(getSlugBase(f.title, f.titleEn)),
-                        }));
-                      }}
-                      className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition self-start sm:self-auto"
-                      title={isSlugLocked ? "Slug автоматаар үүсгэх" : "Slug гараар"}
-                    >
-                      {isSlugLocked ? (
-                        <>
-                          <span>🔒</span>
-                          <span className="hidden sm:inline">Автоматаар</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>🔓</span>
-                          <span className="hidden sm:inline">Автоматаар</span>
-                        </>
-                      )}
+                    <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Slug</label>
+                    <button type="button" onClick={() => { setIsSlugLocked(false); setForm((f) => ({ ...f, slug: slugify(getSlugBase(f.title, f.titleEn)) })); }}
+                      className="self-start rounded-[7px] px-2.5 py-1 text-xs transition-opacity hover:opacity-80"
+                      style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-muted)" }}>
+                      {isSlugLocked ? "🔒 Автоматаар" : "🔓 Автоматаар"}
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 font-mono focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                    value={form.slug}
-                    onChange={(e) => {
-                      setIsSlugLocked(true);
-                      const inputValue = e.target.value;
-                      // Apply slugify on input to keep it clean
-                      setForm((f) => ({ ...f, slug: slugify(inputValue) }));
-                    }}
-                    placeholder={
-                      slugify(getSlugBase(form.title, form.titleEn)) ||
-                      "my-manhua-slug"
-                    }
-                  />
-                  <p className="text-xs text-slate-500 break-all">
-                    URL:{" "}
-                    <span className="font-mono text-slate-300">
-                      /manhua/
-                      {form.slug ||
-                        slugify(getSlugBase(form.title, form.titleEn)) ||
-                        "<slug>"}
-                    </span>
+                  <input type="text" style={{ ...fieldStyle, fontFamily: "monospace" }} value={form.slug}
+                    placeholder={slugify(getSlugBase(form.title, form.titleEn)) || "my-manhua-slug"}
+                    onChange={(e) => { setIsSlugLocked(true); setForm((f) => ({ ...f, slug: slugify(e.target.value) })); }} />
+                  <p className="text-[11px] break-all" style={{ color: "var(--arc-muted)" }}>
+                    URL: <span className="font-mono" style={{ color: "var(--arc-dim)" }}>/manhua/{form.slug || slugify(getSlugBase(form.title, form.titleEn)) || "<slug>"}</span>
                   </p>
                 </div>
 
-                {/* Description */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Description
-                  </label>
-                  <textarea
-                    rows={4}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 resize-none focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
-                    }
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Description</label>
+                  <textarea rows={4} style={{ ...fieldStyle, resize: "none" }} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
                 </div>
 
-                {/* Status */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Status
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value }))
-                    }
-                  >
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Status</label>
+                  <select style={fieldStyle} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
                     <option value="ongoing">Ongoing</option>
                     <option value="completed">Completed</option>
                     <option value="hiatus">Hiatus</option>
                   </select>
                 </div>
 
-                {/* Team */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Баг
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                    value={form.teamId}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, teamId: e.target.value }))
-                    }
-                  >
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Баг</label>
+                  <select style={fieldStyle} value={form.teamId} onChange={(e) => setForm((f) => ({ ...f, teamId: e.target.value }))}>
                     <option value="">Баггүй (хувийн)</option>
-                    {teams.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.name}
-                      </option>
-                    ))}
+                    {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
                   </select>
-                  <p className="text-xs text-slate-500">
-                    Баг сонговол тухайн багийн гишүүд хамт ажиллаж чадна.
-                  </p>
                 </div>
 
-                {/* Genres - Pill selection */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Genres (сонгох)
-                  </label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Genres</label>
                   <div className="flex flex-wrap gap-2">
                     {GENRE_OPTIONS.map((g) => {
-                      const selectedGenres = form.genres
-                        .split(",")
-                        .map((genre) => genre.trim())
-                        .filter(Boolean);
-                      const active = selectedGenres.includes(g);
+                      const active = form.genres.split(",").map((x) => x.trim()).filter(Boolean).includes(g);
                       return (
-                        <button
-                          key={g}
-                          type="button"
+                        <button key={g} type="button"
+                          className="rounded-full px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+                          style={active
+                            ? { border: "1px solid oklch(0.72 0.17 195/.6)", background: "oklch(0.72 0.17 195/.15)", color: "var(--arc-cyan)" }
+                            : { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}
                           onClick={() => {
-                            const current = form.genres
-                              .split(",")
-                              .map((genre) => genre.trim())
-                              .filter(Boolean);
-                            const exists = current.includes(g);
-                            const next = exists
-                              ? current.filter((genre) => genre !== g)
-                              : [...current, g];
-                            setForm((f) => ({
-                              ...f,
-                              genres: next.join(", "),
-                            }));
-                          }}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
-                              : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
-                          }`}
-                        >
+                            const cur = form.genres.split(",").map((x) => x.trim()).filter(Boolean);
+                            const next = cur.includes(g) ? cur.filter((x) => x !== g) : [...cur, g];
+                            setForm((f) => ({ ...f, genres: next.join(", ") }));
+                          }}>
                           {g}
                         </button>
                       );
                     })}
                   </div>
-                  {form.genres
-                    .split(",")
-                    .map((g) => g.trim())
-                    .filter(Boolean).length > 0 && (
-                    <p className="text-xs text-slate-500">
-                      Сонгосон:{" "}
-                      <span className="text-slate-200">
-                        {form.genres
-                          .split(",")
-                          .map((g) => g.trim())
-                          .filter(Boolean)
-                          .join(", ")}
-                      </span>
-                    </p>
-                  )}
                 </div>
 
-                {/* Rating */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">
-                    Rating / Star (0.0 – 5.0)
-                  </label>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Rating (0.0 – 5.0)</label>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                    <input
-                      type="number"
-                      min={0}
-                      max={5}
-                      step={0.1}
-                      className="w-full sm:w-24 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
-                      value={form.rating}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "") {
-                          setForm((f) => ({ ...f, rating: "" }));
-                          return;
-                        }
-                        const num = parseFloat(val);
-                        if (!isNaN(num)) {
-                          const clamped = Math.min(5, Math.max(0, num));
-                          setForm((f) => ({ ...f, rating: clamped.toString() }));
-                        }
-                      }}
-                      placeholder="0.0"
-                    />
+                    <input type="number" min={0} max={5} step={0.1} style={{ ...fieldStyle, width: undefined }} className="w-full sm:w-24"
+                      value={form.rating} placeholder="0.0"
+                      onChange={(e) => { const v = e.target.value; if (v === "") { setForm((f) => ({ ...f, rating: "" })); return; } const n = parseFloat(v); if (!isNaN(n)) setForm((f) => ({ ...f, rating: Math.min(5, Math.max(0, n)).toString() })); }} />
                     <div className="flex items-center gap-3">
-                      <StarRatingDisplay
-                        rating={form.rating ? parseFloat(form.rating) || 0 : 0}
-                      />
-                      <span className="text-sm text-slate-400 whitespace-nowrap">
-                        {form.rating ? parseFloat(form.rating).toFixed(1) : "0.0"} / 5
-                      </span>
+                      <StarRatingDisplay rating={form.rating ? parseFloat(form.rating) || 0 : 0} />
+                      <span className="text-sm whitespace-nowrap" style={{ color: "var(--arc-muted)" }}>{form.rating ? parseFloat(form.rating).toFixed(1) : "0.0"} / 5</span>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500">
-                    Манхуа-ны үнэлгээ (0.0-5.0 хооронд, 0.1-ийн алхамтай)
-                  </p>
                 </div>
-
-                <input type="hidden" value={form.coverImage} readOnly />
               </form>
             </section>
 
-            {/* Cover Image Section */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
+            <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-100">
-                  Cover зураг
-                </h2>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-800 transition w-full sm:w-auto">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleCoverFileChange}
-                  />
+                <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Cover зураг</h2>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-[9px] px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80 w-full sm:w-auto"
+                  style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleCoverFileChange} />
                   {uploadingCover ? "Uploading..." : "Change cover"}
                 </label>
               </div>
               {coverProgress !== null && (
                 <div className="mb-3 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span>
-                      {uploadingCover ? "Upload хийж байна..." : "Upload"}
-                    </span>
-                    <span className="font-mono text-slate-200">
-                      {coverProgress}%
-                    </span>
+                  <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                    <span>{uploadingCover ? "Upload хийж байна..." : "Upload"}</span>
+                    <span className="font-mono" style={{ color: "var(--arc-text)" }}>{coverProgress}%</span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
-                      style={{ width: `${coverProgress}%` }}
-                    />
+                  <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--arc-elevated)" }}>
+                    <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${coverProgress}%`, background: "var(--arc-cyan)" }} />
                   </div>
                 </div>
               )}
               <div className="flex justify-center">
-                <div className="relative aspect-[3/4] w-full max-w-[192px] sm:w-48 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg">
-                  <img
-                    src={coverPreview}
-                    alt={form.title}
-                    className="h-full w-full object-cover"
-                  />
+                <div className="relative aspect-[3/4] w-full max-w-[192px] sm:w-48 overflow-hidden rounded-[10px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+                  <img src={coverPreview} alt={form.title} className="h-full w-full object-cover" />
                 </div>
               </div>
-              <p className="mt-4 text-xs text-slate-400 text-center">
-                Энэ зургийг манхуагийн нүүр зураг болгон ашиглана.
-              </p>
             </section>
           </div>
 
-          {/* Right - Info & Actions */}
           <div className="space-y-6">
-            {/* Action Bar - Desktop sticky, hidden on mobile */}
-            <div className="hidden lg:block sticky top-6 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 sm:p-6 shadow-xl backdrop-blur-sm">
-              <div className="space-y-3">
-                <button
-                  type="submit"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
-                >
-                  {saving ? "Хадгалж байна..." : "Хадгалах"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="w-full rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-200 hover:bg-red-500/20 disabled:opacity-60 transition"
-                >
-                  {deleting ? "Устгаж байна..." : "Устгах"}
-                </button>
-              </div>
-            </div>
-            
-            {/* Mobile Action Bar - Fixed at bottom */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl border-t border-slate-800 bg-slate-950/95 p-4 shadow-xl backdrop-blur-sm lg:hidden">
-              <div className="flex gap-3 max-w-7xl mx-auto">
-                <button
-                  type="submit"
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 hover:brightness-110 disabled:opacity-60 transition"
-                >
-                  {saving ? "Хадгалж байна..." : "Хадгалах"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="flex-1 rounded-xl border border-red-500/60 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200 hover:bg-red-500/20 disabled:opacity-60 transition"
-                >
-                  {deleting ? "Устгах..." : "Устгах"}
-                </button>
-              </div>
+            <div className="hidden lg:block sticky top-6 rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+              <ActionButtons />
             </div>
 
-            {/* System Info */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
-              <h2 className="text-lg font-semibold text-slate-100 mb-4">
-                System мэдээлэл
-              </h2>
-              <div className="space-y-2 font-mono text-xs text-slate-300">
-                <p>
-                  ID: <span className="text-slate-100">{manhua._id}</span>
-                </p>
-                {manhua.slug && (
-                  <p>
-                    Slug: <span className="text-slate-100">{manhua.slug}</span>
-                  </p>
-                )}
-                {createdAt && (
-                  <p>
-                    Created: <span className="text-slate-200">{createdAt}</span>
-                  </p>
-                )}
-                {updatedAt && (
-                  <p>
-                    Updated: <span className="text-slate-200">{updatedAt}</span>
-                  </p>
-                )}
+            <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-[14px] p-4 lg:hidden" style={{ borderTop: "1px solid var(--arc-border)", background: "var(--arc-bg)" }}>
+              <div className="max-w-7xl mx-auto"><ActionButtons full /></div>
+            </div>
+
+            <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+              <h2 className="text-base font-semibold mb-4" style={{ color: "var(--arc-text)" }}>System мэдээлэл</h2>
+              <div className="space-y-2 font-mono text-xs" style={{ color: "var(--arc-dim)" }}>
+                <p>ID: <span style={{ color: "var(--arc-text)" }}>{manhua._id}</span></p>
+                {manhua.slug && <p>Slug: <span style={{ color: "var(--arc-text)" }}>{manhua.slug}</span></p>}
+                {createdAt && <p>Created: <span style={{ color: "var(--arc-text)" }}>{createdAt}</span></p>}
+                {updatedAt && <p>Updated: <span style={{ color: "var(--arc-text)" }}>{updatedAt}</span></p>}
               </div>
             </section>
           </div>

@@ -99,20 +99,21 @@ export default function AdminLogsPage() {
 
         {/* Controls */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-[12px]" style={{ color: "var(--arc-muted)" }}>
             <span>
-              Нийт <span className="font-semibold text-slate-300">{total}</span> log
+              Нийт <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{total}</span> log
             </span>
             {totalPages > 1 && (
               <span>
-                • Хуудас <span className="font-semibold text-slate-300">{page}</span> /{" "}
+                • Хуудас <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{page}</span> /{" "}
                 {totalPages}
               </span>
             )}
           </div>
           <button
             onClick={loadLogs}
-            className="inline-flex items-center rounded-xl bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-700 transition"
+            className="rounded-[9px] px-3 py-1.5 text-[12px] font-medium transition-colors"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
           >
             Шинэчлэх
           </button>
@@ -120,7 +121,7 @@ export default function AdminLogsPage() {
 
         {/* Error */}
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-[9px] px-4 py-3 text-[13px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
             {error}
           </div>
         )}
@@ -129,32 +130,14 @@ export default function AdminLogsPage() {
         {loading ? (
           <>
             {/* Desktop Table Skeleton */}
-            <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur shadow-xl shadow-black/40">
+            <div className="hidden md:block overflow-hidden rounded-[14px]" style={{ border: "1px solid var(--arc-border)" }}>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-xs">
-                  <thead className="bg-slate-950/90 border-b border-slate-800">
+                <table className="min-w-full text-[12px]">
+                  <thead style={{ background: "var(--arc-elevated)", borderBottom: "1px solid var(--arc-border)" }}>
                     <tr>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Level
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Time
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Category/Action
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Message
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Actor
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        IP/Path
-                      </th>
-                      <th className="px-4 py-3 text-center text-[11px] font-semibold text-slate-400">
-                        Details
-                      </th>
+                      {["Level", "Time", "Category/Action", "Message", "Actor", "IP/Path", "Details"].map((h) => (
+                        <th key={h} className={`px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide${h === "Details" ? " text-center" : ""}`} style={{ color: "var(--arc-muted)" }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -174,19 +157,15 @@ export default function AdminLogsPage() {
             </div>
           </>
         ) : logs.length === 0 ? (
-          <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/70 px-6 py-12 text-center">
+          <div className="flex min-h-[40vh] flex-col items-center justify-center rounded-[14px] px-6 py-12 text-center" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
             <div className="mb-4 text-5xl">📭</div>
-            <h3 className="mb-2 text-lg font-semibold text-slate-100">Log олдсонгүй</h3>
-            <p className="mb-6 max-w-md text-sm text-slate-400">
-              {hasActiveFilters
-                ? "Filter-ээ арилгаад дахин хайна уу."
-                : "Одоогоор log байхгүй байна."}
+            <h3 className="mb-2 text-[17px] font-bold" style={{ color: "var(--arc-text)" }}>Log олдсонгүй</h3>
+            <p className="mb-6 max-w-md text-[13px]" style={{ color: "var(--arc-muted)" }}>
+              {hasActiveFilters ? "Filter-ээ арилгаад дахин хайна уу." : "Одоогоор log байхгүй байна."}
             </p>
             {hasActiveFilters && (
-              <button
-                onClick={handleClearFilters}
-                className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow shadow-emerald-500/40 transition hover:brightness-110"
-              >
+              <button onClick={handleClearFilters} className="rounded-full px-5 py-2.5 text-[13px] font-semibold transition-all hover:brightness-110"
+                style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}>
                 Filter цэвэрлэх
               </button>
             )}
@@ -194,32 +173,14 @@ export default function AdminLogsPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur shadow-xl shadow-black/40 max-h-[70vh]">
+            <div className="hidden md:block overflow-hidden rounded-[14px] max-h-[70vh]" style={{ border: "1px solid var(--arc-border)" }}>
               <div className="overflow-y-auto">
-                <table className="min-w-full text-xs">
-                  <thead className="bg-slate-950/90 border-b border-slate-800 sticky top-0 z-10">
+                <table className="min-w-full text-[12px]">
+                  <thead className="sticky top-0 z-10" style={{ background: "var(--arc-elevated)", borderBottom: "1px solid var(--arc-border)" }}>
                     <tr>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Level
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Time
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Category/Action
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Message
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        Actor
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-400">
-                        IP/Path
-                      </th>
-                      <th className="px-4 py-3 text-center text-[11px] font-semibold text-slate-400">
-                        Details
-                      </th>
+                      {["Level", "Time", "Category/Action", "Message", "Actor", "IP/Path", "Details"].map((h) => (
+                        <th key={h} className={`px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide${h === "Details" ? " text-center" : ""}`} style={{ color: "var(--arc-muted)" }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -242,22 +203,18 @@ export default function AdminLogsPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-300">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="min-h-[44px] rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:border-cyan-500/60 hover:bg-slate-800 sm:px-6"
-            >
+          <div className="flex flex-wrap items-center justify-center gap-3 text-[12px]" style={{ color: "var(--arc-dim)" }}>
+            <button disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="min-h-[40px] rounded-[9px] px-4 py-2 text-[13px] font-medium transition-opacity disabled:opacity-40"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}>
               ← Өмнөх
             </button>
-            <span className="text-xs sm:text-sm">
-              Хуудас <span className="font-semibold">{page}</span> / {totalPages}
+            <span className="text-[12px]" style={{ color: "var(--arc-muted)" }}>
+              Хуудас <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{page}</span> / {totalPages}
             </span>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="min-h-[44px] rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 hover:border-cyan-500/60 hover:bg-slate-800 sm:px-6"
-            >
+            <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="min-h-[40px] rounded-[9px] px-4 py-2 text-[13px] font-medium transition-opacity disabled:opacity-40"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}>
               Дараах →
             </button>
           </div>

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/admin/manhuas/[slug]/chapters/new/page.tsx
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
@@ -7,11 +6,14 @@ import { useParams, useRouter } from "next/navigation";
 import { api, uploadImage } from "@/lib/api";
 import { useToast } from "@/app/components/ToastProvider";
 
-interface ChapterPageInput {
-  pageNumber: number;
-  imageUrl: string;
-  originalName?: string;
-}
+const inputStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "8px 12px", fontSize: 12,
+  color: "var(--arc-text)", outline: "none",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+};
+
+interface ChapterPageInput { pageNumber: number; imageUrl: string; originalName?: string; }
 
 export default function AdminNewChapterPage() {
   const params = useParams();
@@ -27,81 +29,45 @@ export default function AdminNewChapterPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
   const [uploadTotal, setUploadTotal] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<
-    "idle" | "uploading" | "creating"
-  >("idle");
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "creating">("idle");
   const toast = useToast();
-
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files);
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-
-    if (!slug) {
-      toast.error("Manhua slug олдсонгүй");
-      return;
-    }
-    if (!files || files.length === 0) {
-      toast.error("Ядаж нэг зураг сонгоно уу");
-      return;
-    }
+    if (!slug) { toast.error("Manhua slug олдсонгүй"); return; }
+    if (!files || files.length === 0) { toast.error("Ядаж нэг зураг сонгоно уу"); return; }
 
     try {
       setSubmitting(true);
       setUploadProgress(0);
       setUploadPhase("uploading");
 
-      // 1) Бүх зургийг дарааллаар нь uploadImage() ашиглаж Cloudinary руу upload хийх
       const fileArr = Array.from(files);
-      setUploadingIndex(0);
       setUploadTotal(fileArr.length);
       const uploadedUrls: string[] = [];
+
       for (const [index, file] of fileArr.entries()) {
         setUploadingIndex(index + 1);
-        // uploadImage → POST /api/upload  (field name: "image")
         const result = await uploadImage(file, (percent) => {
-          const overall = Math.round(
-            ((index + percent / 100) / fileArr.length) * 100
-          );
-          setUploadProgress(Math.min(100, Math.max(0, overall)));
-        }); // { url }
+          setUploadProgress(Math.min(100, Math.max(0, Math.round(((index + percent / 100) / fileArr.length) * 100))));
+        });
         uploadedUrls.push((result as any).url);
       }
+
       setUploadProgress(100);
       setUploadPhase("creating");
 
-      if (!uploadedUrls.length) {
-        toast.error("Зураг upload болоогүй байна");
-        return;
-      }
+      if (!uploadedUrls.length) { toast.error("Зураг upload болоогүй байна"); return; }
 
-      // 2) Pages массив бэлдэх (1..N)
       const pages: ChapterPageInput[] = uploadedUrls.map((url, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: url,
-        originalName: fileArr[idx]?.name || undefined,
+        pageNumber: idx + 1, imageUrl: url, originalName: fileArr[idx]?.name,
       }));
 
-      // 3) ADMIN chapter create endpoint руу POST
-      await api.post(`/admin/manhuas/${slug}/chapters`, {
-        chapterNumber,
-        title,
-        pages,
-        language: "mn",
-        status, // "published" эсвэл "draft"
-      });
-
+      await api.post(`/admin/manhuas/${slug}/chapters`, { chapterNumber, title, pages, language: "mn", status });
       toast.success("Chapter амжилттай үүслээ");
-      // 4) Амжилттай бол chapter list рүү буцаах
       router.push(`/admin/manhuas/${slug}/chapters`);
     } catch (e: any) {
-      console.error(e);
-      toast.error(
-        e?.response?.data?.message ||
-          "Шинэ chapter үүсгэхэд алдаа гарлаа (admin)"
-      );
+      toast.error(e?.response?.data?.message || "Шинэ chapter үүсгэхэд алдаа гарлаа");
     } finally {
       setSubmitting(false);
       setUploadingIndex(0);
@@ -111,89 +77,80 @@ export default function AdminNewChapterPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-8 pt-3 text-xs text-slate-100 sm:px-4">
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 space-y-4">
+      {/* Upload overlay */}
       {submitting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-xl shadow-black/50">
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="font-medium">
-                {uploadPhase === "creating"
-                  ? "Chapter үүсгэж байна..."
-                  : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(7,7,14,.85)", backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-sm rounded-[16px] p-5 space-y-3" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+            <div className="flex items-center justify-between text-[12px]">
+              <span style={{ color: "var(--arc-text)", fontWeight: 600 }}>
+                {uploadPhase === "creating" ? "Chapter үүсгэж байна..." : `Upload (${uploadingIndex}/${uploadTotal})`}
               </span>
-              <span className="font-mono text-slate-100">
-                {uploadPhase === "creating"
-                  ? "100%"
-                  : `${uploadProgress ?? 0}%`}
+              <span style={{ color: "var(--arc-cyan)", fontVariantNumeric: "tabular-nums" }}>
+                {uploadPhase === "creating" ? "100%" : `${uploadProgress ?? 0}%`}
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--arc-elevated)" }}>
               <div
-                className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
-                style={{
-                  width:
-                    uploadPhase === "creating"
-                      ? "100%"
-                      : `${uploadProgress ?? 0}%`,
-                }}
+                className="h-full rounded-full transition-[width] duration-200"
+                style={{ width: uploadPhase === "creating" ? "100%" : `${uploadProgress ?? 0}%`, background: "var(--arc-cyan)" }}
               />
             </div>
-            <p className="text-[10px] text-slate-500">
-              Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.
-            </p>
+            <p className="text-[10px]" style={{ color: "var(--arc-muted)" }}>Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.</p>
           </div>
         </div>
       )}
-      {/* HEADER */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/85 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-0.5">
-          <h1 className="text-sm font-semibold sm:text-base">
+
+      {/* Header */}
+      <div
+        className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-[14px] px-4 py-3"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+      >
+        <div>
+          <div className="text-[14px] font-semibold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
             Шинэ chapter нэмэх
-          </h1>
-          <p className="text-[11px] text-slate-400 sm:text-xs">
-            Manhua:{" "}
-            <span className="font-mono text-slate-200">
-              {slug || "(slug байхгүй)"}
-            </span>
-          </p>
+          </div>
+          <div className="text-[11px] mt-0.5" style={{ color: "var(--arc-muted)" }}>
+            Manhua: <span style={{ color: "var(--arc-dim)" }}>{slug || "(slug байхгүй)"}</span>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => router.push(`/admin/manhuas/${slug}/chapters`)}
-          className="self-start rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[10px] text-slate-200 hover:border-cyan-400 hover:text-cyan-300 sm:self-auto"
+          className="self-start rounded-[9px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80 sm:self-auto"
+          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
         >
-          Chapter жагсаалт руу буцах
+          ← Chapter жагсаалт руу
         </button>
       </div>
 
-      {/* FORM CARD */}
+      {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-lg shadow-black/50"
+        className="rounded-[14px] p-5 space-y-4"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
       >
-        {/* row: chapter number + status */}
-        <div className="grid gap-3 sm:grid-cols-[0.9fr,1.1fr]">
-          <div className="space-y-1">
-            <label className="text-[11px] text-slate-400">Chapter number</label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Chapter number</label>
             <input
               type="number"
               min={0}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+              style={inputStyle}
               value={chapterNumber}
-              onChange={(e) => {
-                const next = e.currentTarget.valueAsNumber;
-                setChapterNumber(Number.isNaN(next) ? 0 : next);
-              }}
+              onChange={(e) => { const n = e.currentTarget.valueAsNumber; setChapterNumber(Number.isNaN(n) ? 0 : n); }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-[11px] text-slate-400">Status</label>
+          <div>
+            <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Status</label>
             <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+              style={inputStyle}
               value={status}
-              onChange={(e) =>
-                setStatus(e.target.value as "published" | "draft")
-              }
+              onChange={(e) => setStatus(e.target.value as "published" | "draft")}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
             >
               <option value="published">Published</option>
               <option value="draft">Draft</option>
@@ -201,50 +158,54 @@ export default function AdminNewChapterPage() {
           </div>
         </div>
 
-        {/* title */}
-        <div className="space-y-1">
-          <label className="text-[11px] text-slate-400">Chapter title</label>
+        <div>
+          <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Chapter гарчиг</label>
           <input
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
+            style={inputStyle}
             placeholder="Жишээ: First Encounter"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
           />
         </div>
 
-        {/* files */}
-        <div className="space-y-1">
-          <label className="text-[11px] text-slate-400">
-            Зургийн файлууд (олон сонгож болно)
+        <div>
+          <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+            Зургийн файлууд <span style={{ color: "var(--arc-rose)" }}>*</span>
           </label>
           <input
             type="file"
             multiple
             accept="image/*"
-            onChange={handleFileChange}
-            className="w-full text-[11px] text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-500 file:px-3 file:py-1 file:text-[11px] file:font-semibold file:text-slate-950 hover:file:bg-cyan-400"
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setFiles(e.target.files)}
+            className="w-full text-[11px] file:mr-3 file:rounded-[7px] file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:cursor-pointer"
+            style={{
+              color: "var(--arc-dim)",
+            }}
           />
           {files && files.length > 0 && (
-            <p className="text-[10px] text-slate-400">
-              Сонгосон {files.length} зураг – дарааллаар нь page 1..N болж орно.
+            <p className="mt-1 text-[10px]" style={{ color: "var(--arc-muted)" }}>
+              {files.length} зураг сонгогдлоо — page 1..{files.length} болж орно.
             </p>
           )}
         </div>
 
-        {/* submit */}
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="flex items-center justify-end gap-2 pt-2" style={{ borderTop: "1px solid var(--arc-border)" }}>
           <button
             type="button"
             disabled={submitting}
             onClick={() => router.push(`/admin/manhuas/${slug}/chapters`)}
-            className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+            className="rounded-[9px] px-4 py-2 text-[12px] font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+            style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: "pointer" }}
           >
             Цуцлах
           </button>
           <button
             type="submit"
             disabled={submitting || !files?.length}
-            className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-1.5 text-[11px] font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:cursor-not-allowed disabled:bg-slate-700"
+            className="rounded-[9px] px-5 py-2 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+            style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
           >
             {submitting ? "Үүсгэж байна..." : "Chapter үүсгэх"}
           </button>

@@ -22,127 +22,95 @@ interface ContinueReadingProps {
   totalChapters?: number;
 }
 
-export function ContinueReading({
-  bookmark,
-  totalChapters,
-}: ContinueReadingProps) {
+export function ContinueReading({ bookmark, totalChapters }: ContinueReadingProps) {
   const router = useRouter();
 
   if (!bookmark) {
     return (
-      <div className="rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/25 to-slate-800/10 p-[1px] shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
-        <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 text-center backdrop-blur">
-          <p className="text-sm text-slate-400">
-            Та одоогоор уншиж эхлээгүй байна
-          </p>
-          <button
-            onClick={() => router.push("/manhuas")}
-            className="mt-3 rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-cyan-500/25 transition-all hover:brightness-110"
-          >
-            Манхуа сонгох
-          </button>
-        </div>
+      <div
+        className="rounded-[14px] p-5 text-center"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+      >
+        <p className="text-[13px] mb-3" style={{ color: "var(--arc-dim)" }}>Та одоогоор уншиж эхлээгүй байна</p>
+        <button
+          onClick={() => router.push("/manhuas")}
+          className="rounded-[9px] px-4 py-2 text-[13px] font-semibold"
+          style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
+        >
+          Манхуа сонгох
+        </button>
       </div>
     );
   }
 
   const cover = bookmark.manhua.coverImageUrl || bookmark.manhua.coverImage;
-  const progress =
-    totalChapters && totalChapters > 0
-      ? Math.round((bookmark.chapterNumber / totalChapters) * 100)
-      : null;
+  const progress = totalChapters && totalChapters > 0
+    ? Math.round((bookmark.chapterNumber / totalChapters) * 100)
+    : null;
   const isRead = isChapterRead(bookmark.manhua.slug, bookmark.chapterNumber);
 
-  const handleResume = () => {
-    router.push(
-      `/manhua/${bookmark.manhua.slug}/chapter/${bookmark.chapterNumber}`
-    );
-  };
-
   return (
-    <div className="rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/25 to-yellow-400/20 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-      <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">
+    <div
+      className="rounded-[14px] p-4"
+      style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-[3px] h-[16px] rounded-sm" style={{ background: "var(--arc-cyan)", boxShadow: "0 0 8px var(--arc-cyan-glow)" }} />
+          <h3 className="text-[13px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
             Уншиж буй манхуа
           </h3>
-          <button
-            onClick={handleResume}
-            className="rounded-full bg-cyan-500/15 px-3 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/25"
-          >
-            Үргэлжлүүлэх
-          </button>
         </div>
-
-      <div className="flex gap-4">
-        {/* Cover */}
-        <Link
-          href={`/manhua/${bookmark.manhua.slug}`}
-          className="shrink-0"
+        <button
+          onClick={() => router.push(`/manhua/${bookmark.manhua.slug}/chapter/${bookmark.chapterNumber}`)}
+          className="rounded-[7px] px-3 py-1 text-[11px] font-semibold transition-colors"
+          style={{ background: "var(--arc-cyan-dim)", border: "1px solid oklch(0.72 0.17 195/.2)", color: "var(--arc-cyan)", cursor: "pointer" }}
         >
-          <div className="relative h-20 w-14 overflow-hidden rounded-lg bg-slate-800 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
+          Үргэлжлүүлэх
+        </button>
+      </div>
+
+      <div className="flex gap-3">
+        <Link href={`/manhua/${bookmark.manhua.slug}`} className="shrink-0">
+          <div
+            className="relative overflow-hidden"
+            style={{ width: 44, height: 60, borderRadius: 7, background: "var(--arc-elevated)" }}
+          >
             {cover ? (
-              <Image
-                src={cover}
-                alt={bookmark.manhua.title}
-                fill
-                sizes="56px"
-                className="object-cover"
-              />
+              <Image src={cover} alt={bookmark.manhua.title} fill sizes="44px" className="object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">
-                No cover
-              </div>
+              <div className="flex h-full w-full items-center justify-center text-[10px]" style={{ color: "var(--arc-muted)" }}>No cover</div>
             )}
           </div>
         </Link>
 
-        {/* Info */}
         <div className="min-w-0 flex-1">
-          <Link
-            href={`/manhua/${bookmark.manhua.slug}`}
-            className="block"
-          >
-            <h4 className="line-clamp-2 text-sm font-semibold text-slate-100 hover:text-cyan-300 transition-colors">
+          <Link href={`/manhua/${bookmark.manhua.slug}`}>
+            <h4
+              className="line-clamp-2 text-[13px] font-semibold transition-colors mb-1"
+              style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
+            >
               {bookmark.manhua.title}
             </h4>
           </Link>
 
-          <div className="mt-2 space-y-2">
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-xs ${
-                  isRead
-                    ? "text-gray-500 font-normal"
-                    : "text-gray-300 font-medium"
-                }`}
-              >
-                Chapter {bookmark.chapterNumber}
-              </span>
-              {isRead && (
-                <span className="text-[10px] text-gray-600">(уншсан)</span>
-              )}
-            </div>
+          <p className="text-[11px] mb-2" style={{ color: isRead ? "var(--arc-muted)" : "var(--arc-dim)" }}>
+            Chapter {bookmark.chapterNumber}{isRead ? " (уншсан)" : ""}
+          </p>
 
-            {/* Progress Bar */}
-            {progress !== null && (
-              <div className="space-y-1">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-yellow-400 transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-slate-400">
-                  {progress}% дууслаа
-                </p>
+          {progress !== null && (
+            <div>
+              <div className="h-[3px] w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.07)" }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${progress}%`, background: "var(--arc-cyan)" }}
+                />
               </div>
-            )}
-          </div>
+              <p className="mt-1 text-[10px]" style={{ color: "var(--arc-muted)" }}>{progress}% дууслаа</p>
+            </div>
+          )}
         </div>
-      </div>
       </div>
     </div>
   );
 }
-

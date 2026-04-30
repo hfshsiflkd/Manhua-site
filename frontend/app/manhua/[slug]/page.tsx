@@ -1,20 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/app/manhua/[slug]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { api, getPublicChapters } from "@/lib/api";
 import type { Manhua, Chapter } from "@/types/manhua";
 import { ManhuaHero } from "./components/ManhuaHero";
 import { ManhuaChapters } from "./components/ManhuaChapters";
-import { CommentSection } from "./components/CommentSection";
 
-// 🔹 Дэлгэрэнгүй хуудсын LOADING
 function ManhuaDetailLoading() {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center text-white ">
-      <div className="loader scale-125 text-white" />
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div style={{ position: "relative", width: 44, height: 44 }}>
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none"
+          style={{ animation: "spin 0.9s linear infinite" }}>
+          <circle cx="22" cy="22" r="18" stroke="var(--arc-border)" strokeWidth="3" />
+          <circle cx="22" cy="22" r="18" stroke="var(--arc-cyan)" strokeWidth="3"
+            strokeLinecap="round" strokeDasharray="28 84" strokeDashoffset="0" />
+        </svg>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     </div>
   );
 }
@@ -35,7 +41,7 @@ export default function ManhuaDetailPage() {
       try {
         const [mRes, chaptersData] = await Promise.all([
           api.get<Manhua>(`/manhuas/${slug}`),
-          getPublicChapters(slug), // ✅ зөвхөн PUBLIC эндпоинт
+          getPublicChapters(slug),
         ]);
 
         setManhua(mRes.data);
@@ -55,24 +61,42 @@ export default function ManhuaDetailPage() {
     load();
   }, [slug, router]);
 
-  if (loading) {
-    return <ManhuaDetailLoading />;
-  }
+  if (loading) return <ManhuaDetailLoading />;
 
   if (!manhua) {
     return (
-      <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-        Манхуа олдсонгүй.
+      <div className="mx-auto w-full max-w-5xl px-4 py-8">
+        <div className="rounded-[12px] px-4 py-3 text-[13px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
+          Манхуа олдсонгүй.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex justify-center">
-      <div className="w-full max-w-5xl  sm:px-4 space-y-6  sm:pt-10">
+      <div className="w-full max-w-5xl sm:px-4 space-y-4 sm:pt-6 pb-12">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 px-3 text-[12px]" style={{ color: "var(--arc-muted)" }}>
+          <Link href="/" className="transition-colors" style={{ color: "var(--arc-muted)" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-muted)")}
+          >
+            Нүүр
+          </Link>
+          <span style={{ opacity: 0.4 }}>›</span>
+          <Link href="/manhuas" className="transition-colors" style={{ color: "var(--arc-muted)" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-cyan)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--arc-muted)")}
+          >
+            Жагсаалт
+          </Link>
+          <span style={{ opacity: 0.4 }}>›</span>
+          <span style={{ color: "var(--arc-text)" }}>{manhua.title}</span>
+        </div>
+
         <ManhuaHero manhua={manhua} chapters={chapters} />
-        <ManhuaChapters slug={manhua.slug} chapters={chapters} />
-        <CommentSection manhuaId={manhua._id} />
+        <ManhuaChapters slug={manhua.slug} chapters={chapters} manhua={manhua} />
       </div>
     </div>
   );

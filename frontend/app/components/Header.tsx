@@ -6,65 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useState } from "react";
 
-function ArcReadMark({ className = "" }: { className?: string }) {
-  // Minimal “arc + page” mark (SVG) — dark UI дээр clean харагдана
+function ArcMark() {
   return (
-    <svg
-      viewBox="0 0 64 64"
-      className={className}
-      fill="none"
-      aria-hidden="true"
-    >
-      {/* Arc */}
-      <path
-        d="M10 34c8-16 36-16 44 0"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="round"
-        opacity="0.95"
-      />
-      {/* Page */}
-      <path
-        d="M22 40c6-4 14-4 20 0"
-        stroke="currentColor"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        opacity="0.95"
-      />
-      {/* Small sparkle/dot */}
-      <circle cx="32" cy="18" r="3.5" className="fill-rose-500" />
+    <svg viewBox="0 0 48 48" width="20" height="20" fill="none" aria-hidden="true">
+      <path d="M8 28 C14 14 34 14 40 28" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M16 34 C20 30 28 30 32 34" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="24" cy="12" r="3" fill="var(--arc-rose)" />
     </svg>
-  );
-}
-
-function ArcReadLogo() {
-  return (
-    <div className="flex items-center gap-2">
-      {/* Icon */}
-      <div className="relative">
-        <div className="absolute -inset-1 rounded-xl bg-rose-500/10 blur-md" />
-        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/60">
-          <ArcReadMark className="h-6 w-6 text-slate-200" />
-        </div>
-      </div>
-
-      {/* Text */}
-      <div className="leading-none">
-        <div
-          className="
-            text-[18px] font-extrabold tracking-tight
-            text-slate-100
-            drop-shadow-[0_0_12px_rgba(244,63,94,0.22)]
-            sm:text-lg
-          "
-        >
-          ARC<span className="text-rose-500">•</span>READ
-        </div>
-        {/* <div className="mt-0.5 hidden text-[10px] font-medium tracking-wide text-slate-400 sm:block">
-          manhwa • manhua
-        </div> */}
-      </div>
-    </div>
   );
 }
 
@@ -74,24 +22,19 @@ export default function Header() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Normalize role for safe comparison
   const roleRaw = (user as { role?: string } | null | undefined)?.role;
   const roleNorm = (roleRaw || "").toLowerCase().trim();
   const isAdmin = roleNorm === "admin";
   const isEditor = roleNorm === "editor" || roleNorm === "translator";
 
-  // Debug log (dev only)
-  if (process.env.NODE_ENV === "development" && user) {
-    console.log("[Header role]", { roleRaw, roleNorm, isAdmin, isEditor });
-  }
+  const isActive = (href: string) => pathname === href;
 
-  const baseNavItem =
-    "rounded-full px-3 py-1 text-[13px] font-medium transition-colors duration-150";
-
-  const isActive = (href: string) =>
-    pathname === href
-      ? `${baseNavItem} bg-cyan-500/15 text-cyan-300`
-      : `${baseNavItem} text-slate-200 hover:text-cyan-200 hover:bg-slate-800/70`;
+  const navLinkClass = (href: string) =>
+    `px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors duration-150 ${
+      isActive(href)
+        ? "text-[var(--arc-cyan)] bg-[var(--arc-cyan-dim)]"
+        : "text-[var(--arc-dim)] hover:text-[var(--arc-text)] hover:bg-white/5"
+    }`;
 
   const handleLogout = () => {
     logout();
@@ -102,92 +45,104 @@ export default function Header() {
   const isReading =
     pathname?.includes("/manhua/") && pathname?.includes("/chapter/");
 
+  if (isReading) return null;
+
   return (
     <header
-      className={[
-        "z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur-md",
-        isReading ? "relative" : "sticky top-0",
-      ].join(" ")}
+      className="sticky top-0 z-40 border-b"
+      style={{
+        borderColor: "var(--arc-border)",
+        background: "rgba(7,7,14,0.88)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+      }}
     >
       {/* TOP BAR */}
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-6 sm:py-3 lg:px-16">
+      <div
+        className="mx-auto flex items-center justify-between gap-2 px-6"
+        style={{ maxWidth: "var(--arc-max-w)", height: "56px" }}
+      >
         {/* LOGO */}
-        <div className="flex items-center gap-2">
-          <Link href="/" prefetch={false} className="flex items-center gap-2">
-            {/* Optional: жижиг badge (хүсэхгүй бол устга) */}
-            
+        <Link href="/" prefetch={false} className="flex items-center gap-2.5 shrink-0 no-underline">
+          <div
+            className="flex items-center justify-center rounded-[9px] relative"
+            style={{
+              width: 34,
+              height: 34,
+              background: "var(--arc-elevated)",
+              border: "1px solid var(--arc-border)",
+            }}
+          >
+            <div
+              className="absolute inset-[-1px] rounded-[10px] -z-10"
+              style={{ background: "var(--arc-rose-glow)", filter: "blur(6px)" }}
+            />
+            <ArcMark />
+          </div>
+          <span
+            className="text-[17px] font-bold tracking-tight"
+            style={{ fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)", color: "var(--arc-text)" }}
+          >
+            ARC<span style={{ color: "var(--arc-rose)" }}>•</span>READ
+          </span>
+        </Link>
 
-            <ArcReadLogo />
-          </Link>
-        </div>
+        {/* DESKTOP NAV */}
+        <nav className="hidden md:flex items-center gap-0.5">
+          <Link href="/" prefetch={false} className={navLinkClass("/")}>Нүүр</Link>
+          <Link href="/manhuas" prefetch={false} className={navLinkClass("/manhuas")}>Жагсаалт</Link>
+          <Link href="/leaderboard" prefetch={false} className={navLinkClass("/leaderboard")}>Leaderboard</Link>
+          <Link href="/requests" prefetch={false} className={navLinkClass("/requests")}>Хүсэлт</Link>
+          <Link href="/profile" prefetch={false} className={navLinkClass("/profile")}>Профайл</Link>
 
-        {/* DESKTOP NAV (md дээш) */}
-        <nav className="hidden items-center justify-end gap-2 text-[13px] md:flex">
-          <Link href="/" prefetch={false} className={isActive("/")}>
-            Нүүр
-          </Link>
-
-          <Link href="/manhuas" prefetch={false} className={isActive("/manhuas")}>
-            Жагсаалт
-          </Link>
-
-          <Link href="/leaderboard" prefetch={false} className={isActive("/leaderboard")}>
-            Leaderboard
-          </Link>
-
-          <Link href="/requests" prefetch={false} className={isActive("/requests")}>
-            Хүсэлт
-          </Link>
-
-          <Link href="/profile" prefetch={false} className={isActive("/profile")}>
-            Профайл
-          </Link>
-
-          {user && (
-            <>
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  prefetch={false}
-                  className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-amber-500/50 hover:brightness-110"
-                >
-                  Admin
-                </Link>
-              )}
-
-              {isEditor && (
-                <Link
-                  href="/editor/manhuas"
-                  prefetch={false}
-                  className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-emerald-500/50 hover:brightness-110"
-                >
-                  Editor
-                </Link>
-              )}
-            </>
+          {user && isAdmin && (
+            <Link href="/admin" prefetch={false}
+              className="ml-1 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+              style={{ background: "linear-gradient(135deg,oklch(0.82 0.16 85),oklch(0.7 0.18 60))", color: "#07070e" }}>
+              Admin
+            </Link>
           )}
+          {user && isEditor && (
+            <Link href="/editor/manhuas" prefetch={false}
+              className="ml-1 rounded-full px-3 py-1.5 text-[12px] font-semibold"
+              style={{ background: "linear-gradient(135deg,oklch(0.72 0.85 160),oklch(0.72 0.17 195))", color: "#07070e" }}>
+              Editor
+            </Link>
+          )}
+        </nav>
+
+        {/* DESKTOP RIGHT */}
+        <div className="hidden md:flex items-center gap-2">
+          {/* Search */}
+          <button
+            className="flex items-center justify-center rounded-[9px] transition-colors"
+            style={{
+              width: 34, height: 34,
+              background: "transparent",
+              border: "1px solid var(--arc-border)",
+              color: "var(--arc-dim)",
+            }}
+            onClick={() => router.push("/manhuas")}
+            title="Search"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" /><path d="m21 21-4.35-4.35" />
+            </svg>
+          </button>
 
           {user ? (
             <>
-              <div className="flex items-center gap-2">
-                <span className="max-w-[140px] truncate text-xs text-slate-400">
-                  {user.username}
-                </span>
-                {/* Role badge */}
-                {isAdmin && (
-                  <span className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-2 py-0.5 text-[10px] font-bold text-slate-950 shadow-sm shadow-amber-500/50">
-                    ADMIN
-                  </span>
-                )}
-                {isEditor && !isAdmin && (
-                  <span className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-2 py-0.5 text-[10px] font-bold text-slate-950 shadow-sm shadow-emerald-500/50">
-                    EDITOR
-                  </span>
-                )}
-              </div>
+              <span className="max-w-[120px] truncate text-xs" style={{ color: "var(--arc-dim)" }}>
+                {user.username}
+              </span>
               <button
                 onClick={handleLogout}
-                className="rounded-full bg-slate-800 px-3 py-1 text-[12px] font-medium text-slate-100 hover:bg-slate-700"
+                className="rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors"
+                style={{
+                  border: "1px solid var(--arc-border)",
+                  background: "transparent",
+                  color: "var(--arc-text)",
+                }}
               >
                 Гарах
               </button>
@@ -197,57 +152,51 @@ export default function Header() {
               <Link
                 href="/login"
                 prefetch={false}
-                className="rounded-full border border-slate-700 px-3 py-1 text-[12px] font-medium text-slate-100 hover:border-cyan-400 hover:text-cyan-200"
+                className="rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors"
+                style={{
+                  border: "1px solid var(--arc-border)",
+                  background: "transparent",
+                  color: "var(--arc-text)",
+                }}
               >
                 Нэвтрэх
               </Link>
               <Link
                 href="/register"
                 prefetch={false}
-                className="rounded-full bg-cyan-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-cyan-500/40 hover:bg-cyan-400"
+                className="rounded-full px-3 py-1.5 text-[13px] font-semibold transition-all"
+                style={{
+                  background: "var(--arc-cyan)",
+                  color: "#07070e",
+                  boxShadow: "0 0 18px var(--arc-cyan-glow)",
+                  border: "none",
+                }}
               >
                 Бүртгүүлэх
               </Link>
             </>
           )}
-        </nav>
+        </div>
 
-        {/* MOBILE RIGHT SIDE (md-с доош) */}
-        <div className="flex items-center gap-2 md:hidden">
+        {/* MOBILE RIGHT */}
+        <div className="flex md:hidden items-center gap-2">
           {user ? (
-            <div className="flex items-center gap-1.5">
-              <span className="max-w-[90px] truncate text-[11px] text-slate-400">
-                {user.username}
-              </span>
-              {/* Role badge (mobile) */}
-              {isAdmin && (
-                <span className="rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-1.5 py-0.5 text-[9px] font-bold text-slate-950 shadow-sm shadow-amber-500/50">
-                  ADMIN
-                </span>
-              )}
-              {isEditor && !isAdmin && (
-                <span className="rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-1.5 py-0.5 text-[9px] font-bold text-slate-950 shadow-sm shadow-emerald-500/50">
-                  EDITOR
-                </span>
-              )}
-            </div>
+            <span className="max-w-[80px] truncate text-[11px]" style={{ color: "var(--arc-dim)" }}>
+              {user.username}
+            </span>
           ) : (
-            <Link
-              href="/login"
-              prefetch={false}
-              className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-medium text-slate-100 hover:border-cyan-400 hover:text-cyan-200"
-            >
+            <Link href="/login" prefetch={false}
+              className="rounded-full px-3 py-1 text-[11px] font-medium"
+              style={{ border: "1px solid var(--arc-border)", color: "var(--arc-text)" }}>
               Нэвтрэх
             </Link>
           )}
-
-          {/* HAMBURGER BUTTON */}
           <button
-            onClick={() => setIsOpen((prev) => !prev)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-200 hover:border-cyan-400 hover:text-cyan-200"
+            onClick={() => setIsOpen((p) => !p)}
+            className="flex items-center justify-center rounded-[9px]"
+            style={{ width: 34, height: 34, border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
             aria-label="Toggle navigation"
           >
-            <span className="sr-only">Toggle navigation</span>
             <div className="flex flex-col gap-[3px]">
               <span className="h-[2px] w-4 rounded-full bg-current" />
               <span className="h-[2px] w-4 rounded-full bg-current" />
@@ -257,96 +206,53 @@ export default function Header() {
         </div>
       </div>
 
-      {/* MOBILE DROPDOWN MENU */}
+      {/* MOBILE DROPDOWN */}
       {isOpen && (
-        <div className="border-t border-slate-800 bg-slate-950/95 md:hidden">
-          <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 text-[13px]">
-            <Link
-              href="/"
-              prefetch={false}
-              className={`${isActive("/")} w-full text-left`}
-              onClick={() => setIsOpen(false)}
-            >
-              Нүүр
-            </Link>
+        <div className="md:hidden" style={{ borderTop: "1px solid var(--arc-border)", background: "rgba(7,7,14,0.96)" }}>
+          <nav className="mx-auto flex flex-col gap-1 px-4 py-3" style={{ maxWidth: "var(--arc-max-w)" }}>
+            {[
+              { href: "/", label: "Нүүр" },
+              { href: "/manhuas", label: "Жагсаалт" },
+              { href: "/leaderboard", label: "Leaderboard" },
+              { href: "/requests", label: "Хүсэлт" },
+              { href: "/profile", label: "Профайл" },
+            ].map(({ href, label }) => (
+              <Link key={href} href={href} prefetch={false}
+                className={`w-full rounded-full px-3 py-2 text-[13px] font-medium transition-colors ${isActive(href) ? "text-[var(--arc-cyan)] bg-[var(--arc-cyan-dim)]" : "text-[var(--arc-dim)] hover:text-[var(--arc-text)]"}`}
+                onClick={() => setIsOpen(false)}>
+                {label}
+              </Link>
+            ))}
 
-            <Link
-              href="/manhuas"
-              prefetch={false}
-              className={`${isActive("/manhuas")} w-full text-left`}
-              onClick={() => setIsOpen(false)}
-            >
-              Жагсаалт
-            </Link>
-
-            <Link
-              href="/profile"
-              prefetch={false}
-              className={`${isActive("/profile")} w-full text-left`}
-              onClick={() => setIsOpen(false)}
-            >
-              Профайл
-            </Link>
-
-            <Link
-              href="/leaderboard"
-              prefetch={false}
-              className={`${isActive("/leaderboard")} w-full text-left`}
-              onClick={() => setIsOpen(false)}
-            >
-              Leaderboard
-            </Link>
-
-            <Link
-              href="/requests"
-              prefetch={false}
-              className={`${isActive("/requests")} w-full text-left`}
-              onClick={() => setIsOpen(false)}
-            >
-              Хүсэлт
-            </Link>
-
-            {user && (
-              <>
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    prefetch={false}
-                    className="mt-1 w-full rounded-full bg-gradient-to-r from-amber-400 to-pink-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-amber-500/50 hover:brightness-110"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Admin
-                  </Link>
-                )}
-
-                {isEditor && (
-                  <Link
-                    href="/editor/manhuas"
-                    prefetch={false}
-                    className="mt-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 px-3 py-1 text-[12px] font-semibold text-slate-950 shadow-sm shadow-emerald-500/50 hover:brightness-110"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Editor
-                  </Link>
-                )}
-              </>
+            {user && isAdmin && (
+              <Link href="/admin" prefetch={false}
+                className="mt-1 rounded-full px-3 py-2 text-[12px] font-semibold text-center"
+                style={{ background: "linear-gradient(135deg,oklch(0.82 0.16 85),oklch(0.7 0.18 60))", color: "#07070e" }}
+                onClick={() => setIsOpen(false)}>
+                Admin
+              </Link>
+            )}
+            {user && isEditor && (
+              <Link href="/editor/manhuas" prefetch={false}
+                className="mt-1 rounded-full px-3 py-2 text-[12px] font-semibold text-center"
+                style={{ background: "linear-gradient(135deg,oklch(0.72 0.85 160),oklch(0.72 0.17 195))", color: "#07070e" }}
+                onClick={() => setIsOpen(false)}>
+                Editor
+              </Link>
             )}
 
-            <div className="mt-2 flex flex-col gap-2">
+            <div className="mt-2">
               {user ? (
-                <button
-                  onClick={handleLogout}
-                  className="w-full rounded-full bg-slate-800 px-3 py-1.5 text-[12px] font-medium text-slate-100 hover:bg-slate-700"
-                >
+                <button onClick={handleLogout}
+                  className="w-full rounded-full px-3 py-2 text-[12px] font-medium"
+                  style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-text)" }}>
                   Гарах
                 </button>
               ) : (
-                <Link
-                  href="/register"
-                  prefetch={false}
-                  className="w-full rounded-full bg-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-slate-950 shadow-sm shadow-cyan-500/40 hover:bg-cyan-400"
-                  onClick={() => setIsOpen(false)}
-                >
+                <Link href="/register" prefetch={false}
+                  className="block w-full rounded-full px-3 py-2 text-[12px] font-semibold text-center"
+                  style={{ background: "var(--arc-cyan)", color: "#07070e" }}
+                  onClick={() => setIsOpen(false)}>
                   Бүртгүүлэх
                 </Link>
               )}

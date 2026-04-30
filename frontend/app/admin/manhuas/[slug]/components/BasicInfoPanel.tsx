@@ -1,4 +1,3 @@
-// src/app/admin/manhuas/components/BasicInfoPanel.tsx
 "use client";
 
 import React from "react";
@@ -12,24 +11,21 @@ export type ManhuaFormState = {
   description: string;
   coverImage: string;
   status: string;
-  genres: string; // comma separated
-  rating: string; // 0–5, задгай тоо (4.8, 4.9 гэх мэт)
+  genres: string;
+  rating: string;
 };
 
 const GENRE_OPTIONS = [
-  "Action",
-  "Adventure",
-  "Romance",
-  "Comedy",
-  "Drama",
-  "Fantasy",
-  "School Life",
-  "Slice of Life",
-  "Isekai",
-  "Martial Arts",
-  "Shounen",
-  "Shoujo",
+  "Action", "Adventure", "Romance", "Comedy", "Drama", "Fantasy",
+  "School Life", "Slice of Life", "Isekai", "Martial Arts", "Shounen", "Shoujo",
 ];
+
+const selectStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "8px 12px", fontSize: 12,
+  color: "var(--arc-text)", outline: "none",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+};
 
 interface BasicInfoPanelProps {
   form: ManhuaFormState;
@@ -41,42 +37,21 @@ interface BasicInfoPanelProps {
   onDelete: () => void;
 }
 
-export function BasicInfoPanel({
-  form,
-  setForm,
-  error,
-  saving,
-  deleting,
-  onSave,
-  onDelete,
-}: BasicInfoPanelProps) {
-  // ─── Genres helper ─────────────────────
+export function BasicInfoPanel({ form, setForm, error, saving, deleting, onSave, onDelete }: BasicInfoPanelProps) {
   const selectedGenres = React.useMemo(
-    () =>
-      form.genres
-        .split(",")
-        .map((g) => g.trim())
-        .filter(Boolean),
+    () => form.genres.split(",").map((g) => g.trim()).filter(Boolean),
     [form.genres]
   );
 
   const toggleGenre = (genre: string) => {
     setForm((prev) => {
-      const current = prev.genres
-        .split(",")
-        .map((g) => g.trim())
-        .filter(Boolean);
-
+      const current = prev.genres.split(",").map((g) => g.trim()).filter(Boolean);
       const exists = current.includes(genre);
-      const next = exists
-        ? current.filter((g) => g !== genre)
-        : [...current, genre];
-
+      const next = exists ? current.filter((g) => g !== genre) : [...current, genre];
       return { ...prev, genres: next.join(", ") };
     });
   };
 
-  // ─── Rating helper ─────────────────────
   const numericRating = (() => {
     const n = parseFloat(form.rating);
     if (isNaN(n)) return 0;
@@ -84,83 +59,49 @@ export function BasicInfoPanel({
   })();
 
   return (
-    <PanelShell title="Basic info">
+    <PanelShell title="Үндсэн мэдээлэл">
       {error && (
-        <div className="mb-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[11px] text-red-200">
+        <div className="mb-3 rounded-[8px] px-3 py-2 text-[11px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
           {error}
         </div>
       )}
 
       <form onSubmit={onSave} className="space-y-3">
-        {/* Title */}
-        <div className="space-y-1">
+        <div>
+          <Label>Гарчиг <span style={{ color: "var(--arc-rose)" }}>*</span></Label>
+          <TextInput value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
+        </div>
+
+        <div>
+          <Label>Гарчиг (EN)</Label>
+          <TextInput value={form.titleEn} onChange={(e) => setForm((f) => ({ ...f, titleEn: e.target.value }))} placeholder="English title (optional)" />
+        </div>
+
+        <div>
           <Label>
-            Title<span className="text-red-400"> *</span>
+            Slug{" "}
+            <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>(/manhua/slug — болгоомжтой)</span>
           </Label>
-          <TextInput
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            required
-          />
+          <TextInput value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} placeholder="my-manhua-slug" />
         </div>
 
-        {/* Title (English) */}
-        <div className="space-y-1">
-          <Label>Title (EN)</Label>
-          <TextInput
-            value={form.titleEn}
-            onChange={(e) => setForm((f) => ({ ...f, titleEn: e.target.value }))}
-            placeholder="English title (optional)"
-          />
+        <div>
+          <Label>Тайлбар</Label>
+          <TextArea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
         </div>
 
-        {/* Slug */}
-        <div className="space-y-1">
-          <Label>
-            Slug
-            <span className="ml-1 text-[10px] text-slate-500">
-              (/manhua/slug – өөрчлөхдөө болгоомжтой)
-            </span>
-          </Label>
-          <TextInput
-            value={form.slug}
-            onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-            placeholder="my-manhua-slug"
-          />
-        </div>
-
-        {/* Description */}
-        <div className="space-y-1">
-          <Label>Description</Label>
-          <TextArea
-            rows={3}
-            value={form.description}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, description: e.target.value }))
-            }
-          />
-        </div>
-
-        {/* Status + Genres */}
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1">
-            <Label>Status</Label>
-            <select
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={form.status}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, status: e.target.value }))
-              }
-            >
+          <div>
+            <Label>Статус</Label>
+            <select style={selectStyle} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
               <option value="ongoing">Ongoing</option>
               <option value="completed">Completed</option>
               <option value="hiatus">Hiatus</option>
             </select>
           </div>
 
-          {/* Genres – чипэн сонголттой */}
-          <div className="space-y-1">
-            <Label>Genres (сонгох)</Label>
+          <div>
+            <Label>Жанр (сонгох)</Label>
             <div className="flex flex-wrap gap-1.5">
               {GENRE_OPTIONS.map((g) => {
                 const active = selectedGenres.includes(g);
@@ -169,11 +110,14 @@ export function BasicInfoPanel({
                     key={g}
                     type="button"
                     onClick={() => toggleGenre(g)}
-                    className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
-                      active
-                        ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
-                        : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
-                    }`}
+                    className="rounded-full text-[11px] transition-all"
+                    style={{
+                      padding: "3px 10px",
+                      border: active ? "1px solid oklch(0.72 0.17 195/.5)" : "1px solid var(--arc-border)",
+                      background: active ? "oklch(0.72 0.17 195/.1)" : "transparent",
+                      color: active ? "var(--arc-cyan)" : "var(--arc-dim)",
+                      cursor: "pointer",
+                    }}
                   >
                     {g}
                   </button>
@@ -181,19 +125,15 @@ export function BasicInfoPanel({
               })}
             </div>
             {selectedGenres.length > 0 && (
-              <p className="text-[10px] text-slate-500">
-                Сонгосон:{" "}
-                <span className="text-slate-200">
-                  {selectedGenres.join(", ")}
-                </span>
+              <p className="mt-1.5 text-[10px]" style={{ color: "var(--arc-muted)" }}>
+                Сонгосон: <span style={{ color: "var(--arc-dim)" }}>{selectedGenres.join(", ")}</span>
               </p>
             )}
           </div>
         </div>
 
-        {/* Rating – 0–5, задгай тоотой, доор нь star preview */}
-        <div className="space-y-1">
-          <Label>Rating (0–5, ⭐)</Label>
+        <div>
+          <Label>Рейтинг (0–5)</Label>
           <div className="flex flex-wrap items-center gap-3">
             <TextInput
               type="number"
@@ -202,43 +142,39 @@ export function BasicInfoPanel({
               min="0"
               max="5"
               value={form.rating}
+              style={{ width: 100 }}
               onChange={(e) => {
                 const v = e.target.value;
-                if (v === "") {
-                  setForm((f) => ({ ...f, rating: "" }));
-                  return;
-                }
+                if (v === "") { setForm((f) => ({ ...f, rating: "" })); return; }
                 const n = parseFloat(v);
-                if (isNaN(n)) return;
-                const clamped = Math.min(5, Math.max(0, n));
-                setForm((f) => ({ ...f, rating: clamped.toString() }));
+                if (!isNaN(n)) setForm((f) => ({ ...f, rating: Math.min(5, Math.max(0, n)).toString() }));
               }}
-              placeholder="Ж: 4.8"
+              placeholder="4.8"
             />
             <StarPreview rating={numericRating} />
-            <span className="text-[11px] text-slate-500">
-              0–5 хооронд задгай оноо өгч болно (4.8, 4.9 гэх мэт).
-            </span>
           </div>
         </div>
 
-        {/* hidden cover url */}
         <input type="hidden" value={form.coverImage} readOnly />
 
-        {/* Buttons */}
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-3"
+          style={{ borderTop: "1px solid var(--arc-border)" }}
+        >
           <button
             type="button"
             onClick={onDelete}
             disabled={deleting}
-            className="rounded-lg border border-red-500/60 bg-red-500/10 px-3 py-1.5 text-[11px] font-medium text-red-200 transition hover:bg-red-500/20 disabled:opacity-60"
+            className="rounded-[9px] px-3 py-2 text-[11px] font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+            style={{ border: "1px solid oklch(0.65 0.22 15/.4)", background: "oklch(0.65 0.22 15/.08)", color: "var(--arc-rose)", cursor: "pointer" }}
           >
             {deleting ? "Устгаж байна..." : "Устгах"}
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-[11px] font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:opacity-60"
+            className="rounded-[9px] px-5 py-2 text-[11px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+            style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
           >
             {saving ? "Хадгалж байна..." : "Хадгалах"}
           </button>
@@ -248,28 +184,13 @@ export function BasicInfoPanel({
   );
 }
 
-// ─── Star preview component ────────────────
 function StarPreview({ rating }: { rating: number }) {
   const percentage = (rating / 5) * 100;
-
   return (
     <div className="relative inline-flex">
-      {/* background stars */}
-      <div className="flex text-[14px] text-slate-600">
-        {"★★★★★".split("").map((s, i) => (
-          <span key={i}>{s}</span>
-        ))}
-      </div>
-      {/* filled stars */}
-      <div
-        className="absolute inset-0 overflow-hidden"
-        style={{ width: `${percentage}%` }}
-      >
-        <div className="flex text-[14px] text-amber-400">
-          {"★★★★★".split("").map((s, i) => (
-            <span key={i}>{s}</span>
-          ))}
-        </div>
+      <div className="flex text-[16px]" style={{ color: "var(--arc-border)" }}>{"★★★★★"}</div>
+      <div className="absolute inset-0 overflow-hidden" style={{ width: `${percentage}%` }}>
+        <div className="flex text-[16px]" style={{ color: "var(--arc-amber)" }}>{"★★★★★"}</div>
       </div>
     </div>
   );

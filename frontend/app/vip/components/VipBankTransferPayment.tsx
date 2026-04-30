@@ -2,9 +2,6 @@
 
 import { useState } from "react";
 
-// Temporary payment component showing bank transfer instructions
-// TODO: Replace with VipQPayPayment when QPay integration is ready
-
 interface VipBankTransferPaymentProps {
   planMonths: number;
   planPrice: number;
@@ -12,91 +9,65 @@ interface VipBankTransferPaymentProps {
   onClose: () => void;
 }
 
-export function VipBankTransferPayment({
-  planMonths,
-  planPrice,
-  username,
-  onClose,
-}: VipBankTransferPaymentProps) {
+export function VipBankTransferPayment({ planMonths, planPrice, username, onClose }: VipBankTransferPaymentProps) {
   const [copied, setCopied] = useState(false);
-
   const transactionDescription = `VIP – ${username}`;
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const handleCopyDescription = async () => {
-    try {
-      await navigator.clipboard.writeText(transactionDescription);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(transactionDescription); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={handleBackdropClick}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,.75)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6"
+        className="relative w-full max-w-md rounded-[16px] p-6 shadow-2xl"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 transition-colors"
+          className="absolute top-4 right-4 text-[16px] leading-none transition-opacity opacity-50 hover:opacity-100"
+          style={{ color: "var(--arc-dim)", background: "none", border: "none", cursor: "pointer" }}
         >
           ✕
         </button>
 
-        {/* Title */}
-        <h3 className="text-lg font-semibold text-slate-100 mb-4">
+        <h3 className="text-[17px] font-bold mb-4" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
           Төлбөр хийх заавар
         </h3>
 
-        {/* Plan Summary */}
-        <div className="mb-6 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-          <p className="text-sm text-slate-300 mb-1">
-            Сонгосон төлөвлөгөө: <span className="font-semibold">{planMonths} сар</span>
+        <div className="mb-5 p-3 rounded-[10px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+          <p className="text-[12px] mb-1" style={{ color: "var(--arc-dim)" }}>
+            Сонгосон төлөвлөгөө: <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{planMonths} сар</span>
           </p>
-          <p className="text-base font-bold text-slate-100">
+          <p className="text-[22px] font-bold mt-1" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-cyan)" }}>
             {planPrice.toLocaleString()}₮
           </p>
         </div>
 
-        {/* Bank Account Info */}
-        <div className="mb-6 space-y-3">
+        <div className="mb-5 space-y-3">
+          {[
+            { label: "Банкны нэр", value: "ХААН Банк" },
+            { label: "Дансны дугаар", value: "5000 1234 5678 9012", mono: true },
+            { label: "Хүлээн авагчийн нэр", value: "МАНХУА ПЛАТФОРМ" },
+          ].map(({ label, value, mono }) => (
+            <div key={label}>
+              <p className="text-[11px] mb-1" style={{ color: "var(--arc-muted)" }}>{label}</p>
+              <p className="text-[13px] font-medium" style={{ color: "var(--arc-text)", fontFamily: mono ? "monospace" : undefined }}>{value}</p>
+            </div>
+          ))}
           <div>
-            <p className="text-xs text-slate-500 mb-1">Банкны нэр</p>
-            <p className="text-sm font-medium text-slate-200">ХААН Банк</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 mb-1">Дансны дугаар</p>
-            <p className="text-sm font-medium text-slate-200 font-mono">
-              5000 1234 5678 9012
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 mb-1">Хүлээн авагчийн нэр</p>
-            <p className="text-sm font-medium text-slate-200">
-              МАНХУА ПЛАТФОРМ
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 mb-1">Гүйлгээний утга</p>
+            <p className="text-[11px] mb-1" style={{ color: "var(--arc-muted)" }}>Гүйлгээний утга</p>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-slate-200 font-mono flex-1">
-                {transactionDescription}
-              </p>
+              <p className="text-[13px] font-medium flex-1 font-mono" style={{ color: "var(--arc-cyan)" }}>{transactionDescription}</p>
               <button
-                onClick={handleCopyDescription}
-                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-medium text-slate-200 transition-colors"
+                onClick={handleCopy}
+                className="rounded-[7px] px-3 py-1.5 text-[11px] font-medium transition-colors"
+                style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
               >
                 {copied ? "✓ Хуулагдсан" : "Хуулах"}
               </button>
@@ -104,24 +75,20 @@ export function VipBankTransferPayment({
           </div>
         </div>
 
-        {/* Instruction */}
-        <div className="mb-6 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
-          <p className="text-xs text-blue-300 leading-relaxed">
+        <div className="mb-5 p-3 rounded-[10px]" style={{ background: "oklch(0.72 0.17 195/.08)", border: "1px solid oklch(0.72 0.17 195/.25)" }}>
+          <p className="text-[12px] leading-relaxed" style={{ color: "var(--arc-cyan)" }}>
             Дээрх дансанд шилжүүлсний дараа админ баталгаажуулна.
           </p>
         </div>
 
-        {/* Extension Info */}
-        <div className="mb-6">
-          <p className="text-[10px] text-slate-500 leading-relaxed">
-            Хэрвээ VIP идэвхтэй бол хугацаа автоматаар сунгагдана.
-          </p>
-        </div>
+        <p className="text-[11px] mb-5" style={{ color: "var(--arc-muted)" }}>
+          Хэрвээ VIP идэвхтэй бол хугацаа автоматаар сунгагдана.
+        </p>
 
-        {/* Close Button */}
         <button
           onClick={onClose}
-          className="w-full rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-600 transition-colors"
+          className="w-full rounded-[9px] px-4 py-2.5 text-[13px] font-medium transition-colors"
+          style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: "pointer" }}
         >
           Ойлголоо
         </button>
@@ -129,4 +96,3 @@ export function VipBankTransferPayment({
     </div>
   );
 }
-

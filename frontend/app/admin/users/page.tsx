@@ -101,7 +101,7 @@ export default function AdminUsersPage() {
   const tableData = useMemo(() => data, [data]);
 
   return (
-    <AdminShell>
+    <AdminShell title="Хэрэглэгчид" subtitle="Бүх хэрэглэгч — засах, блоклох, VIP удирдах.">
       <div className="space-y-4 md:space-y-6 px-2 md:px-0">
         <FiltersBar
           filters={filters}
@@ -113,7 +113,7 @@ export default function AdminUsersPage() {
         />
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+          <div className="rounded-[9px] px-3 py-2 text-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
             {error}
           </div>
         )}

@@ -2,15 +2,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import Autoplay from "embla-carousel-autoplay";
-
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Carousel,
-  CarouselApi,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
+import useEmblaCarousel from "embla-carousel-react";
 
 type HeroSlide = {
   _id: string;
@@ -23,184 +17,237 @@ type HeroSlide = {
   rating?: number;
   status?: string;
   genres?: string[];
-  // хэрэгтэй бол бусад field-үүдээ ч нэмэж болно
 };
 
 type HomePageHeaderProps = {
   slides: HeroSlide[];
 };
 
-export function HomePageHeader({ slides }: HomePageHeaderProps) {
-  const plugin = React.useRef(
-    Autoplay({ delay: 2500, stopOnInteraction: true })
-  );
+const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+  ongoing: {
+    bg: "oklch(0.72 0.17 155/.12)",
+    color: "oklch(0.8 0.14 155)",
+    border: "1px solid oklch(0.72 0.17 155/.25)",
+  },
+  completed: {
+    bg: "oklch(0.72 0.17 195/.12)",
+    color: "var(--arc-cyan)",
+    border: "1px solid oklch(0.72 0.17 195/.25)",
+  },
+  hiatus: {
+    bg: "oklch(0.82 0.16 85/.12)",
+    color: "var(--arc-amber)",
+    border: "1px solid oklch(0.82 0.16 85/.25)",
+  },
+};
 
-  const [api, setApi] = React.useState<CarouselApi | null>(null);
+export function HomePageHeader({ slides }: HomePageHeaderProps) {
+  const autoplayRef = React.useRef(Autoplay({ delay: 4000, stopOnInteraction: true }));
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [autoplayRef.current]);
   const [current, setCurrent] = React.useState(0);
 
   React.useEffect(() => {
-    if (!api) return;
-    setCurrent(api.selectedScrollSnap());
+    if (!emblaApi) return;
+    const onSelect = () => setCurrent(emblaApi.selectedScrollSnap());
+    emblaApi.on("select", onSelect);
+    return () => { emblaApi.off("select", onSelect); };
+  }, [emblaApi]);
 
-    const onSelect = () => setCurrent(api.selectedScrollSnap());
-    api.on("select", onSelect);
-
-    return () => {
-      api.off("select", onSelect);
-    };
-  }, [api]);
-
-  // backend-ээс ирсэн raw data-г UI-д хэрэгтэй бүтэц рүү хөрвүүлнэ
   const mappedSlides = React.useMemo(
     () =>
-      (slides || []).map((slide) => {
-        const coverUrl = slide.coverImageUrl || slide.coverImage;
-        const ratingValue = slide.rating ?? slide.ratingAverage ?? 0;
-
-        const genresText = Array.isArray(slide.genres)
-          ? slide.genres.join(", ")
-          : "";
-
-        const statusText = slide.status
+      (slides || []).map((slide) => ({
+        id: slide._id,
+        title: slide.title,
+        slug: slide.slug,
+        rating: (slide.rating ?? slide.ratingAverage ?? 0).toFixed(1),
+        genres: Array.isArray(slide.genres) ? slide.genres : [],
+        description: slide.description,
+        status: slide.status?.toLowerCase() || "ongoing",
+        statusLabel: slide.status
           ? slide.status.charAt(0).toUpperCase() + slide.status.slice(1)
-          : "Unknown";
-
-        return {
-          id: slide._id,
-          title: slide.title,
-          rating: ratingValue.toFixed(1),
-          genres: genresText,
-          description: slide.description,
-          status: statusText,
-          coverUrl,
-        };
-      }),
+          : "Ongoing",
+        coverUrl: slide.coverImageUrl || slide.coverImage,
+      })),
     [slides]
   );
 
-  if (!mappedSlides.length) {
-    return null; // эсвэл loading skeleton тавьж болно
-  }
+  if (!mappedSlides.length) return null;
+
+  const goTo = (i: number) => {
+    emblaApi?.scrollTo(i);
+    autoplayRef.current.reset();
+  };
 
   return (
-    <Carousel
-      plugins={[plugin.current]}
-      setApi={setApi}
-      opts={{ loop: true }}
-      className="w-full z-0"
-      onMouseEnter={plugin.current.stop}
-      onMouseLeave={plugin.current.reset}
-    >
-      <CarouselContent className="ml-0">
-        {mappedSlides.map((slide, index) => (
-          <CarouselItem key={slide.id ?? index} className="basis-full pl-0">
-            <Card className="border-0 bg-transparent shadow-none p-0">
-              <CardContent className="p-0">
+    <div className="w-full">
+      {/* EMBLA */}
+      <div ref={emblaRef} className="overflow-hidden">
+        <div className="flex">
+          {mappedSlides.map((slide) => {
+            const statusStyle = STATUS_COLORS[slide.status] || STATUS_COLORS.ongoing;
+            return (
+              <div key={slide.id} className="flex-[0_0_100%] min-w-0">
                 <div
-                  className="
-                    relative flex w-full overflow-hidden rounded-xl text-white shadow-xl
-                    h-[260px] md:h-[320px] lg:h-[380px] xl:h-[420px]
-                  "
+                  className="relative w-full overflow-hidden flex"
                   style={{
-                    backgroundImage: `
-                      linear-gradient(
-                        to right,
-                        rgba(26, 15, 51, 0.95),
-                        rgba(18, 9, 32, 0.85),
-                        rgba(0,0,0,0.75)
-                      ),
-                      url(${slide.coverUrl})
-                    `,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
+                    height: "clamp(260px, 36vw, 440px)",
+                    background: slide.coverUrl
+                      ? `linear-gradient(105deg, rgba(7,7,14,0.98) 0%, rgba(7,7,14,0.78) 50%, rgba(7,7,14,0.18) 100%), url(${slide.coverUrl}) center/cover no-repeat`
+                      : "linear-gradient(105deg, #1a0f33, #07070e)",
                   }}
                 >
-                  {/* LEFT TEXT SIDE */}
-                  <div className="flex flex-1 flex-col justify-between p-6 md:p-8">
-                    <div className="space-y-3 lg:space-y-4">
-                      <div className="flex items-center gap-3 lg:gap-4">
-                        {/* ⭐ STAR RATING */}
-                        <div className="relative h-10 w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 flex-shrink-0">
-                          <svg
-                            viewBox="0 0 100 100"
-                            className="h-full w-full drop-shadow-md"
-                          >
-                            <polygon
-                              points="50,5 61,39 97,39 67,59 79,91 50,70 21,91 33,59 3,39 39,39"
-                              fill="#FACC15"
-                            />
-                          </svg>
+                  {/* Grid lines overlay */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      opacity: 0.04,
+                      backgroundImage:
+                        "linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)",
+                      backgroundSize: "40px 40px",
+                    }}
+                  />
 
-                          {/* текстийг яг голд нь */}
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                            <span className="text-xs font-semibold text-black md:text-sm lg:text-base">
-                              {slide.rating}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* TITLE */}
-                        <div className="flex flex-col gap-0.5">
-                          <h2 className="max-w-[24rem] text-lg font-semibold leading-snug tracking-wide md:max-w-[30rem] md:text-2xl lg:text-3xl">
-                            {slide.title}
-                          </h2>
-                        </div>
+                  {/* CONTENT */}
+                  <div
+                    className="relative z-10 flex flex-col justify-center px-6 md:px-12 gap-4"
+                    style={{ maxWidth: 620 }}
+                  >
+                    {/* META ROW */}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="flex items-center gap-1 rounded px-2 py-0.5 text-[12px] font-semibold"
+                        style={{
+                          background: "rgba(250,204,21,0.12)",
+                          border: "1px solid rgba(250,204,21,0.2)",
+                          color: "var(--arc-amber)",
+                        }}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                          <polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" />
+                        </svg>
+                        {slide.rating}
                       </div>
-
-                      {/* GENRES */}
-                      {slide.genres && (
-                        <p className="max-w-xl text-xs text-gray-300 md:text-sm lg:text-base">
-                          {slide.genres}
-                        </p>
-                      )}
+                      <div
+                        className="rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                        style={statusStyle}
+                      >
+                        {slide.statusLabel}
+                      </div>
                     </div>
 
-                    {/* SUMMARY + STATUS */}
-                    <div className="space-y-2 text-xs md:text-sm lg:text-base">
-                      <p className="font-semibold uppercase tracking-[0.15em]">
-                        description
-                      </p>
-                      <p className="max-w-xl overflow-hidden text-ellipsis text-gray-100 line-clamp-3">
-                        {slide.description}
-                      </p>
-                      <p className="pt-2 font-semibold">
-                        Status:{" "}
-                        <span className="font-normal text-gray-100">
-                          {slide.status}
-                        </span>
-                      </p>
+                    {/* TITLE */}
+                    <h1
+                      className="text-white font-bold leading-tight"
+                      style={{
+                        fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                        fontSize: "clamp(22px, 3.2vw, 38px)",
+                        letterSpacing: "-0.025em",
+                      }}
+                    >
+                      {slide.title}
+                    </h1>
+
+                    {/* GENRES */}
+                    {slide.genres.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {slide.genres.slice(0, 4).map((g) => (
+                          <span
+                            key={g}
+                            className="rounded-full text-[11px] font-medium px-2.5 py-0.5"
+                            style={{
+                              background: "rgba(255,255,255,0.07)",
+                              border: "1px solid var(--arc-border)",
+                              color: "var(--arc-dim)",
+                            }}
+                          >
+                            {g}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* DESCRIPTION */}
+                    <p
+                      className="text-[13px] leading-relaxed line-clamp-3 max-w-md"
+                      style={{ color: "var(--arc-dim)" }}
+                    >
+                      {slide.description}
+                    </p>
+
+                    {/* ACTIONS */}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/manhua/${slide.slug}`}
+                        className="flex items-center gap-1.5 rounded-[9px] px-5 py-2.5 text-[13px] font-bold transition-all hover:brightness-110 active:scale-95"
+                        style={{
+                          fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                          background: "var(--arc-cyan)",
+                          color: "#07070e",
+                          boxShadow: "0 0 22px var(--arc-cyan-glow)",
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        Унших
+                      </Link>
+                      <Link
+                        href={`/manhua/${slide.slug}`}
+                        className="rounded-[9px] px-4 py-2.5 text-[13px] font-medium transition-colors"
+                        style={{
+                          background: "transparent",
+                          border: "1px solid var(--arc-border)",
+                          color: "var(--arc-dim)",
+                        }}
+                      >
+                        Дэлгэрэнгүй →
+                      </Link>
                     </div>
                   </div>
 
-                  {/* RIGHT COVER IMAGE */}
-                  <div className="flex h-full items-center justify-center pr-4 sm:pr-6">
-                    <div className="h-[200px] sm:h-[230px] md:h-[260px] lg:h-[320px] xl:h-[360px] overflow-hidden rounded-md shadow-2xl">
+                  {/* COVER IMAGE (right) */}
+                  {slide.coverUrl && (
+                    <div
+                      className="absolute right-0 top-0 bottom-0 z-10 hidden sm:flex items-center justify-end pr-8 md:pr-12"
+                      style={{ width: "clamp(140px, 26%, 280px)" }}
+                    >
                       <img
                         src={slide.coverUrl}
                         alt={slide.title}
-                        className="h-full w-auto object-cover"
+                        className="rounded-[14px] object-cover"
+                        style={{
+                          height: "clamp(160px, 26vw, 340px)",
+                          width: "auto",
+                          maxWidth: "100%",
+                          boxShadow: "-20px 0 60px rgba(7,7,14,0.9), 0 8px 32px rgba(0,0,0,0.6)",
+                        }}
                       />
                     </div>
-                  </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* DOTS */}
-      <div className="mt-4 flex w-full items-center justify-center gap-2 pb-2">
+      <div className="flex justify-center items-center gap-1.5 pt-3 pb-1">
         {mappedSlides.map((_, i) => (
-          <span
+          <button
             key={i}
-            className={`h-2 w-2 rounded-full transition ${
-              i === current ? "bg-yellow-400" : "bg-white/30"
-            }`}
+            onClick={() => goTo(i)}
+            className="rounded-full transition-all duration-300 border-none cursor-pointer"
+            style={{
+              height: 4,
+              width: i === current ? 32 : 20,
+              background: i === current ? "var(--arc-cyan)" : "rgba(255,255,255,0.18)",
+              padding: 0,
+            }}
+            aria-label={`Slide ${i + 1}`}
           />
         ))}
       </div>
-    </Carousel>
+    </div>
   );
 }

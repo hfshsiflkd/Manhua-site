@@ -1,40 +1,46 @@
-// src/app/admin/manhuas/components/FormControls.tsx
 "use client";
 
 import React from "react";
 
+const baseStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "8px 12px",
+  color: "var(--arc-text)", outline: "none",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+};
+
 export function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-[11px] text-slate-400">{children}</label>;
+  return (
+    <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+      {children}
+    </label>
+  );
 }
 
 export function TextInput(
   props: React.InputHTMLAttributes<HTMLInputElement> & { small?: boolean }
 ) {
-  const { small, className, ...rest } = props;
+  const { small, style, onFocus, onBlur, ...rest } = props;
   return (
     <input
       {...rest}
-      className={
-        "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 " +
-        (small ? "py-1 text-[11px]" : "py-1.5 text-xs") +
-        " text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 " +
-        (className || "")
-      }
+      style={{ ...baseStyle, fontSize: small ? 11 : 12, ...style }}
+      onFocus={(e) => { e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)"; onFocus?.(e); }}
+      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--arc-border)"; onBlur?.(e); }}
     />
   );
 }
 
 export function TextArea(
-  props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { rows?: number }
+  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
 ) {
-  const { className, ...rest } = props;
+  const { style, onFocus, onBlur, ...rest } = props;
   return (
     <textarea
       {...rest}
-      className={
-        "w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 " +
-        (className || "")
-      }
+      style={{ ...baseStyle, fontSize: 12, resize: "vertical", ...style }}
+      onFocus={(e) => { e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)"; onFocus?.(e); }}
+      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--arc-border)"; onBlur?.(e); }}
     />
   );
 }

@@ -16,26 +16,25 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
   const { user } = useAuth();
   const pathname = usePathname();
 
-  // Normalize role for safe comparison
   const roleRaw = user?.role;
   const roleNorm = (roleRaw || "").toLowerCase().trim();
   const isAdmin = roleNorm === "admin";
   const isEditor = roleNorm === "editor" || roleNorm === "translator";
 
-  // Redirect if not editor/admin
   if (!user || (!isEditor && !isAdmin)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--arc-bg)" }}>
         <div className="text-center">
-          <p className="text-lg font-semibold text-slate-100 mb-2">
+          <p className="text-lg font-semibold mb-2" style={{ color: "var(--arc-text)" }}>
             Зөвшөөрөл шаардлагатай
           </p>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm mb-4" style={{ color: "var(--arc-muted)" }}>
             Энэ хэсэгт нэвтрэхийн тулд editor эсвэл admin эрхтэй байх шаардлагатай.
           </p>
           <Link
             href="/"
-            className="inline-block rounded-full bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-400"
+            className="inline-block rounded-full px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ background: "var(--arc-cyan)", color: "#07070e" }}
           >
             Нүүр хуудас руу буцах
           </Link>
@@ -45,23 +44,19 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
-      {/* Sidebar - Desktop */}
+    <div className="flex min-h-screen" style={{ background: "var(--arc-bg)" }}>
       <EditorSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         pathname={pathname}
       />
 
-      {/* Main Content */}
       <div className="flex flex-1 flex-col lg:pl-64">
-        {/* Topbar - Mobile */}
         <EditorTopbar
           onMenuClick={() => setSidebarOpen(true)}
           user={user}
         />
 
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
             {children}
@@ -69,14 +64,13 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
         </main>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-40 lg:hidden"
+          style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={() => setSidebarOpen(false)}
         />
       )}
     </div>
   );
 }
-

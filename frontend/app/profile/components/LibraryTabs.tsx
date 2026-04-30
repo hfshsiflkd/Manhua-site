@@ -15,16 +15,63 @@ interface LibraryTabsProps {
     manhuaTitle: string;
     coverImageUrl?: string;
   }>;
+  initialTab?: Tab;
 }
 
 type Tab = "favorites" | "bookmarks" | "recent";
 
-export function LibraryTabs({
-  favorites,
-  bookmarks,
-  recentlyRead,
-}: LibraryTabsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("favorites");
+export type LibraryTab = Tab;
+
+const COVER_STYLE: React.CSSProperties = {
+  width: 44, height: 60,
+  borderRadius: 7,
+  background: "var(--arc-elevated)",
+  flexShrink: 0,
+  overflow: "hidden",
+  position: "relative",
+};
+
+function CoverThumb({ src, alt }: { src?: string; alt: string }) {
+  return (
+    <div style={COVER_STYLE}>
+      {src ? (
+        <Image src={src} alt={alt} fill sizes="44px" className="object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[10px]" style={{ color: "var(--arc-muted)" }}>—</div>
+      )}
+    </div>
+  );
+}
+
+function ItemRow({ href, cover, title, sub, isRead }: { href: string; cover?: string; title: string; sub?: React.ReactNode; isRead?: boolean }) {
+  return (
+    <Link
+      href={href}
+      className="flex gap-3 rounded-[9px] px-3 py-2.5 transition-all hover:-translate-y-0.5"
+      style={{ border: "1px solid transparent", textDecoration: "none" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border-h)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.03)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "transparent"; (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+    >
+      <CoverThumb src={cover} alt={title} />
+      <div className="min-w-0 flex-1 flex flex-col justify-center">
+        <h4
+          className="line-clamp-2 text-[13px] font-semibold"
+          style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
+        >
+          {title}
+        </h4>
+        {sub && <div className="mt-1 text-[11px]" style={{ color: isRead ? "var(--arc-muted)" : "var(--arc-dim)" }}>{sub}</div>}
+      </div>
+    </Link>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="py-6 text-center text-[13px]" style={{ color: "var(--arc-muted)" }}>{text}</div>;
+}
+
+export function LibraryTabs({ favorites, bookmarks, recentlyRead, initialTab }: LibraryTabsProps) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? "favorites");
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "favorites", label: "Дуртай", count: favorites.length },
@@ -35,215 +82,80 @@ export function LibraryTabs({
   const renderContent = () => {
     switch (activeTab) {
       case "favorites":
-        return <FavoritesList favorites={favorites} />;
+        return favorites.length === 0 ? <EmptyState text="Дуртай манхуа алга" /> : (
+          <div className="space-y-1">
+            {favorites.map((f) => (
+              <ItemRow key={f._id} href={`/manhua/${f.manhua.slug}`} cover={f.manhua.coverImageUrl || f.manhua.coverImage} title={f.manhua.title} />
+            ))}
+          </div>
+        );
       case "bookmarks":
-        return <BookmarksList bookmarks={bookmarks} />;
+        return bookmarks.length === 0 ? <EmptyState text="Хавтас алга" /> : (
+          <div className="space-y-1">
+            {bookmarks.map((b) => {
+              const isRead = isChapterRead(b.manhua.slug, b.chapterNumber);
+              return (
+                <ItemRow
+                  key={b._id}
+                  href={`/manhua/${b.manhua.slug}/chapter/${b.chapterNumber}`}
+                  cover={b.manhua.coverImageUrl || b.manhua.coverImage}
+                  title={b.manhua.title}
+                  sub={<>Chapter {b.chapterNumber}{isRead ? " (уншсан)" : ""}</>}
+                  isRead={isRead}
+                />
+              );
+            })}
+          </div>
+        );
       case "recent":
-        return <RecentlyReadList items={recentlyRead} />;
+        return recentlyRead.length === 0 ? <EmptyState text="Сүүлд уншсан манхуа алга" /> : (
+          <div className="space-y-1">
+            {recentlyRead.map((item, idx) => {
+              const isRead = isChapterRead(item.manhuaSlug, item.chapterNumber);
+              return (
+                <ItemRow
+                  key={`${item.manhuaSlug}-${item.chapterNumber}-${idx}`}
+                  href={`/manhua/${item.manhuaSlug}/chapter/${item.chapterNumber}`}
+                  cover={item.coverImageUrl}
+                  title={item.manhuaTitle}
+                  sub={<>Chapter {item.chapterNumber}{isRead ? " (уншсан)" : ""}</>}
+                  isRead={isRead}
+                />
+              );
+            })}
+          </div>
+        );
     }
   };
 
   return (
-    <div className="rounded-3xl bg-gradient-to-r from-cyan-500/30 via-fuchsia-500/25 to-yellow-400/15 p-[1px] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-      <div className="rounded-3xl border border-white/5 bg-slate-950/70 p-4 backdrop-blur">
-        {/* Tabs */}
-        <div className="mb-4 flex flex-wrap gap-2 rounded-full bg-slate-950/70 p-1 shadow-inner shadow-black/40">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-yellow-400 text-slate-950 shadow-md shadow-cyan-500/20"
-                  : "text-slate-300 hover:text-white"
-              }`}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div>{renderContent()}</div>
-      </div>
-    </div>
-  );
-}
-
-function FavoritesList({ favorites }: { favorites: Favorite[] }) {
-  if (favorites.length === 0) {
-    return (
-      <div className="py-6 text-center">
-        <p className="text-sm text-slate-500">Дуртай манхуа алга</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {favorites.map((fav) => {
-        const cover = fav.manhua.coverImageUrl || fav.manhua.coverImage;
-        return (
-          <Link
-            key={fav._id}
-            href={`/manhua/${fav.manhua.slug}`}
-            className="flex gap-3 rounded-xl border border-transparent bg-slate-900/40 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20 hover:bg-slate-900/80"
+    <div
+      className="rounded-[14px] p-4"
+      style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+    >
+      {/* TABS */}
+      <div className="mb-4 flex gap-0" style={{ borderBottom: "1px solid var(--arc-border)" }}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="px-4 py-2.5 text-[13px] font-semibold transition-colors"
+            style={{
+              fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
+              border: "none",
+              background: "transparent",
+              color: activeTab === tab.id ? "var(--arc-cyan)" : "var(--arc-muted)",
+              borderBottom: activeTab === tab.id ? "2px solid var(--arc-cyan)" : "2px solid transparent",
+              marginBottom: -1,
+              cursor: "pointer",
+            }}
           >
-            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
-              {cover ? (
-                <Image
-                  src={cover}
-                  alt={fav.manhua.title}
-                  fill
-                  sizes="48px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
-                  No cover
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="line-clamp-2 text-sm font-semibold text-slate-100">
-                {fav.manhua.title}
-              </h4>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
-function BookmarksList({ bookmarks }: { bookmarks: Bookmark[] }) {
-  if (bookmarks.length === 0) {
-    return (
-      <div className="py-6 text-center">
-        <p className="text-sm text-slate-500">Хавтас алга</p>
+            {tab.label} <span className="text-[11px] opacity-70">({tab.count})</span>
+          </button>
+        ))}
       </div>
-    );
-  }
 
-  return (
-    <div className="space-y-2">
-      {bookmarks.map((bookmark) => {
-        const cover =
-          bookmark.manhua.coverImageUrl || bookmark.manhua.coverImage;
-        const isRead = isChapterRead(
-          bookmark.manhua.slug,
-          bookmark.chapterNumber
-        );
-
-        return (
-          <Link
-            key={bookmark._id}
-            href={`/manhua/${bookmark.manhua.slug}/chapter/${bookmark.chapterNumber}`}
-            className="flex gap-3 rounded-xl border border-transparent bg-slate-900/40 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20 hover:bg-slate-900/80"
-          >
-            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
-              {cover ? (
-                <Image
-                  src={cover}
-                  alt={bookmark.manhua.title}
-                  fill
-                  sizes="48px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
-                  No cover
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="line-clamp-1 text-sm font-semibold text-slate-100">
-                {bookmark.manhua.title}
-              </h4>
-              <p
-                className={`mt-1 text-xs ${
-                  isRead
-                    ? "text-gray-500 font-normal"
-                    : "text-gray-300 font-medium"
-                }`}
-              >
-                Chapter {bookmark.chapterNumber}
-                {isRead && (
-                  <span className="ml-1 text-gray-600">(уншсан)</span>
-                )}
-              </p>
-            </div>
-          </Link>
-        );
-      })}
+      <div>{renderContent()}</div>
     </div>
   );
 }
-
-function RecentlyReadList({
-  items,
-}: {
-  items: Array<{
-    manhuaSlug: string;
-    chapterNumber: number;
-    manhuaTitle: string;
-    coverImageUrl?: string;
-  }>;
-}) {
-  if (items.length === 0) {
-    return (
-      <div className="py-6 text-center">
-        <p className="text-sm text-slate-500">Сүүлд уншсан манхуа алга</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {items.map((item, idx) => {
-        const isRead = isChapterRead(item.manhuaSlug, item.chapterNumber);
-        return (
-          <Link
-            key={`${item.manhuaSlug}-${item.chapterNumber}-${idx}`}
-            href={`/manhua/${item.manhuaSlug}/chapter/${item.chapterNumber}`}
-            className="flex gap-3 rounded-xl border border-transparent bg-slate-900/40 px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:border-cyan-500/20 hover:bg-slate-900/80"
-          >
-            <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-slate-700 ring-1 ring-slate-700/60 shadow-md shadow-black/40">
-              {item.coverImageUrl ? (
-                <Image
-                  src={item.coverImageUrl}
-                  alt={item.manhuaTitle}
-                  fill
-                  sizes="48px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
-                  No cover
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="line-clamp-1 text-sm font-semibold text-slate-100">
-                {item.manhuaTitle}
-              </h4>
-              <p
-                className={`mt-1 text-xs ${
-                  isRead
-                    ? "text-gray-500 font-normal"
-                    : "text-gray-300 font-medium"
-                }`}
-              >
-                Chapter {item.chapterNumber}
-                {isRead && (
-                  <span className="ml-1 text-gray-600">(уншсан)</span>
-                )}
-              </p>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-

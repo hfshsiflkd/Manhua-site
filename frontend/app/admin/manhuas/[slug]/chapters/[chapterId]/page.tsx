@@ -8,19 +8,24 @@ import { api, uploadImage } from "@/lib/api";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
-interface ChapterPage {
-  pageNumber: number;
-  imageUrl: string;
-  originalName?: string;
-}
+const inputStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "8px 12px", fontSize: 12,
+  color: "var(--arc-text)", outline: "none",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+};
 
+const focusBorder = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+  e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)";
+};
+const blurBorder = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+  e.currentTarget.style.borderColor = "var(--arc-border)";
+};
+
+interface ChapterPage { pageNumber: number; imageUrl: string; originalName?: string; }
 interface Chapter {
-  _id: string;
-  chapterNumber: number;
-  title?: string;
-  pages: ChapterPage[];
-  language?: string;
-  status?: "published" | "draft";
+  _id: string; chapterNumber: number; title?: string;
+  pages: ChapterPage[]; language?: string; status?: "published" | "draft";
 }
 
 export default function AdminEditChapterPage() {
@@ -32,7 +37,6 @@ export default function AdminEditChapterPage() {
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [pages, setPages] = useState<ChapterPage[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [savingPages, setSavingPages] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
@@ -40,154 +44,83 @@ export default function AdminEditChapterPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
   const [uploadTotal, setUploadTotal] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<
-    "idle" | "uploading" | "saving"
-  >("idle");
-
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "saving">("idle");
   const [chapterNumber, setChapterNumber] = useState<number>(1);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<"published" | "draft">("published");
-
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const confirm = useConfirm();
   const toast = useToast();
 
-  // ---------- LOAD ----------
   useEffect(() => {
     if (!chapterId) return;
-
     async function load() {
       try {
-        // ADMIN endpoint
         const res = await api.get<Chapter>(`/admin/chapters/${chapterId}`);
         const ch = res.data;
         setChapter(ch);
-        setPages(
-          (ch.pages || []).slice().sort((a, b) => a.pageNumber - b.pageNumber)
-        );
-
+        setPages((ch.pages || []).slice().sort((a, b) => a.pageNumber - b.pageNumber));
         setChapterNumber(ch.chapterNumber);
         setTitle(ch.title || "");
         setStatus((ch.status as "published" | "draft") || "published");
-      } catch (e) {
-        console.error(e);
-        alert("Chapter уншихад алдаа гарлаа");
-      } finally {
-        setLoading(false);
-      }
+      } catch { toast.error("Chapter уншихад алдаа гарлаа"); }
+      finally { setLoading(false); }
     }
-
     load();
-  }, [chapterId]);
+  }, [chapterId, toast]);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setFiles(e.target.files);
-  };
-
-  // ---------- SAVE META ----------
   const handleSaveMeta = async (e: FormEvent) => {
     e.preventDefault();
     if (!chapter) return;
-
     try {
       setSavingMeta(true);
-      await api.put(`/admin/chapters/${chapterId}`, {
-        chapterNumber,
-        title,
-        status,
-        pages, // одоогийн pages-ийг хамтад нь явуулна
-      });
-
-      setChapter({
-        ...chapter,
-        chapterNumber,
-        title,
-        status,
-        pages,
-      });
-
+      await api.put(`/admin/chapters/${chapterId}`, { chapterNumber, title, status, pages });
+      setChapter({ ...chapter, chapterNumber, title, status, pages });
       toast.success("Meta мэдээлэл хадгалагдлаа");
     } catch (err: any) {
-      console.error(err);
-      toast.error(
-        err?.response?.data?.message ||
-          "Chapter-ийн мэдээллийг хадгалах үед алдаа гарлаа"
-      );
-    } finally {
-      setSavingMeta(false);
-    }
+      toast.error(err?.response?.data?.message || "Хадгалах үед алдаа гарлаа");
+    } finally { setSavingMeta(false); }
   };
 
-  // ---------- SAVE PAGES ----------
   const saveChapterPages = async (updatedPages: ChapterPage[]) => {
     if (!chapter) return;
     setSavingPages(true);
     try {
-      await api.put(`/admin/chapters/${chapterId}`, {
-        chapterNumber,
-        title,
-        status,
-        pages: updatedPages,
-      });
+      await api.put(`/admin/chapters/${chapterId}`, { chapterNumber, title, status, pages: updatedPages });
       setChapter({ ...chapter, pages: updatedPages });
       setPages(updatedPages);
     } catch (e: any) {
-      console.error(e);
       toast.error(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа");
-    } finally {
-      setSavingPages(false);
-    }
+    } finally { setSavingPages(false); }
   };
 
-  // ---------- ADD IMAGES (uploadImage helper ашиглана) ----------
   const handleAddImages = async () => {
-    if (!files || !chapter) {
-      toast.error("Файл сонгоно уу");
-      return;
-    }
+    if (!files || !chapter) { toast.error("Файл сонгоно уу"); return; }
     try {
       setAddingImages(true);
       const fileArr = Array.from(files);
-      if (fileArr.length === 0) return;
-
       setUploadProgress(0);
-      setUploadingIndex(0);
       setUploadTotal(fileArr.length);
       setUploadPhase("uploading");
-
       const uploaded: string[] = [];
       for (const [index, file] of fileArr.entries()) {
         setUploadingIndex(index + 1);
         const r = await uploadImage(file, (percent) => {
-          const overall = Math.round(
-            ((index + percent / 100) / fileArr.length) * 100
-          );
-          setUploadProgress(Math.min(100, Math.max(0, overall)));
+          setUploadProgress(Math.min(100, Math.max(0, Math.round(((index + percent / 100) / fileArr.length) * 100))));
         });
-        const url = (r as any).url || (r as any).secure_url || r.url;
-        uploaded.push(url);
+        uploaded.push((r as any).url || (r as any).secure_url || r.url);
       }
       setUploadProgress(100);
       setUploadPhase("saving");
 
-      const currentLen = pages.length;
       const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
-        pageNumber: currentLen + idx + 1,
-        imageUrl: url,
-        originalName: fileArr[idx]?.name || undefined,
+        pageNumber: pages.length + idx + 1, imageUrl: url, originalName: fileArr[idx]?.name,
       }));
-
-      const merged = [...pages, ...newPages].map((p, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName,
-      }));
-
+      const merged = [...pages, ...newPages].map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
       await saveChapterPages(merged);
       setFiles(null);
       toast.success("Шинэ page-үүд нэмэгдлээ");
     } catch (e: any) {
-      console.error(e);
       toast.error(e.response?.data?.message || "Page нэмэхэд алдаа гарлаа");
     } finally {
       setAddingImages(false);
@@ -198,204 +131,161 @@ export default function AdminEditChapterPage() {
     }
   };
 
-  // ---------- REMOVE PAGE ----------
   const handleRemovePage = async (index: number) => {
     if (!chapter) return;
-    const ok = await confirm({
-      title: "Page устгах уу?",
-      description: "Энэ page-ийг устгавал буцаах боломжгүй.",
-      confirmText: "Устгах",
-      cancelText: "Болих",
-    });
+    const ok = await confirm({ title: "Page устгах уу?", description: "Энэ page-ийг устгавал буцаах боломжгүй.", confirmText: "Устгах", cancelText: "Болих" });
     if (!ok) return;
-
-    const remaining = pages
-      .filter((_, i) => i !== index)
-      .map((p, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName,
-      }));
-
+    const remaining = pages.filter((_, i) => i !== index).map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
     await saveChapterPages(remaining);
-  };
-
-  // ---------- DRAG & DROP ----------
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    e.preventDefault();
   };
 
   const handleDrop = async (targetIndex: number) => {
     if (dragIndex === null || dragIndex === targetIndex) return;
-
     const updated = [...pages];
     const [moved] = updated.splice(dragIndex, 1);
     updated.splice(targetIndex, 0, moved);
-
-    const reIndexed = updated.map((p, idx) => ({
-      pageNumber: idx + 1,
-      imageUrl: p.imageUrl,
-      originalName: p.originalName,
-    }));
-
     setDragIndex(null);
-    await saveChapterPages(reIndexed);
+    await saveChapterPages(updated.map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName })));
   };
 
-  if (loading)
-    return <div className="text-xs text-slate-300">Уншиж байна...</div>;
-  if (!chapter)
-    return <div className="text-xs text-red-400">Chapter олдсонгүй</div>;
+  if (loading) return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div style={{ position: "relative", width: 44, height: 44 }}>
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" style={{ animation: "spin 0.9s linear infinite" }}>
+          <circle cx="22" cy="22" r="18" stroke="var(--arc-border)" strokeWidth="3" />
+          <circle cx="22" cy="22" r="18" stroke="var(--arc-cyan)" strokeWidth="3" strokeLinecap="round" strokeDasharray="28 84" />
+        </svg>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    </div>
+  );
+
+  if (!chapter) return (
+    <div className="p-4 text-[13px] rounded-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
+      Chapter олдсонгүй
+    </div>
+  );
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-8 pt-3 text-xs text-slate-100 sm:px-4">
+    <div className="mx-auto w-full max-w-2xl px-4 py-6 space-y-4">
+      {/* Upload overlay */}
       {addingImages && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
-          <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 text-[11px] text-slate-200 shadow-xl shadow-black/50">
-            <div className="flex items-center justify-between text-slate-300">
-              <span className="font-medium">
-                {uploadPhase === "saving"
-                  ? "Page-үүд хадгалж байна..."
-                  : `Upload хийж байна (${uploadingIndex}/${uploadTotal})`}
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(7,7,14,.85)", backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-sm rounded-[16px] p-5 space-y-3" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+            <div className="flex items-center justify-between text-[12px]">
+              <span style={{ color: "var(--arc-text)", fontWeight: 600 }}>
+                {uploadPhase === "saving" ? "Page-үүд хадгалж байна..." : `Upload (${uploadingIndex}/${uploadTotal})`}
               </span>
-              <span className="font-mono text-slate-100">
-                {uploadPhase === "saving"
-                  ? "100%"
-                  : `${uploadProgress ?? 0}%`}
-              </span>
+              <span style={{ color: "var(--arc-cyan)" }}>{uploadPhase === "saving" ? "100%" : `${uploadProgress ?? 0}%`}</span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
-                style={{
-                  width:
-                    uploadPhase === "saving"
-                      ? "100%"
-                      : `${uploadProgress ?? 0}%`,
-                }}
-              />
+            <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--arc-elevated)" }}>
+              <div className="h-full rounded-full transition-[width] duration-200" style={{ width: uploadPhase === "saving" ? "100%" : `${uploadProgress ?? 0}%`, background: "var(--arc-cyan)" }} />
             </div>
-            <p className="text-[10px] text-slate-500">
-              Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.
-            </p>
+            <p className="text-[10px]" style={{ color: "var(--arc-muted)" }}>Цонх хаахгүй, upload дуусах хүртэл хүлээнэ үү.</p>
           </div>
         </div>
       )}
-      {/* HEADER */}
-      <div className="flex flex-col gap-2 rounded-2xl border border-slate-800 bg-slate-950/85 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-0.5">
-          <h1 className="text-sm font-semibold sm:text-base">
-            Edit chapter – Ch. {chapter.chapterNumber}
-          </h1>
-          <p className="text-[11px] text-slate-400 sm:text-xs">
-            Manhua:{" "}
-            <span className="font-mono text-slate-200">
-              {slug || "(slug байхгүй)"}
-            </span>
-          </p>
+
+      {/* Header */}
+      <div
+        className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-[14px] px-4 py-3"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+      >
+        <div>
+          <div className="text-[14px] font-semibold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
+            Ch. {chapter.chapterNumber} засах
+          </div>
+          <div className="text-[11px] mt-0.5" style={{ color: "var(--arc-muted)" }}>
+            Manhua: <span style={{ color: "var(--arc-dim)" }}>{slug}</span>
+          </div>
         </div>
         <button
           onClick={() => router.push(`/admin/manhuas/${slug}/chapters`)}
-          className="self-start rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-[10px] text-slate-200 hover:border-cyan-400 hover:text-cyan-300 sm:self-auto"
+          className="self-start rounded-[9px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80 sm:self-auto"
+          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
         >
-          Chapter жагсаалт руу буцах
+          ← Chapter жагсаалт руу
         </button>
       </div>
 
-      {/* META FORM */}
+      {/* Meta form */}
       <form
         onSubmit={handleSaveMeta}
-        className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-lg shadow-black/50"
+        className="rounded-[14px] p-5 space-y-3"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
       >
-        <p className="text-[11px] font-semibold text-slate-200">
-          Chapter мэдээлэл
-        </p>
+        <div className="text-[12px] font-semibold mb-1" style={{ color: "var(--arc-text)" }}>Chapter мэдээлэл</div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <label className="text-[11px] text-slate-400">Chapter number</label>
-            <input
-              type="number"
-              min={0}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={chapterNumber}
-              onChange={(e) => {
-                const next = e.currentTarget.valueAsNumber;
-                setChapterNumber(Number.isNaN(next) ? 0 : next);
-              }}
-            />
+          <div>
+            <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Chapter number</label>
+            <input type="number" min={0} style={inputStyle} value={chapterNumber}
+              onChange={(e) => { const n = e.currentTarget.valueAsNumber; setChapterNumber(Number.isNaN(n) ? 0 : n); }}
+              onFocus={focusBorder} onBlur={blurBorder} />
           </div>
-          <div className="space-y-1 sm:col-span-2">
-            <label className="text-[11px] text-slate-400">Title</label>
-            <input
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Жишээ: First Encounter"
-            />
+          <div className="sm:col-span-2">
+            <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Гарчиг</label>
+            <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="First Encounter" onFocus={focusBorder} onBlur={blurBorder} />
           </div>
         </div>
-
-        <div className="space-y-1">
-          <label className="text-[11px] text-slate-400">Status</label>
-          <select
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-[11px] text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60 sm:w-48"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as "published" | "draft")}
-          >
-            <option value="published">published</option>
-            <option value="draft">draft</option>
+        <div>
+          <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Status</label>
+          <select style={{ ...inputStyle, width: "auto", minWidth: 160 }} value={status} onChange={(e) => setStatus(e.target.value as "published" | "draft")} onFocus={focusBorder} onBlur={blurBorder}>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
           </select>
         </div>
-
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <button
-            type="submit"
-            disabled={savingMeta}
-            className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-[11px] font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:cursor-not-allowed disabled:bg-slate-700"
-          >
+        <div className="flex justify-end pt-1" style={{ borderTop: "1px solid var(--arc-border)" }}>
+          <button type="submit" disabled={savingMeta}
+            className="rounded-[9px] px-4 py-2 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+            style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}>
             {savingMeta ? "Хадгалж байна..." : "Meta хадгалах"}
           </button>
         </div>
       </form>
 
-      {/* ADD IMAGES */}
-      <section className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-        <p className="font-semibold text-slate-200 text-[11px]">
-          Шинэ page-үүд нэмэх (олон зураг)
-        </p>
+      {/* Add images */}
+      <section
+        className="rounded-[14px] p-5 space-y-3"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+      >
+        <div className="text-[12px] font-semibold" style={{ color: "var(--arc-text)" }}>Шинэ page-үүд нэмэх</div>
         <input
           type="file"
           multiple
           accept="image/*"
-          onChange={handleFileChange}
-          className="w-full text-[11px] text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-500 file:px-3 file:py-1 file:text-[11px] file:font-semibold file:text-slate-950 hover:file:bg-cyan-400"
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setFiles(e.target.files)}
+          className="w-full text-[11px] file:mr-3 file:rounded-[7px] file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:cursor-pointer"
+          style={{ color: "var(--arc-dim)" }}
         />
         {files && files.length > 0 && (
-          <p className="text-[10px] text-slate-400">
-            Сонгосон {files.length} файл – одоогийн {pages.length} page-ийн
-            араас автоматаар залгаж, дахин 1..N гэж дугаарлана.
+          <p className="text-[10px]" style={{ color: "var(--arc-muted)" }}>
+            {files.length} файл сонгогдлоо — одоогийн {pages.length} page-ийн ард залгагдана.
           </p>
         )}
         <button
           disabled={savingPages || addingImages || !files?.length}
           onClick={handleAddImages}
-          className="mt-2 rounded-full bg-cyan-500 px-4 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700"
+          className="rounded-[9px] px-4 py-2 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+          style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
         >
-          {savingPages ? "Хадгалж байна..." : "Шинэ page-үүд хадгалах"}
+          {savingPages ? "Хадгалж байна..." : "Page-үүд нэмэх"}
         </button>
       </section>
 
-      {/* PAGES LIST + DRAG & DROP */}
-      <section className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-        <p className="font-semibold text-slate-200 text-[11px]">
-          Pages жагсаалт (drag & drop)
-        </p>
+      {/* Pages list */}
+      <section
+        className="rounded-[14px] p-5 space-y-3"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="text-[12px] font-semibold" style={{ color: "var(--arc-text)" }}>
+            Pages жагсаалт
+          </div>
+          <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{pages.length} хуудас · drag & drop</span>
+        </div>
+
         {pages.length === 0 ? (
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[12px]" style={{ color: "var(--arc-muted)" }}>
             Одоогоор page алга. Дээрээс зураг нэмж эхэлнэ үү.
           </p>
         ) : (
@@ -404,42 +294,27 @@ export default function AdminEditChapterPage() {
               <li
                 key={`${p.imageUrl}-${idx}`}
                 draggable
-                onDragStart={() => handleDragStart(idx)}
-                onDragOver={handleDragOver}
+                onDragStart={() => setDragIndex(idx)}
+                onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(idx)}
-                className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/80 px-2.5 py-2 text-[11px] text-slate-200"
+                className="flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition-colors"
+                style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", cursor: "grab" }}
               >
-                {/* drag handle */}
-                <div className="flex h-full cursor-grab select-none items-center pr-1 text-slate-500">
-                  <span className="leading-none">⋮⋮</span>
+                <div className="select-none text-[16px] leading-none" style={{ color: "var(--arc-muted)" }}>⋮⋮</div>
+                <div className="overflow-hidden rounded-[6px] shrink-0" style={{ width: 36, height: 48, background: "var(--arc-card)" }}>
+                  <img src={p.imageUrl} alt={`Page ${idx + 1}`} className="h-full w-full object-cover" />
                 </div>
-
-                {/* thumbnail */}
-                <div className="h-14 w-10 overflow-hidden rounded-lg bg-slate-900 sm:h-16 sm:w-12">
-                  <img
-                    src={p.imageUrl}
-                    alt={`Page ${idx + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-
-                {/* info */}
-                <div className="flex flex-1 flex-col gap-0.5">
-                  <span className="font-medium text-slate-100">
-                    Page {idx + 1}
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-medium" style={{ color: "var(--arc-text)" }}>Page {idx + 1}</div>
                   {p.originalName && (
-                    <span className="text-[10px] text-slate-500 truncate" title={p.originalName}>
-                      {p.originalName}
-                    </span>
+                    <div className="text-[10px] truncate" style={{ color: "var(--arc-muted)" }}>{p.originalName}</div>
                   )}
                 </div>
-
-                {/* delete */}
                 <button
                   type="button"
                   onClick={() => handleRemovePage(idx)}
-                  className="rounded-full px-2 py-1 text-[10px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                  className="rounded-[7px] px-2.5 py-1 text-[10px] font-medium transition-all hover:opacity-80"
+                  style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "var(--arc-rose)", cursor: "pointer" }}
                 >
                   Устгах
                 </button>

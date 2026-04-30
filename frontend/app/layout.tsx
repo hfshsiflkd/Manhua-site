@@ -1,10 +1,25 @@
 import type { Metadata } from "next";
+import { Space_Grotesk, DM_Sans } from "next/font/google";
 import Header from "./components/Header";
 import "./globals.css";
 import AppProviders from "./components/AppProviders";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import LockModal from "./components/LockModal";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-head",
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ARC•READ",
@@ -22,19 +37,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="mn">
-      <body
-        className="
-    min-h-screen text-slate-100
-    bg-gradient-to-br
-    from-[#0b0b12]
-    via-[#0f1220]
-    to-[#090910]
-  "
-      >
+    <html lang="mn" className={`${spaceGrotesk.variable} ${dmSans.variable}`}>
+      <body className="arc-body min-h-screen">
         <AppProviders>
           <Header />
-
           {children}
           <Footer />
           <ScrollToTop />

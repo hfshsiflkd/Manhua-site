@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ARC•READ — Нэвтрэх</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070e;--bg-card:#0d0d1a;--bg-el:#111120;
+  --border:rgba(255,255,255,0.07);--border-h:rgba(255,255,255,0.14);
+  --text:#e4e4f0;--muted:#6b6b80;--dim:#9494a8;
+  --cyan:oklch(0.72 0.17 195);--cyan-g:oklch(0.72 0.17 195/.2);--cyan-d:oklch(0.72 0.17 195/.1);
+  --rose:oklch(0.65 0.22 15);--rose-g:oklch(0.65 0.22 15/.2);
+  --fh:'Space Grotesk',sans-serif;--fb:'DM Sans',sans-serif;
+  --r:10px;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+/* subtle bg */
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(ellipse 60% 50% at 20% 30%,oklch(0.72 0.17 195/.06),transparent),
+             radial-gradient(ellipse 50% 40% at 80% 70%,oklch(0.65 0.22 15/.06),transparent);
+}
+.card{
+  width:100%;max-width:400px;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:20px;padding:36px 32px;
+  box-shadow:0 24px 64px rgba(0,0,0,.5);
+}
+.logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:28px}
+.logo-icon{width:38px;height:38px;border-radius:10px;background:var(--bg-el);border:1px solid var(--border);display:flex;align-items:center;justify-content:center}
+.logo-txt{font-family:var(--fh);font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.logo-dot{color:var(--rose)}
+.card-title{font-family:var(--fh);font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;text-align:center}
+.card-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:24px}
+/* TABS */
+.auth-tabs{display:flex;background:var(--bg-el);border-radius:var(--r);padding:4px;gap:4px;margin-bottom:24px}
+.auth-tab{flex:1;padding:8px;border-radius:7px;border:none;background:transparent;font-family:var(--fh);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s}
+.auth-tab.on{background:var(--bg-card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+/* FORM */
+.field{margin-bottom:16px}
+.field-label{display:block;font-size:12px;font-weight:500;color:var(--dim);margin-bottom:6px}
+.field-in{
+  width:100%;padding:10px 14px;
+  background:var(--bg-el);border:1px solid var(--border);border-radius:var(--r);
+  color:var(--text);font-family:var(--fb);font-size:13px;
+  outline:none;transition:border-color .15s;
+}
+.field-in::placeholder{color:var(--muted)}
+.field-in:focus{border-color:oklch(0.72 0.17 195/.6)}
+.field-in-wrap{position:relative}
+.field-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;padding:0;transition:color .15s}
+.field-eye:hover{color:var(--dim)}
+/* ERROR */
+.err-box{
+  background:oklch(0.65 0.22 15/.08);border:1px solid oklch(0.65 0.22 15/.3);
+  border-radius:var(--r);padding:10px 14px;
+  font-size:12px;color:oklch(0.85 0.12 15);
+  margin-bottom:16px;display:flex;align-items:flex-start;gap:8px;
+}
+/* SUBMIT */
+.btn-submit{
+  width:100%;padding:11px;border-radius:var(--r);
+  background:var(--cyan);color:#07070e;
+  font-size:14px;font-weight:700;font-family:var(--fh);
+  border:none;cursor:pointer;letter-spacing:-.01em;
+  box-shadow:0 0 22px var(--cyan-g);
+  transition:filter .15s,transform .1s;
+  margin-top:4px;
+}
+.btn-submit:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-submit:disabled{background:var(--bg-el);color:var(--muted);box-shadow:none;cursor:default;transform:none}
+/* LINKS */
+.auth-links{margin-top:20px;display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.auth-link{color:var(--cyan);text-decoration:none;cursor:pointer}
+.auth-link:hover{text-decoration:underline}
+.auth-muted{color:var(--muted)}
+/* DIVIDER */
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--muted);font-size:11px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+/* SUCCESS */
+.success-box{
+  background:oklch(0.72 0.17 195/.08);border:1px solid oklch(0.72 0.17 195/.25);
+  border-radius:var(--r);padding:12px 16px;
+  font-size:13px;color:oklch(0.85 0.1 195);
+  margin-bottom:16px;display:flex;align-items:center;gap:8px;
+}
+/* LOCK */
+.lock-box{
+  background:oklch(0.82 0.16 85/.08);border:1px solid oklch(0.82 0.16 85/.25);
+  border-radius:var(--r);padding:12px 16px;
+  font-size:12px;color:oklch(0.9 0.1 85);
+  margin-bottom:16px;
+}
+.lock-time{font-family:var(--fh);font-size:20px;font-weight:700;color:#fff;margin:4px 0}
+</style>
+</head>
+<body>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<div id="root" style={{width:'100%',display:'flex',justifyContent:'center'}}></div>
+<script type="text/babel">
+const {useState,useEffect} = React;
+
+function ArcMark(){
+  return(
+    <svg viewBox="0 0 48 48" width="22" height="22" fill="none">
+      <path d="M8 28 C14 14 34 14 40 28" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round"/>
+      <path d="M16 34 C20 30 28 30 32 34" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="24" cy="12" r="3" fill="oklch(0.65 0.22 15)"/>
+    </svg>
+  );
+}
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "mode": "login",
+  "showError": false,
+  "showLock": false
+}/*EDITMODE-END*/;
+
+function LoginForm({setMode}){
+  const [id,setId]=useState('');
+  const [pw,setPw]=useState('');
+  const [showPw,setShowPw]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState('');
+  const [locked,setLocked]=useState(false);
+  const [lockSec,setLockSec]=useState(0);
+
+  const submit=(e)=>{
+    e.preventDefault();
+    if(locked) return;
+    setLoading(true);
+    setTimeout(()=>{
+      setLoading(false);
+      if(!id||!pw) setErr('Бүх талбарыг бөглөнө үү.');
+      else setErr('');
+    },800);
+  };
+
+  return(
+    <form onSubmit={submit}>
+      {locked && (
+        <div className="lock-box">
+          <div style={{fontWeight:600}}>⛔ Данс түр түгжигдсэн</div>
+          <div className="lock-time">04:32</div>
+          <div style={{opacity:.8}}>Дахин оролдох: дараах минутад</div>
+        </div>
+      )}
+      {err && (
+        <div className="err-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          {err}
+        </div>
+      )}
+      <div className="field">
+        <label className="field-label">Имэйл эсвэл хэрэглэгчийн нэр</label>
+        <input className="field-in" placeholder="you@example.com" value={id} onChange={e=>setId(e.target.value)} disabled={locked}/>
+      </div>
+      <div className="field">
+        <label className="field-label">Нууц үг</label>
+        <div className="field-in-wrap">
+          <input className="field-in" type={showPw?'text':'password'} placeholder="••••••••" style={{paddingRight:40}} value={pw} onChange={e=>setPw(e.target.value)} disabled={locked}/>
+          <button type="button" className="field-eye" onClick={()=>setShowPw(s=>!s)}>
+            {showPw
+              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><path d="M1 1l22 22"/></svg>
+              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            }
+          </button>
+        </div>
+      </div>
+      <button className="btn-submit" disabled={loading||locked}>
+        {loading?'Нэвтэрж байна…':'Нэвтрэх'}
+      </button>
+      <div className="auth-links">
+        <span className="auth-muted">Шинэ хэрэглэгч? <a className="auth-link" onClick={()=>setMode('register')}>Бүртгүүлэх</a></span>
+        <a className="auth-link" style={{color:'var(--dim)'}}>Нууц үг мартсан</a>
+      </div>
+    </form>
+  );
+}
+
+function RegisterForm({setMode}){
+  const [username,setUsername]=useState('');
+  const [email,setEmail]=useState('');
+  const [pw,setPw]=useState('');
+  const [pw2,setPw2]=useState('');
+  const [showPw,setShowPw]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState('');
+  const [success,setSuccess]=useState(false);
+
+  const pwStrength = pw.length===0?0:pw.length<6?1:pw.length<10?2:3;
+  const pwColors=['transparent','oklch(0.65 0.22 15)','oklch(0.82 0.16 85)','oklch(0.72 0.17 195)'];
+  const pwLabels=['','Сул','Дунд','Хүчтэй'];
+
+  const submit=(e)=>{
+    e.preventDefault();
+    if(pw!==pw2){setErr('Нууц үг таарахгүй байна.');return;}
+    setLoading(true);
+    setTimeout(()=>{setLoading(false);setSuccess(true);},900);
+  };
+
+  if(success) return(
+    <div>
+      <div className="success-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Амжилттай бүртгэгдлээ! Имэйлээ шалгана уу.
+      </div>
+      <button className="btn-submit" onClick={()=>setMode('login')}>Нэвтрэх хуудас руу →</button>
+    </div>
+  );
+
+  return(
+    <form onSubmit={submit}>
+      {err&&<div className="err-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink:0,marginTop:1}}><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>{err}</div>}
+      <div className="field">
+        <label className="field-label">Хэрэглэгчийн нэр</label>
+        <input className="field-in" placeholder="coolreader123" value={username} onChange={e=>setUsername(e.target.value)}/>
+      </div>
+      <div className="field">
+        <label className="field-label">Имэйл</label>
+        <input className="field-in" type="email" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>
+      </div>
+      <div className="field">
+        <label className="field-label" style={{display:'flex',justifyContent:'space-between'}}>
+          <span>Нууц үг</span>
+          {pw&&<span style={{color:pwColors[pwStrength],fontSize:11}}>{pwLabels[pwStrength]}</span>}
+        </label>
+        <div className="field-in-wrap">
+          <input className="field-in" type={showPw?'text':'password'} placeholder="••••••••" style={{paddingRight:40}} value={pw} onChange={e=>setPw(e.target.value)}/>
+          <button type="button" className="field-eye" onClick={()=>setShowPw(s=>!s)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        {pw&&<div style={{marginTop:6,display:'flex',gap:3}}>
+          {[1,2,3].map(i=><div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=pwStrength?pwColors[pwStrength]:'var(--bg-el)',transition:'background .3s'}}/>)}
+        </div>}
+      </div>
+      <div className="field">
+        <label className="field-label">Нууц үг давтах</label>
+        <input className="field-in" type="password" placeholder="••••••••" value={pw2} onChange={e=>setPw2(e.target.value)}
+          style={{borderColor:pw2&&pw!==pw2?'oklch(0.65 0.22 15/.5)':''}}/>
+      </div>
+      <button className="btn-submit" disabled={loading}>{loading?'Бүртгэж байна…':'Бүртгүүлэх'}</button>
+      <div className="auth-links">
+        <span className="auth-muted">Аккаунт байгаа? <a className="auth-link" onClick={()=>setMode('login')}>Нэвтрэх</a></span>
+      </div>
+    </form>
+  );
+}
+
+function App(){
+  const [tweaks,setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [mode,setMode] = useState(tweaks.mode||'login');
+
+  return(
+    <div style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}>
+      <div className="card">
+        <div className="logo">
+          <div className="logo-icon"><ArcMark/></div>
+          <span className="logo-txt">ARC<span className="logo-dot">•</span>READ</span>
+        </div>
+
+        <div className="auth-tabs">
+          <button className={`auth-tab${mode==='login'?' on':''}`} onClick={()=>setMode('login')}>Нэвтрэх</button>
+          <button className={`auth-tab${mode==='register'?' on':''}`} onClick={()=>setMode('register')}>Бүртгүүлэх</button>
+        </div>
+
+        {mode==='login'
+          ? <LoginForm setMode={setMode}/>
+          : <RegisterForm setMode={setMode}/>
+        }
+      </div>
+
+      <TweaksPanel>
+        <TweakSection label="Auth"/>
+        <TweakRadio label="Default mode" tweakKey="mode" options={[{label:'Login',value:'login'},{label:'Register',value:'register'}]}/>
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+    <rect width="120" height="80" fill="#07070e"/>
+    <rect x="25" y="8" width="70" height="64" rx="10" fill="#0d0d1a" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+    <circle cx="60" cy="20" r="6" fill="#111120"/>
+    <rect x="38" y="30" width="44" height="8" rx="3" fill="#111120"/>
+    <rect x="35" y="42" width="50" height="7" rx="3" fill="#111120"/>
+    <rect x="35" y="52" width="50" height="7" rx="3" fill="#111120"/>
+    <rect x="35" y="63" width="50" height="7" rx="3.5" fill="oklch(0.72 0.17 195)" opacity="0.8"/>
+  </svg>
+</template>
+</body>
+</html>

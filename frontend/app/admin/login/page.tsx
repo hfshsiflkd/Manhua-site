@@ -6,6 +6,12 @@ import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
 
+const fieldStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "9px 14px", fontSize: 13,
+  color: "var(--arc-text)", outline: "none",
+};
+
 export default function AdminLoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -20,14 +26,12 @@ export default function AdminLoginPage() {
 
     try {
       const deviceId = getOrCreateDeviceId();
-      
       const res = await api.post("/auth/login", {
         emailOrUsername: identifier.trim(),
         password,
-        deviceId, // Send in body as backup (backend checks both header and body)
+        deviceId,
       });
 
-      // Response: { _id, username, email, role, isVIP, token }
       if (res.data.role !== "admin") {
         setErrorMsg("Admin эрхтэй хэрэглэгч л нэвтэрнэ!");
         setLoading(false);
@@ -37,16 +41,12 @@ export default function AdminLoginPage() {
       localStorage.setItem("token", res.data.token);
       router.push("/admin");
     } catch (error: any) {
-      console.error("Admin login error:", error);
-      
-      // Extract error message from response
-      const errorMessage = error?.response?.data?.message || 
-        (error?.response?.status === 400 
-          ? "Имэйл/нэр эсвэл нууц үг буруу байна." 
+      const errorMessage = error?.response?.data?.message ||
+        (error?.response?.status === 400
+          ? "Имэйл/нэр эсвэл нууц үг буруу байна."
           : error?.code === "ECONNREFUSED" || error?.message?.includes("Network Error")
           ? "Сервертэй холбогдох боломжгүй байна."
           : "Нэвтрэхэд алдаа гарлаа");
-      
       setErrorMsg(errorMessage);
     } finally {
       setLoading(false);
@@ -55,40 +55,40 @@ export default function AdminLoginPage() {
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900/80 p-6 text-sm text-slate-100 shadow-xl">
-        <h2 className="text-lg font-semibold text-slate-50">Admin Login</h2>
-        <p className="mt-1 text-[12px] text-slate-400">
+      <div className="w-full max-w-sm rounded-[16px] p-6 shadow-2xl" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+        <h2 className="text-[17px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
+          Admin Login
+        </h2>
+        <p className="mt-1 text-[12px]" style={{ color: "var(--arc-muted)" }}>
           Admin имэйл эсвэл username, нууц үгээ ашиглан нэвтэрнэ үү.
         </p>
 
         {errorMsg && (
-          <div className="mt-3 rounded-md border border-rose-500/60 bg-rose-950/40 px-3 py-2 text-[12px] text-rose-200">
+          <div className="mt-3 rounded-[9px] px-3 py-2 text-[12px]" style={{ background: "oklch(0.65 0.22 15/.08)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "oklch(0.85 0.12 15)" }}>
             {errorMsg}
           </div>
         )}
 
         <form onSubmit={submit} className="mt-4 space-y-4">
           <div className="space-y-1">
-            <label className="text-[12px] text-slate-300">
-              Имэйл эсвэл username
-            </label>
+            <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Имэйл эсвэл username</label>
             <input
               placeholder="admin@example.com эсвэл admin"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+              style={fieldStyle}
               required
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-[12px] text-slate-300">Нууц үг</label>
+            <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Нууц үг</label>
             <input
               placeholder="••••••••"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+              style={fieldStyle}
               required
             />
           </div>
@@ -96,7 +96,8 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 w-full rounded-full bg-cyan-500 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700"
+            className="w-full rounded-[9px] py-2.5 text-[13px] font-semibold transition-all hover:brightness-110 disabled:opacity-60"
+            style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
           >
             {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
           </button>

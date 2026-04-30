@@ -187,9 +187,15 @@ export default function AdminManhuaDetailPage() {
   // ─── STATE RENDER ─────────────────
   if (loading && !manhua && !error) {
     return (
-      <AdminShell title="Manhua manage" subtitle="Манхуа ачаалж байна...">
-        <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-400">
-          Loading...
+      <AdminShell title="Manhua засах" subtitle="Манхуа ачаалж байна...">
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div style={{ position: "relative", width: 44, height: 44 }}>
+            <svg width="44" height="44" viewBox="0 0 44 44" fill="none" style={{ animation: "spin 0.9s linear infinite" }}>
+              <circle cx="22" cy="22" r="18" stroke="var(--arc-border)" strokeWidth="3" />
+              <circle cx="22" cy="22" r="18" stroke="var(--arc-cyan)" strokeWidth="3" strokeLinecap="round" strokeDasharray="28 84" />
+            </svg>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
         </div>
       </AdminShell>
     );
@@ -197,13 +203,10 @@ export default function AdminManhuaDetailPage() {
 
   if (error && !manhua) {
     return (
-      <AdminShell title="Manhua manage" subtitle="Нэг манхуаны дэлгэрэнгүй.">
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+      <AdminShell title="Manhua засах" subtitle="Манхуа мэдээлэл засах.">
+        <div className="rounded-[12px] p-4 text-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
           <p className="mb-1">{error}</p>
-          <p className="text-slate-300">
-            ID:{" "}
-            <span className="font-mono text-xs">{manhuaId ?? "(хоосон)"}</span>
-          </p>
+          <p style={{ color: "var(--arc-muted)" }}>ID: <span className="font-mono">{manhuaId ?? "(хоосон)"}</span></p>
         </div>
       </AdminShell>
     );
@@ -211,8 +214,8 @@ export default function AdminManhuaDetailPage() {
 
   if (!manhua) {
     return (
-      <AdminShell title="Manhua manage" subtitle="Нэг манхуаны дэлгэрэнгүй.">
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+      <AdminShell title="Manhua засах" subtitle="Манхуа мэдээлэл засах.">
+        <div className="rounded-[12px] p-4 text-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
           Манхуа олдсонгүй.
         </div>
       </AdminShell>
@@ -235,75 +238,50 @@ export default function AdminManhuaDetailPage() {
     (manhua as any).updatedAt &&
     new Date((manhua as any).updatedAt).toLocaleString();
 
-  const status = (manhua.status || "ongoing").toLowerCase();
-  const statusClass =
-    status === "completed"
-      ? "bg-emerald-500/20 text-emerald-200 border border-emerald-500/40"
-      : status === "ongoing"
-      ? "bg-cyan-500/20 text-cyan-200 border border-cyan-500/40"
-      : "bg-amber-500/20 text-amber-200 border border-amber-500/40";
-
   // ─── MAIN UI ──────────────────────
   return (
     <AdminShell
-      title="Manhua manage"
+      title="Manhua засах"
       subtitle="Манхуа мэдээлэл, cover, slug, жанр, эзэн гээд бүх зүйлийг эндээс удирдана."
     >
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-2xl shadow-black/60">
-        {/* BACKGROUND – cover зураг blur-тай */}
-        <div className="pointer-events-none absolute inset-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverPreview}
-            alt={manhua.title}
-            className="h-full w-full scale-110 object-cover blur-2xl opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/90 via-slate-950/92 to-slate-950/98" />
-        </div>
+      <div className="space-y-5">
+        <ManhuaTopBar
+          manhua={manhua}
+          coverPreview={coverPreview}
+          statusClass=""
+          createdAt={createdAt}
+          updatedAt={updatedAt}
+          publicUrl={publicUrl}
+          onBack={() => router.push("/admin/manhuas")}
+        />
 
-        {/* FOREGROUND CONTENT */}
-        <div className="relative z-10 space-y-5 p-4 sm:p-5">
-          <ManhuaTopBar
-            manhua={manhua}
-            coverPreview={coverPreview}
-            statusClass={statusClass}
-            createdAt={createdAt}
-            updatedAt={updatedAt}
-            publicUrl={publicUrl}
-            onBack={() => router.push("/admin/manhuas")}
-          />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr),minmax(0,1.3fr)]">
+          <div className="space-y-4">
+            <CoverImagePanel
+              coverPreview={coverPreview}
+              title={form.title || manhua.title}
+              uploadingCover={uploadingCover}
+              coverProgress={coverProgress}
+              onChangeCover={handleCoverFileChange}
+            />
+            <BasicInfoPanel
+              form={form}
+              setForm={setForm}
+              error={error}
+              saving={saving}
+              deleting={deleting}
+              onSave={handleSave}
+              onDelete={handleDelete}
+            />
+          </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr),minmax(0,1.3fr)]">
-            {/* LEFT – Cover + form */}
-            <div className="space-y-3">
-              <CoverImagePanel
-                coverPreview={coverPreview}
-                title={form.title || manhua.title}
-                uploadingCover={uploadingCover}
-                coverProgress={coverProgress}
-                onChangeCover={handleCoverFileChange}
-              />
-
-              <BasicInfoPanel
-                form={form}
-                setForm={setForm}
-                error={error}
-                saving={saving}
-                deleting={deleting}
-                onSave={handleSave}
-                onDelete={handleDelete}
-              />
-            </div>
-
-            {/* RIGHT – Owner + System */}
-            <div className="space-y-3">
-              <OwnerPanel manhua={manhua} />
-              <SystemInfoPanel
-                manhua={manhua}
-                createdAt={createdAt}
-                updatedAt={updatedAt}
-              />
-            </div>
+          <div className="space-y-4">
+            <OwnerPanel manhua={manhua} />
+            <SystemInfoPanel
+              manhua={manhua}
+              createdAt={createdAt}
+              updatedAt={updatedAt}
+            />
           </div>
         </div>
       </div>

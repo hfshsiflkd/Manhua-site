@@ -1,4 +1,3 @@
-// src/app/admin/manhuas/components/SystemInfoPanel.tsx
 "use client";
 
 import React from "react";
@@ -11,32 +10,32 @@ interface SystemInfoPanelProps {
   updatedAt: string | null;
 }
 
-export function SystemInfoPanel({
-  manhua,
-  createdAt,
-  updatedAt,
-}: SystemInfoPanelProps) {
+export function SystemInfoPanel({ manhua, createdAt, updatedAt }: SystemInfoPanelProps) {
+  const rows = [
+    ["ID", manhua._id],
+    manhua.slug ? ["Slug", manhua.slug] : null,
+    createdAt ? ["Үүссэн", createdAt] : null,
+    updatedAt ? ["Засагдсан", updatedAt] : null,
+  ].filter(Boolean) as [string, string][];
+
   return (
-    <PanelShell title="System info">
-      <div className="space-y-1 font-mono text-[11px] text-slate-300">
-        <p>
-          ID: <span className="text-slate-100">{manhua._id}</span>
-        </p>
-        {manhua.slug && (
-          <p>
-            Slug: <span className="text-slate-100">{manhua.slug}</span>
-          </p>
-        )}
-        {createdAt && (
-          <p>
-            Created: <span className="text-slate-200">{createdAt}</span>
-          </p>
-        )}
-        {updatedAt && (
-          <p>
-            Updated: <span className="text-slate-200">{updatedAt}</span>
-          </p>
-        )}
+    <PanelShell title="Системийн мэдээлэл">
+      <div>
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="flex items-start justify-between text-[11px] gap-2"
+            style={{ padding: "7px 0", borderBottom: "1px solid var(--arc-border)" }}
+          >
+            <span style={{ color: "var(--arc-muted)", flexShrink: 0 }}>{label}</span>
+            <span
+              className="font-mono truncate text-right"
+              style={{ color: "var(--arc-dim)", maxWidth: 200 }}
+            >
+              {value}
+            </span>
+          </div>
+        ))}
       </div>
     </PanelShell>
   );

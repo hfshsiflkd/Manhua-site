@@ -20,77 +20,51 @@ type PopularItem = {
   latestChapterAddedAt?: string | null;
 };
 
-// Skeleton loader component
 function PopularCardSkeleton() {
   return (
-    <div className="flex h-full flex-col animate-pulse">
-      <div className="relative w-full overflow-hidden rounded-lg aspect-[3/4] bg-slate-800" />
-      <div className="mt-2 flex flex-1 flex-col gap-1">
-        <div className="h-[2.25rem] md:h-[2.5rem] w-3/4 rounded bg-slate-800" />
-        <div className="mt-auto h-3 w-1/2 rounded bg-slate-800" />
-        <div className="h-3 w-1/3 rounded bg-slate-800" />
+    <div className="flex flex-col animate-pulse">
+      <div className="relative w-full rounded-[10px] aspect-[3/4]" style={{ background: "var(--arc-elevated)" }} />
+      <div className="mt-2.5 flex flex-col gap-1.5">
+        <div className="h-9 w-3/4 rounded" style={{ background: "var(--arc-elevated)" }} />
+        <div className="h-3 w-1/2 rounded" style={{ background: "var(--arc-elevated)" }} />
+        <div className="h-3 w-1/3 rounded" style={{ background: "var(--arc-elevated)" }} />
       </div>
     </div>
   );
 }
 
-// Format time ago helper
 function formatTimeAgo(date?: string): string {
   if (!date) return "";
   const d = new Date(date);
   if (isNaN(d.getTime())) return "";
-
-  const now = Date.now();
-  const diffMs = now - d.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
+  const diffMs = Date.now() - d.getTime();
+  const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffHours / 24);
-
   if (diffDays === 0) {
     if (diffHours >= 1) return `${diffHours}ц өмнө`;
-    if (diffMinutes >= 1) return `${diffMinutes}м өмнө`;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins >= 1) return `${mins}м өмнө`;
     return "Саяхан";
   }
-
   if (diffDays === 1) return "1 өдөр өмнө";
   if (diffDays < 7) return `${diffDays} өдөр өмнө`;
-
-  const weeks = Math.floor(diffDays / 7);
-  if (weeks === 1) return "1 долоо хоног өмнө";
-  return `${weeks} долоо хоног өмнө`;
+  return `${Math.floor(diffDays / 7)} дол. өмнө`;
 }
 
-// Star rating component
 function StarRating({ rating }: { rating: number }) {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.5;
-  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-
+  const full = Math.floor(rating);
+  const half = rating % 1 >= 0.5;
+  const empty = Math.max(0, 5 - full - (half ? 1 : 0));
   return (
-    <div className="flex items-center gap-0.5 flex-shrink-0">
-      {Array.from({ length: fullStars }).map((_, i) => (
-        <span
-          key={`full-${i}`}
-          className="text-yellow-400 text-[10px] md:text-xs leading-none"
-        >
-          ★
-        </span>
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: full }).map((_, i) => (
+        <span key={`f${i}`} className="leading-none" style={{ color: "var(--arc-amber)", fontSize: 10 }}>★</span>
       ))}
-      {hasHalfStar && (
-        <span className="text-yellow-400 text-[10px] md:text-xs leading-none">
-          ½
-        </span>
-      )}
-      {Array.from({ length: emptyStars }).map((_, i) => (
-        <span
-          key={`empty-${i}`}
-          className="text-gray-600 text-[10px] md:text-xs leading-none"
-        >
-          ★
-        </span>
+      {half && <span className="leading-none" style={{ color: "var(--arc-amber)", fontSize: 10 }}>½</span>}
+      {Array.from({ length: empty }).map((_, i) => (
+        <span key={`e${i}`} className="leading-none" style={{ color: "rgba(255,255,255,0.15)", fontSize: 10 }}>★</span>
       ))}
-      <span className="ml-0.5 text-[10px] md:text-[11px] text-gray-300 leading-none">
+      <span className="ml-0.5 leading-none" style={{ fontSize: 10, color: "var(--arc-dim)" }}>
         {rating.toFixed(1)}
       </span>
     </div>
@@ -98,145 +72,135 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 type PopularTodayProps = {
-  popular?: PopularItem[]; // Legacy prop for backward compatibility
+  popular?: PopularItem[];
 };
 
 const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
   const [popular, setPopular] = useState<PopularItem[]>(legacyPopular || []);
   const [loading, setLoading] = useState(!legacyPopular);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If we have legacy data, don't fetch
-    if (legacyPopular && legacyPopular.length > 0) {
-      return;
-    }
-
-    const fetchPopularToday = async () => {
+    if (legacyPopular && legacyPopular.length > 0) return;
+    const fetch = async () => {
       try {
         setLoading(true);
-        // Fetch 6 items (max needed for desktop)
-        const res = await api.get<PopularItem[]>("/manhuas/popular-today", {
-          params: { limit: 6 },
-        });
+        const res = await api.get<PopularItem[]>("/manhuas/popular-today", { params: { limit: 6 } });
         setPopular(res.data);
-        setError(null);
-      } catch (err) {
-        console.error("Failed to fetch popular today:", err);
-        const errorMessage =
-          err && typeof err === "object" && "response" in err
-            ? (err as { response?: { data?: { message?: string } } })?.response
-                ?.data?.message
-            : undefined;
-        setError(errorMessage || "Алдаа гарлаа");
-        // Fallback to empty array
+      } catch {
         setPopular([]);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchPopularToday();
+    fetch();
   }, [legacyPopular]);
 
   return (
-    <section className="w-full px-4 py-4 md:py-6 text-white">
-      <div className="mx-auto w-full max-w-7xl">
-        {/* HEADER */}
-        <SectionHeader
-          title="Popular Today"
-          seeAllHref="/manhuas?sort=today"
-          seeAllText="Бүгдийг харах →"
-        />
+    <section className="w-full px-4 py-6 md:py-8">
+      <div className="mx-auto w-full" style={{ maxWidth: "var(--arc-max-w)" }}>
+        <SectionHeader title="Popular Today" seeAllHref="/manhuas?sort=today" />
 
-        {/* GRID */}
         {loading ? (
-          <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-6 [grid-auto-rows:1fr]">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <PopularCardSkeleton key={i} />
-            ))}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => <PopularCardSkeleton key={i} />)}
           </div>
-        ) : error || popular.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 md:py-10 text-center">
-            <p className="text-gray-400 text-base md:text-lg mb-1.5">
-              Өнөөдөр trending хараахан алга
-            </p>
-            <p className="text-gray-500 text-xs md:text-sm">
-              Манхуа уншиж эхлэхэд энд харагдах болно
-            </p>
+        ) : popular.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <p className="text-base mb-1" style={{ color: "var(--arc-dim)" }}>Өнөөдөр trending алга</p>
+            <p className="text-sm" style={{ color: "var(--arc-muted)" }}>Манхуа уншиж эхлэхэд энд харагдах болно</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-6 [grid-auto-rows:1fr]">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
             {popular.map((item, index) => {
-              // Hide items 4-5 on mobile (show only first 4)
-              const isHiddenOnMobile = index >= 4;
-              const cover =
-                item.coverImageUrl || item.coverImage || "/placeholder.jpg";
-              const ratingValue = item.ratingAverage || 0;
-              const viewsToday = item.viewsToday || 0;
-              const latestChapter = item.latestChapterNumber;
+              const cover = item.coverImageUrl || item.coverImage || "/placeholder.jpg";
+              const rating = item.ratingAverage || 0;
+              const views = item.viewsToday || 0;
+              const latestCh = item.latestChapterNumber;
+              const isTop3 = index < 3;
 
               return (
                 <Link
                   key={item._id}
                   href={`/manhua/${item.slug}`}
                   prefetch={false}
-                  className={`group flex h-full flex-col transition-all duration-200 hover:-translate-y-0.5 ${
-                    isHiddenOnMobile ? "hidden lg:flex" : "flex"
-                  }`}
+                  className={`group flex flex-col transition-transform duration-200 hover:-translate-y-0.5 ${index >= 4 ? "hidden lg:flex" : "flex"}`}
                 >
-                  {/* COVER IMAGE */}
-                  <div className="relative w-full overflow-hidden rounded-lg aspect-[3/4] bg-slate-800 shadow-md">
+                  {/* COVER */}
+                  <div
+                    className="relative w-full overflow-hidden aspect-[3/4]"
+                    style={{
+                      borderRadius: "var(--arc-radius)",
+                      background: "var(--arc-elevated)",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+                    }}
+                  >
                     <Image
                       src={cover}
                       alt={item.title}
                       fill
-                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 16vw, 14vw"
-                      className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      sizes="(max-width: 768px) 50vw, 14vw"
+                      className="object-cover transition-transform duration-200 group-hover:scale-[1.04]"
                       priority={false}
                     />
-                    {/* Today views badge */}
-                    {viewsToday > 0 && (
-                      <div className="absolute top-1.5 right-1.5 rounded-full bg-gradient-to-r from-cyan-500/90 to-fuchsia-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-lg backdrop-blur-sm">
-                        {viewsToday}
+
+                    {/* RANK */}
+                    <div
+                      className="absolute top-2 left-2 text-[20px] font-bold leading-none"
+                      style={{
+                        fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                        color: isTop3 ? "var(--arc-amber)" : "rgba(255,255,255,0.85)",
+                        textShadow: "0 2px 8px rgba(0,0,0,0.8)",
+                        letterSpacing: "-0.04em",
+                      }}
+                    >
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
+
+                    {/* VIEWS BADGE */}
+                    {views > 0 && (
+                      <div
+                        className="absolute top-1.5 right-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{ background: "rgba(6,182,212,0.85)", color: "#07070e" }}
+                      >
+                        {views.toLocaleString()}
                       </div>
                     )}
                   </div>
 
-                  {/* TEXT AREA */}
-                  <div className="mt-1.5 flex flex-1 flex-col gap-0.5">
-                    {/* TITLE - Fixed height to prevent layout shift */}
-                    <h3 className="line-clamp-2 text-[13px] font-medium text-white group-hover:text-cyan-400 transition-colors md:text-sm min-h-[2.25rem] md:min-h-[2.5rem] break-words overflow-hidden">
+                  {/* TEXT */}
+                  <div className="mt-2.5 flex flex-col gap-1">
+                    <h3
+                      className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
+                      style={{
+                        fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                        color: "var(--arc-text)",
+                        minHeight: "2.25rem",
+                      }}
+                    >
                       {item.title}
                     </h3>
-
-                    {/* METADATA - Pushed to bottom with mt-auto */}
-                    <div className="mt-auto flex flex-col gap-0.5">
-                      {/* RATING */}
-                      <StarRating rating={ratingValue} />
-
-                      {/* LATEST CHAPTER */}
-                      {latestChapter ? (
-                        <p
-                          className={`text-[11px] md:text-xs truncate ${
-                            isChapterRead(item.slug, latestChapter)
-                              ? "text-gray-500 font-normal"
-                              : "text-gray-400 font-medium"
-                          }`}
+                    <StarRating rating={rating} />
+                    <div className="flex items-center justify-between">
+                      {latestCh ? (
+                        <span
+                          className="text-[11px]"
+                          style={{
+                            color: isChapterRead(item.slug, latestCh)
+                              ? "var(--arc-muted)"
+                              : "var(--arc-dim)",
+                          }}
                         >
-                          Ch. {latestChapter}
-                        </p>
+                          Ch. {latestCh}
+                        </span>
                       ) : (
-                        <p className="text-[11px] text-gray-500 md:text-xs">
+                        <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
                           No chapters
-                        </p>
+                        </span>
                       )}
-
-                      {/* LATEST CHAPTER ADDED TIME */}
                       {item.latestChapterAddedAt && (
-                        <p className="text-[10px] text-gray-500 md:text-[11px] truncate">
+                        <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>
                           {formatTimeAgo(item.latestChapterAddedAt)}
-                        </p>
+                        </span>
                       )}
                     </div>
                   </div>

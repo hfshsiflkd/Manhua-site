@@ -33,13 +33,13 @@ export default function AdminLayout({
   }, [user, isAdmin, router]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950">
-      <div className="flex-none border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "var(--arc-bg)" }}>
+      <div className="flex-none" style={{ borderBottom: "1px solid var(--arc-border)", background: "var(--arc-bg)" }}>
         <Header />
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="w-full ">{checking ? null : children}</div>
+        <div className="w-full">{checking ? null : children}</div>
       </main>
     </div>
   );

@@ -6,110 +6,64 @@ interface ManhuaCardProps {
   variant?: "default" | "horizontal";
 }
 
+const statusStyles: Record<string, { background: string; color: string; border: string }> = {
+  ongoing: { background: "oklch(0.72 0.17 155/.12)", color: "oklch(0.8 0.14 155)", border: "1px solid oklch(0.72 0.17 155/.25)" },
+  completed: { background: "oklch(0.72 0.17 195/.12)", color: "var(--arc-cyan)", border: "1px solid oklch(0.72 0.17 195/.25)" },
+  hiatus: { background: "oklch(0.82 0.16 85/.12)", color: "var(--arc-amber)", border: "1px solid oklch(0.82 0.16 85/.25)" },
+};
+
 const statusLabels: Record<string, string> = {
   ongoing: "Ongoing",
   completed: "Completed",
   hiatus: "Hiatus",
 };
 
-const statusColors: Record<string, string> = {
-  ongoing: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-  completed: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-  hiatus: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-};
-
 export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
   const status = (manhua.status || "ongoing").toLowerCase();
   const statusLabel = statusLabels[status] || status;
-  const statusColor = statusColors[status] || statusColors.ongoing;
+  const statusStyle = statusStyles[status] || statusStyles.ongoing;
   const displayTitle = manhua.title || manhua.titleEn || "Untitled";
+  const genres = (manhua.genres || []).slice(0, 2);
+  const extraGenres = (manhua.genres?.length || 0) - 2;
+  const rating = manhua.ratingAverage || 0;
 
-  const genres = manhua.genres || [];
-  const displayGenres = genres.slice(0, 2);
-  const remainingCount = genres.length - 2;
-
-  // Format last update date if available
-  const lastUpdate = (() => {
-    const dateValue = manhua.lastChapterAt || manhua.updatedAt;
-    if (!dateValue) return null;
-    try {
-      const date = new Date(dateValue);
-      if (isNaN(date.getTime())) return null;
-      return date.toLocaleDateString("mn-MN", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return null;
-    }
-  })();
-
-  // Horizontal variant for mobile
   if (variant === "horizontal") {
     return (
       <Link
         href={`/manhua/${manhua.slug || manhua._id}`}
         prefetch={false}
-        className="group flex gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3 shadow-lg shadow-black/40 transition-all active:scale-[0.98]"
+        className="group flex gap-3 rounded-[10px] p-3 transition-colors active:scale-[0.98]"
+        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--arc-border-h)")}
+        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
       >
-        {/* Cover Image - Smaller for horizontal */}
-        <div className="relative h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-950">
-          <img
-            src={manhua.coverImage || "https://via.placeholder.com/300x400"}
-            alt={displayTitle}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-          {/* Status Badge */}
-          <div
-            className={`absolute right-1 top-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${statusColor}`}
-          >
+        <div className="relative h-24 w-16 shrink-0 overflow-hidden" style={{ borderRadius: 7, background: "var(--arc-elevated)" }}>
+          <img src={manhua.coverImage} alt={displayTitle} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <div className="absolute right-1 top-1 rounded px-1.5 py-0.5 text-[9px] font-bold" style={statusStyle}>
             {statusLabel}
           </div>
         </div>
-
-        {/* Content */}
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5">
-          {/* Title */}
-          <h3 className="line-clamp-2 text-sm font-semibold text-slate-100">
+          <h3 className="line-clamp-2 text-[13px] font-semibold transition-colors group-hover:text-[var(--arc-cyan)]"
+            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
             {displayTitle}
           </h3>
-
-          {/* Genres */}
           {genres.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1">
-              {displayGenres.map((genre, idx) => (
-                <span
-                  key={idx}
-                  className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-300"
-                >
-                  {genre}
+            <div className="flex flex-wrap gap-1">
+              {genres.map((g, i) => (
+                <span key={i} className="rounded px-1.5 py-0.5 text-[9px]" style={{ background: "rgba(255,255,255,.06)", color: "var(--arc-dim)" }}>
+                  {g}
                 </span>
               ))}
-              {remainingCount > 0 && (
-                <span className="text-[9px] text-slate-500">+{remainingCount}</span>
-              )}
+              {extraGenres > 0 && <span className="text-[9px]" style={{ color: "var(--arc-muted)" }}>+{extraGenres}</span>}
             </div>
           )}
-
-          {/* Footer Info */}
-          <div className="flex items-center justify-between gap-2">
-            {lastUpdate ? (
-              <span className="text-[10px] text-slate-400">{lastUpdate}</span>
-            ) : manhua.ratingAverage > 0 ? (
-              <div className="flex items-center gap-1">
-                <span className="text-yellow-400 text-xs">⭐</span>
-                <span className="text-[10px] font-medium text-slate-300">
-                  {manhua.ratingAverage.toFixed(1)}
-                </span>
-              </div>
-            ) : (
-              <span className="text-[10px] text-slate-600">-</span>
-            )}
+          <div className="flex items-center justify-between">
+            {rating > 0 ? (
+              <span className="text-[11px]" style={{ color: "var(--arc-amber)" }}>★ {rating.toFixed(1)}</span>
+            ) : <span />}
             {manhua.lastChapterNumber && (
-              <span className="text-[10px] font-medium text-cyan-400">
-                Ch. {manhua.lastChapterNumber}
-              </span>
+              <span className="text-[11px] font-semibold" style={{ color: "var(--arc-cyan)" }}>Ch. {manhua.lastChapterNumber}</span>
             )}
           </div>
         </div>
@@ -117,78 +71,69 @@ export function ManhuaCard({ manhua, variant = "default" }: ManhuaCardProps) {
     );
   }
 
-  // Default vertical card
   return (
     <Link
       href={`/manhua/${manhua.slug || manhua._id}`}
       prefetch={false}
-      className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-lg shadow-black/40 transition-all hover:-translate-y-1 hover:border-cyan-500/60 hover:shadow-cyan-500/20"
+      className="group block overflow-hidden transition-all hover:-translate-y-1"
+      style={{
+        borderRadius: "var(--arc-radius-lg)",
+        border: "1px solid var(--arc-border)",
+        background: "var(--arc-card)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.72 0.17 195 / 0.4)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 32px rgba(0,0,0,.5), 0 0 0 1px oklch(0.72 0.17 195/.15)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.borderColor = "var(--arc-border)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "none";
+      }}
     >
-      {/* Cover Image */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden bg-slate-950">
+      {/* COVER */}
+      <div className="relative w-full overflow-hidden aspect-[3/4]" style={{ background: "var(--arc-elevated)" }}>
         <img
-          src={manhua.coverImage || "https://via.placeholder.com/300x400"}
+          src={manhua.coverImage}
           alt={displayTitle}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
         />
-        {/* Status Badge - Top Right */}
         <div
-          className={`absolute right-2 top-2 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusColor}`}
+          className="absolute right-2 top-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+          style={statusStyle}
         >
           {statusLabel}
         </div>
-        {/* Gradient Overlay on Hover */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
+          style={{ background: "linear-gradient(to top,rgba(7,7,14,.85) 0%,transparent 50%)" }} />
       </div>
 
-      {/* Card Content */}
-      <div className="space-y-2 p-3 sm:p-4">
-        {/* Title */}
-        <h3 className="line-clamp-2 text-sm font-semibold text-slate-100 sm:text-base">
+      {/* BODY */}
+      <div className="p-3 space-y-2">
+        <h3
+          className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
+          style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
+        >
           {displayTitle}
         </h3>
 
-        {/* Genres */}
-        {genres.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {displayGenres.map((genre, idx) => (
-              <span
-                key={idx}
-                className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 sm:text-xs"
-              >
-                {genre}
+        {genres.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {genres.map((g, i) => (
+              <span key={i} className="rounded px-1.5 py-0.5 text-[9px]"
+                style={{ background: "rgba(255,255,255,.06)", color: "var(--arc-dim)" }}>
+                {g}
               </span>
             ))}
-            {remainingCount > 0 && (
-              <span className="text-[10px] text-slate-500 sm:text-xs">
-                +{remainingCount}
-              </span>
-            )}
+            {extraGenres > 0 && <span className="text-[9px]" style={{ color: "var(--arc-muted)" }}>+{extraGenres}</span>}
           </div>
-        ) : (
-          <div className="h-4" /> // Spacer when no genres
         )}
 
-        {/* Footer Info */}
-        <div className="flex items-center justify-between border-t border-slate-800 pt-2">
-          {lastUpdate ? (
-            <span className="text-[10px] text-slate-400 sm:text-xs">
-              {lastUpdate}
-            </span>
-          ) : manhua.ratingAverage > 0 ? (
-            <div className="flex items-center gap-1">
-              <span className="text-yellow-400">⭐</span>
-              <span className="text-[10px] font-medium text-slate-300 sm:text-xs">
-                {manhua.ratingAverage.toFixed(1)}
-              </span>
-            </div>
-          ) : (
-            <span className="text-[10px] text-slate-600 sm:text-xs">-</span>
-          )}
+        <div className="flex items-center justify-between pt-2" style={{ borderTop: "1px solid var(--arc-border)" }}>
+          {rating > 0 ? (
+            <span className="text-[11px]" style={{ color: "var(--arc-amber)" }}>★ {rating.toFixed(1)}</span>
+          ) : <span />}
           {manhua.lastChapterNumber && (
-            <span className="text-[10px] text-cyan-400 sm:text-xs">
-              Ch. {manhua.lastChapterNumber}
-            </span>
+            <span className="text-[11px] font-semibold" style={{ color: "var(--arc-cyan)" }}>Ch. {manhua.lastChapterNumber}</span>
           )}
         </div>
       </div>

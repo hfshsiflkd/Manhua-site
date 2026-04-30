@@ -197,54 +197,88 @@ export default function LoginPage() {
     }
   };
 
+  const fieldStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 14px",
+    background: "var(--arc-elevated)",
+    border: "1px solid var(--arc-border)",
+    borderRadius: "var(--arc-radius)",
+    color: "var(--arc-text)",
+    fontSize: 13,
+    outline: "none",
+  };
+
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900/70 p-6 text-sm text-slate-100 shadow-lg">
-        <h1 className="text-lg font-semibold text-slate-50">Нэвтрэх</h1>
-        <p className="mt-1 text-[12px] text-slate-400">
+    <div
+      className="flex min-h-[70vh] items-center justify-center px-4"
+      style={{
+        background:
+          "radial-gradient(ellipse 60% 50% at 20% 30%,oklch(0.72 0.17 195/.06),transparent), radial-gradient(ellipse 50% 40% at 80% 70%,oklch(0.65 0.22 15/.06),transparent)",
+      }}
+    >
+      <div
+        className="w-full max-w-sm p-8 text-sm shadow-2xl"
+        style={{
+          borderRadius: 20,
+          border: "1px solid var(--arc-border)",
+          background: "var(--arc-card)",
+          color: "var(--arc-text)",
+        }}
+      >
+        {/* LOGO */}
+        <div className="flex items-center justify-center gap-2 mb-7">
+          <div
+            className="flex items-center justify-center rounded-[10px]"
+            style={{ width: 38, height: 38, background: "var(--arc-elevated)", border: "1px solid var(--arc-border)" }}
+          >
+            <svg viewBox="0 0 48 48" width="22" height="22" fill="none">
+              <path d="M8 28 C14 14 34 14 40 28" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
+              <path d="M16 34 C20 30 28 30 32 34" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              <circle cx="24" cy="12" r="3" fill="var(--arc-rose)" />
+            </svg>
+          </div>
+          <span
+            className="text-[19px] font-bold tracking-tight"
+            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
+          >
+            ARC<span style={{ color: "var(--arc-rose)" }}>•</span>READ
+          </span>
+        </div>
+
+        <h1
+          className="text-[20px] font-bold text-white text-center mb-1"
+          style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)" }}
+        >
+          Нэвтрэх
+        </h1>
+        <p className="text-[12px] text-center mb-6" style={{ color: "var(--arc-muted)" }}>
           Имэйл эсвэл хэрэглэгчийн нэр, нууц үгээ ашиглан нэвтэрнэ үү.
         </p>
 
         {/* ✅ Lock card */}
         {lockUntilDate && (
-          <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-[12px] text-amber-100">
+          <div
+            className="mb-4 rounded-[10px] px-3 py-3 text-[12px]"
+            style={{ background: "oklch(0.82 0.16 85/.08)", border: "1px solid oklch(0.82 0.16 85/.25)", color: "oklch(0.9 0.1 85)" }}
+          >
             <div className="flex items-start gap-2">
               <div className="mt-0.5">⛔</div>
               <div className="flex-1">
-                <p className="font-semibold text-amber-100">
+                <p className="font-semibold">
                   Түр түгжигдсэн байна{" "}
                   {lock?.reason ? (
-                    <span className="text-amber-200/80 font-normal">
-                      ({lock.reason})
-                    </span>
+                    <span className="font-normal opacity-80">({lock.reason})</span>
                   ) : null}
                 </p>
-
-                <p className="mt-1 text-amber-100/90">
-                  Тайлагдах хугацаа:{" "}
-                  <span className="font-medium">
-                    {lockUntilDate.toLocaleString()}
-                  </span>
-                </p>
-
-                <p className="mt-1 text-amber-100/90">
-                  Үлдсэн хугацаа:{" "}
-                  <span className="font-semibold">
-                    {lockParts ? formatLeft(lockParts) : "-"}
-                  </span>
-                </p>
-
-                <p className="mt-2 text-[11px] text-amber-100/80">
-                  Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.
-                </p>
-
+                <p className="mt-1">Тайлагдах хугацаа: <span className="font-medium">{lockUntilDate.toLocaleString()}</span></p>
+                <p className="mt-1">Үлдсэн хугацаа: <span className="font-semibold">{lockParts ? formatLeft(lockParts) : "-"}</span></p>
+                <p className="mt-2 text-[11px] opacity-80">Хэрвээ та зөрчилгүй гэж үзвэл админд хандан шалгуулна уу.</p>
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setNowTick(Date.now());
-                    }}
-                    className="inline-flex items-center justify-center rounded-full bg-amber-400 px-3 py-2 text-[12px] font-semibold text-slate-950 hover:bg-amber-300"
+                    onClick={() => { setNowTick(Date.now()); }}
+                    className="inline-flex items-center justify-center rounded-full px-3 py-2 text-[12px] font-semibold"
+                    style={{ background: "var(--arc-amber)", color: "#07070e" }}
                   >
                     Дахин шалгах
                   </button>
@@ -256,46 +290,42 @@ export default function LoginPage() {
 
         {/* ✅ Device switch warning */}
         {deviceWarning && (
-          <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-100">
+          <div
+            className="mb-3 rounded-[10px] px-3 py-2.5 text-[12px]"
+            style={{ background: "oklch(0.82 0.16 85/.08)", border: "1px solid oklch(0.82 0.16 85/.25)", color: "oklch(0.9 0.1 85)" }}
+          >
             <div className="flex items-start gap-2">
               <div className="mt-0.5">⚠️</div>
               <div className="flex-1">
-                <p className="font-semibold text-amber-100">
-                  Та өөр төхөөрөмжөөс нэвтэрлээ
-                </p>
-                <p className="mt-1 text-amber-100/90">
-                  Хэрвээ үргэлжилбэл түр түгжигдэж магадгүй.{" "}
-                  <span className="font-medium">
-                    {deviceWarning.remainingBeforeLock} удаа үлдлээ
-                  </span>
+                <p className="font-semibold">Та өөр төхөөрөмжөөс нэвтэрлээ</p>
+                <p className="mt-1">Хэрвээ үргэлжилбэл түр түгжигдэж магадгүй.{" "}
+                  <span className="font-medium">{deviceWarning.remainingBeforeLock} удаа үлдлээ</span>
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setDeviceWarning(null)}
-                className="text-amber-200/70 hover:text-amber-100"
-              >
-                ✕
-              </button>
+              <button type="button" onClick={() => setDeviceWarning(null)} className="opacity-70 hover:opacity-100">✕</button>
             </div>
           </div>
         )}
 
         {/* ✅ Normal error */}
         {errorMsg && (
-          <div className="mt-3 rounded-md border border-rose-500/60 bg-rose-950/40 px-3 py-2 text-[12px] text-rose-200">
-            {errorMsg}
+          <div
+            className="mb-3 rounded-[10px] px-3 py-2.5 text-[12px] flex items-start gap-2"
+            style={{ background: "oklch(0.65 0.22 15/.08)", border: "1px solid oklch(0.65 0.22 15/.3)", color: "oklch(0.85 0.12 15)" }}
+          >
+            <span className="mt-0.5">⚠</span>
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div className="space-y-1">
-            <label className="text-[12px] text-slate-300">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-[12px] font-medium" style={{ color: "var(--arc-dim)" }}>
               Имэйл эсвэл хэрэглэгчийн нэр
             </label>
             <input
               type="text"
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+              style={fieldStyle}
               placeholder="you@example.com эсвэл username"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
@@ -304,11 +334,11 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[12px] text-slate-300">Нууц үг</label>
+          <div className="space-y-1.5">
+            <label className="block text-[12px] font-medium" style={{ color: "var(--arc-dim)" }}>Нууц үг</label>
             <input
               type="password"
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400"
+              style={fieldStyle}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -320,32 +350,31 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading || isLocked}
-            className="mt-2 w-full rounded-full bg-cyan-500 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-slate-700"
+            className="mt-1 w-full rounded-[10px] py-3 text-[14px] font-bold transition-all disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              fontFamily: "var(--font-head,'Space Grotesk',sans-serif)",
+              background: loading || isLocked ? "var(--arc-elevated)" : "var(--arc-cyan)",
+              color: loading || isLocked ? "var(--arc-muted)" : "#07070e",
+              boxShadow: loading || isLocked ? "none" : "0 0 22px var(--arc-cyan-glow)",
+              border: "none",
+            }}
           >
-            {loading
-              ? "Нэвтрэж байна..."
-              : isLocked
-              ? "Түр түгжигдсэн"
-              : "Нэвтрэх"}
+            {loading ? "Нэвтрэж байна..." : isLocked ? "Түр түгжигдсэн" : "Нэвтрэх"}
           </button>
         </form>
 
-        <div className="mt-4 flex items-center justify-between text-[12px] text-slate-400">
+        <div className="mt-5 flex items-center justify-between text-[12px]" style={{ color: "var(--arc-muted)" }}>
           <p>
             Шинэ хэрэглэгч үү?{" "}
-            <a
-              href="/register"
-              className="text-cyan-300 hover:text-cyan-200 underline-offset-2 hover:underline"
-            >
+            <a href="/register" style={{ color: "var(--arc-cyan)", textDecoration: "none" }}
+              onMouseEnter={(e) => ((e.target as HTMLElement).style.textDecoration = "underline")}
+              onMouseLeave={(e) => ((e.target as HTMLElement).style.textDecoration = "none")}>
               Бүртгүүлэх
             </a>
           </p>
-
-          {/* ✅ forgot password link */}
-          <a
-            href="/login/forgot-password"
-            className="text-slate-300 hover:text-slate-100 underline-offset-2 hover:underline"
-          >
+          <a href="/login/forgot-password" style={{ color: "var(--arc-dim)", textDecoration: "none" }}
+            onMouseEnter={(e) => ((e.target as HTMLElement).style.color = "var(--arc-text)")}
+            onMouseLeave={(e) => ((e.target as HTMLElement).style.color = "var(--arc-dim)")}>
             Нууц үг мартсан
           </a>
         </div>

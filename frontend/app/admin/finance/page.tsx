@@ -5,8 +5,7 @@ import AdminShell from "../components/AdminShell";
 import { adminGetFinanceMonth, FinanceMonthResponse } from "@/lib/adminFinance";
 
 function formatMoney(n: number, currency: string) {
-  const v = Number(n || 0);
-  return `${v.toLocaleString("en-US")} ${currency}`;
+  return `${Number(n || 0).toLocaleString("en-US")} ${currency}`;
 }
 
 export default function AdminFinancePage() {
@@ -21,8 +20,7 @@ export default function AdminFinancePage() {
   const load = async (m = month) => {
     setLoading(true);
     try {
-      const res = await adminGetFinanceMonth({ month: m });
-      setData(res);
+      setData(await adminGetFinanceMonth({ month: m }));
       setError(null);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to load finance data");
@@ -32,156 +30,104 @@ export default function AdminFinancePage() {
     }
   };
 
-  useEffect(() => {
-    load(month);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month]);
+  useEffect(() => { load(month); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [month]);
 
   const currency = data?.currency || "MNT";
-
   const rows = useMemo(() => data?.editors || [], [data]);
 
   return (
-    <AdminShell
-      title="Finance"
-      subtitle="Monthly editor metrics + proportional 30/70 distribution."
-    >
+    <AdminShell title="Finance" subtitle="Monthly editor metrics + proportional 30/70 distribution.">
       <div className="space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-xs text-slate-400">Month</div>
+            <div className="text-[11px] mb-1" style={{ color: "var(--arc-muted)" }}>Month</div>
             <input
               type="month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className="mt-1 w-[180px] rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/60"
+              className="w-[180px] rounded-[9px] px-3 py-2 text-[13px] outline-none"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
             />
           </div>
-
           <button
             onClick={() => load(month)}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+            className="rounded-[9px] px-4 py-2 text-[12px] font-semibold transition-colors"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
           >
             Refresh
           </button>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+          <div className="rounded-[9px] px-3 py-2 text-[12px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
             {error}
           </div>
         )}
 
         {loading && !data ? (
-          <div className="text-sm text-slate-400">Loading finance...</div>
+          <div className="text-[13px]" style={{ color: "var(--arc-muted)" }}>Loading finance...</div>
         ) : !data ? null : (
           <>
             <section className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                  Total revenue
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-50">
-                  {formatMoney(data.totalRevenue, currency)}
-                </p>
-                <p className="mt-1 text-[12px] text-slate-500">
-                  Based on recorded payments for this month.
-                </p>
+              <div className="rounded-[14px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--arc-muted)" }}>Total revenue</p>
+                <p className="mt-2 text-[24px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>{formatMoney(data.totalRevenue, currency)}</p>
+                <p className="mt-1 text-[12px]" style={{ color: "var(--arc-muted)" }}>Based on recorded payments for this month.</p>
               </div>
 
-              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-emerald-200">
-                  Editors pool (70%)
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-emerald-100">
-                  {formatMoney(data.editorsPool, currency)}
-                </p>
-                <p className="mt-1 text-[12px] text-emerald-200/80">
-                  Distributed proportionally by metrics.
-                </p>
+              <div className="rounded-[14px] p-4" style={{ border: "1px solid oklch(0.75 0.17 145/.4)", background: "oklch(0.75 0.17 145/.06)" }}>
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: "oklch(0.8 0.14 145)" }}>Editors pool (70%)</p>
+                <p className="mt-2 text-[24px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "oklch(0.8 0.14 145)" }}>{formatMoney(data.editorsPool, currency)}</p>
+                <p className="mt-1 text-[12px]" style={{ color: "oklch(0.75 0.17 145/.7)" }}>Distributed proportionally by metrics.</p>
               </div>
 
-              <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-amber-200">
-                  Site share (30%)
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-amber-100">
-                  {formatMoney(data.siteShare, currency)}
-                </p>
-                <p className="mt-1 text-[12px] text-amber-200/80">
-                  Kept by the site.
-                </p>
+              <div className="rounded-[14px] p-4" style={{ border: "1px solid oklch(0.82 0.16 85/.4)", background: "oklch(0.82 0.16 85/.06)" }}>
+                <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--arc-amber)" }}>Site share (30%)</p>
+                <p className="mt-2 text-[24px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-amber)" }}>{formatMoney(data.siteShare, currency)}</p>
+                <p className="mt-1 text-[12px]" style={{ color: "oklch(0.82 0.16 85/.7)" }}>Kept by the site.</p>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="flex flex-wrap gap-3 text-xs text-slate-300">
-                <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1">
-                  Chapters uploaded:{" "}
-                  <b className="text-slate-50">
-                    {data.totals.chaptersUploaded.toLocaleString("en-US")}
-                  </b>
-                </span>
-                <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1">
-                  Manhuas uploaded:{" "}
-                  <b className="text-slate-50">
-                    {data.totals.manhuasUploaded.toLocaleString("en-US")}
-                  </b>
-                </span>
-                <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1">
-                  Monthly views:{" "}
-                  <b className="text-slate-50">
-                    {data.totals.chapterMonthlyViews.toLocaleString("en-US")}
-                  </b>
-                </span>
+            <section className="rounded-[14px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+              <div className="flex flex-wrap gap-3 text-[12px]" style={{ color: "var(--arc-dim)" }}>
+                {[
+                  ["Chapters uploaded", data.totals.chaptersUploaded.toLocaleString("en-US")],
+                  ["Manhuas uploaded", data.totals.manhuasUploaded.toLocaleString("en-US")],
+                  ["Monthly views", data.totals.chapterMonthlyViews.toLocaleString("en-US")],
+                ].map(([label, val]) => (
+                  <span key={label} className="rounded-full px-3 py-1" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+                    {label}: <b style={{ color: "var(--arc-text)" }}>{val}</b>
+                  </span>
+                ))}
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+            <section className="overflow-hidden rounded-[14px]" style={{ border: "1px solid var(--arc-border)" }}>
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-950/60 text-xs text-slate-400">
-                    <tr>
-                      <th className="px-4 py-3">Editor</th>
-                      <th className="px-4 py-3">Chapters (month)</th>
-                      <th className="px-4 py-3">Manhuas (month)</th>
-                      <th className="px-4 py-3">Chapter views (month)</th>
-                      <th className="px-4 py-3">Payout</th>
+                <table className="min-w-full text-left text-[13px]">
+                  <thead>
+                    <tr style={{ background: "var(--arc-elevated)" }}>
+                      {["Editor", "Chapters (month)", "Manhuas (month)", "Chapter views (month)", "Payout"].map((h) => (
+                        <th key={h} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--arc-muted)" }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody>
                     {rows.map((r) => (
-                      <tr key={r.editor._id} className="hover:bg-slate-950/40">
+                      <tr key={r.editor._id} style={{ borderTop: "1px solid var(--arc-border)" }}>
                         <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-100">
-                            {r.editor.username}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {r.editor.email || ""}
-                          </div>
+                          <div className="font-semibold" style={{ color: "var(--arc-text)" }}>{r.editor.username}</div>
+                          <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{r.editor.email || ""}</div>
                         </td>
-                        <td className="px-4 py-3 text-slate-200">
-                          {r.chaptersUploaded.toLocaleString("en-US")}
-                        </td>
-                        <td className="px-4 py-3 text-slate-200">
-                          {r.manhuasUploaded.toLocaleString("en-US")}
-                        </td>
-                        <td className="px-4 py-3 text-slate-200">
-                          {r.chapterMonthlyViews.toLocaleString("en-US")}
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-emerald-200">
-                          {formatMoney(r.payout, currency)}
-                        </td>
+                        <td className="px-4 py-3" style={{ color: "var(--arc-dim)" }}>{r.chaptersUploaded.toLocaleString("en-US")}</td>
+                        <td className="px-4 py-3" style={{ color: "var(--arc-dim)" }}>{r.manhuasUploaded.toLocaleString("en-US")}</td>
+                        <td className="px-4 py-3" style={{ color: "var(--arc-dim)" }}>{r.chapterMonthlyViews.toLocaleString("en-US")}</td>
+                        <td className="px-4 py-3 font-semibold" style={{ color: "oklch(0.8 0.14 145)" }}>{formatMoney(r.payout, currency)}</td>
                       </tr>
                     ))}
                     {rows.length === 0 && (
                       <tr>
-                        <td
-                          className="px-4 py-6 text-sm text-slate-400"
-                          colSpan={5}
-                        >
-                          No editors found.
-                        </td>
+                        <td className="px-4 py-6 text-[13px]" colSpan={5} style={{ color: "var(--arc-muted)" }}>No editors found.</td>
                       </tr>
                     )}
                   </tbody>
@@ -190,50 +136,30 @@ export default function AdminFinancePage() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold text-slate-100">
-                Per-editor manhwa totals (from chapter views, month)
-              </h2>
+              <h2 className="text-[14px] font-semibold" style={{ color: "var(--arc-text)" }}>Per-editor manhwa totals (from chapter views, month)</h2>
               <div className="grid gap-4 lg:grid-cols-2">
                 {rows.map((r) => (
-                  <div
-                    key={`${r.editor._id}-manhuas`}
-                    className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-slate-100">
-                        {r.editor.username}
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        {r.chapterMonthlyViews.toLocaleString("en-US")} chapter views
-                      </div>
+                  <div key={`${r.editor._id}-manhuas`} className="rounded-[14px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-[13px] font-semibold" style={{ color: "var(--arc-text)" }}>{r.editor.username}</div>
+                      <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{r.chapterMonthlyViews.toLocaleString("en-US")} chapter views</div>
                     </div>
-                    <div className="mt-3 space-y-2">
+                    <div className="space-y-2">
                       {(r.manhuas || []).slice(0, 8).map((m) => (
-                        <div
-                          key={m._id}
-                          className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2"
-                        >
-                          <div className="text-xs text-slate-200">
-                            {m.title}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            {m.monthlyViews.toLocaleString("en-US")} /{" "}
-                            {m.lifetimeViews.toLocaleString("en-US")}
-                          </div>
+                        <div key={m._id} className="flex items-center justify-between rounded-[9px] px-3 py-2" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+                          <div className="text-[12px]" style={{ color: "var(--arc-dim)" }}>{m.title}</div>
+                          <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{m.monthlyViews.toLocaleString("en-US")} / {m.lifetimeViews.toLocaleString("en-US")}</div>
                         </div>
                       ))}
                       {(r.manhuas || []).length === 0 && (
-                        <div className="text-xs text-slate-500">
-                          No manhuas.
-                        </div>
+                        <div className="text-[12px]" style={{ color: "var(--arc-muted)" }}>No manhuas.</div>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="text-[11px] text-slate-500">
-                Note: “chapter views (month)” is summed from `Chapter.dailyViews`
-                for the selected month; the right-side number is the manhwa lifetime views.
+              <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                Note: "chapter views (month)" is summed from `Chapter.dailyViews` for the selected month; the right-side number is the manhwa lifetime views.
               </div>
             </section>
           </>
@@ -242,4 +168,3 @@ export default function AdminFinancePage() {
     </AdminShell>
   );
 }
-

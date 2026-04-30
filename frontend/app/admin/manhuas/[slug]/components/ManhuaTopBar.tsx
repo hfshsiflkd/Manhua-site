@@ -1,6 +1,12 @@
-// src/app/admin/manhuas/components/ManhuaTopBar.tsx
+/* eslint-disable @next/next/no-img-element */
 "use client";
 import type { Manhua } from "@/lib/api";
+
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  ongoing:   { background: "oklch(0.72 0.17 195/.1)", color: "var(--arc-cyan)",     border: "1px solid oklch(0.72 0.17 195/.3)" },
+  completed: { background: "oklch(0.72 0.17 155/.1)", color: "oklch(0.8 0.14 155)", border: "1px solid oklch(0.72 0.17 155/.3)" },
+  hiatus:    { background: "oklch(0.82 0.16 85/.1)",  color: "var(--arc-amber)",    border: "1px solid oklch(0.82 0.16 85/.3)"  },
+};
 
 interface ManhuaTopBarProps {
   manhua: Manhua;
@@ -12,79 +18,68 @@ interface ManhuaTopBarProps {
   onBack: () => void;
 }
 
-export function ManhuaTopBar({
-  manhua,
-  coverPreview,
-  statusClass,
-  createdAt,
-  updatedAt,
-  publicUrl,
-  onBack,
-}: ManhuaTopBarProps) {
+export function ManhuaTopBar({ manhua, coverPreview, createdAt, updatedAt, publicUrl, onBack }: ManhuaTopBarProps) {
+  const status = (manhua.status || "ongoing").toLowerCase();
+  const ss = STATUS_STYLE[status] || STATUS_STYLE.ongoing;
+
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="flex gap-3">
-        <div className="relative h-16 w-12 overflow-hidden rounded-md bg-slate-900/80 shadow shadow-black/60">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverPreview}
-            alt={manhua.title}
-            className="h-full w-full object-cover"
-          />
+      <div className="flex gap-3 items-center">
+        <div
+          className="shrink-0 overflow-hidden"
+          style={{ width: 44, height: 58, borderRadius: 8, background: "var(--arc-elevated)", border: "1px solid var(--arc-border)" }}
+        >
+          <img src={coverPreview} alt={manhua.title} className="h-full w-full object-cover" />
         </div>
-        <div className="space-y-1">
-          <h1 className="text-sm font-semibold text-slate-50 sm:text-base">
+        <div>
+          <div
+            className="font-semibold text-[14px] mb-1"
+            style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}
+          >
             {manhua.title}
-          </h1>
+          </div>
           {manhua.slug && (
-            <p className="text-[11px] text-slate-400">
-              /manhua/
-              <span className="font-mono text-slate-200">{manhua.slug}</span>
-            </p>
+            <div className="text-[11px] mb-1.5" style={{ color: "var(--arc-muted)" }}>
+              /manhua/<span style={{ color: "var(--arc-dim)" }}>{manhua.slug}</span>
+            </div>
           )}
           <div className="flex flex-wrap items-center gap-1.5">
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusClass}`}
-            >
+            <span style={{ ...ss, display: "inline-block", padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
               {manhua.status || "ongoing"}
             </span>
             {manhua.genres && manhua.genres.length > 0 && (
-              <span className="line-clamp-1 text-[11px] text-slate-300">
-                {manhua.genres.join(", ")}
+              <span className="text-[11px]" style={{ color: "var(--arc-dim)" }}>
+                {manhua.genres.slice(0, 4).join(", ")}
               </span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col items-start gap-2 text-[11px] text-slate-400 md:items-end">
-        <div className="flex flex-wrap gap-2">
-          {createdAt && (
-            <span>
-              Created: <span className="text-slate-100">{createdAt}</span>
-            </span>
-          )}
-          {updatedAt && (
-            <span>
-              Updated: <span className="text-slate-100">{updatedAt}</span>
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col items-start gap-2 md:items-end">
+        {(createdAt || updatedAt) && (
+          <div className="flex flex-wrap gap-3 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+            {createdAt && <span>Үүссэн: <span style={{ color: "var(--arc-dim)" }}>{createdAt}</span></span>}
+            {updatedAt && <span>Засагдсан: <span style={{ color: "var(--arc-dim)" }}>{updatedAt}</span></span>}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg border border-slate-700 bg-slate-950/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 hover:bg-slate-900"
+            className="rounded-[9px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
+            style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
           >
-            ← Back
+            ← Буцах
           </button>
           <a
             href={publicUrl}
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg bg-cyan-500/90 px-3 py-1.5 text-[11px] font-medium text-slate-950 hover:bg-cyan-400"
+            className="rounded-[9px] px-3 py-1.5 text-[11px] font-semibold transition-all hover:brightness-110"
+            style={{ background: "var(--arc-cyan)", color: "#07070e", textDecoration: "none" }}
           >
-            Open public page
+            Нийтийн хуудас →
           </a>
         </div>
       </div>

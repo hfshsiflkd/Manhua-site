@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, FormEvent, ChangeEvent, useMemo } from "react";
@@ -7,16 +8,16 @@ import AdminShell from "../../components/AdminShell";
 import { uploadImage, editorCreateManhua } from "@/lib/api";
 
 const GENRE_OPTIONS = [
-  "Romance",
-  "Comedy",
-  "Drama",
-  "Action",
-  "Fantasy",
-  "Slice of Life",
-  "School",
-  "Isekai",
-  "Adventure",
+  "Romance", "Comedy", "Drama", "Action", "Fantasy",
+  "Slice of Life", "School", "Isekai", "Adventure", "Martial Arts",
 ];
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+  background: "var(--arc-elevated)", padding: "8px 12px", fontSize: 12,
+  color: "var(--arc-text)", outline: "none",
+  fontFamily: "var(--font-body,'DM Sans',sans-serif)",
+};
 
 export default function NewManhuaPage() {
   const router = useRouter();
@@ -25,9 +26,7 @@ export default function NewManhuaPage() {
   const [titleEn, setTitleEn] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"ongoing" | "completed" | "hiatus">(
-    "ongoing"
-  );
+  const [status, setStatus] = useState<"ongoing" | "completed" | "hiatus">("ongoing");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -36,14 +35,9 @@ export default function NewManhuaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // title → автоматаар slug гаргах (slug хоосон байвал)
   const autoSlug = useMemo(() => {
     const base = (titleEn && titleEn.trim()) || title;
-    return base
-      .trim()
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}]+/gu, "-")
-      .replace(/^-+|-+$/g, "");
+    return base.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
   }, [title, titleEn]);
 
   const effectiveSlug = slug || autoSlug;
@@ -51,43 +45,28 @@ export default function NewManhuaPage() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setCoverFile(file);
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setCoverPreview(url);
-      setCoverProgress(null);
-    } else {
-      setCoverPreview(null);
-      setCoverProgress(null);
-    }
+    if (file) { setCoverPreview(URL.createObjectURL(file)); setCoverProgress(null); }
+    else { setCoverPreview(null); setCoverProgress(null); }
   };
 
   const toggleGenre = (genre: string) => {
-    setSelectedGenres((prev) =>
-      prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
-    );
+    setSelectedGenres((prev) => prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (!title.trim()) {
-      setError("Title хоосон байна.");
-      return;
-    }
+    if (!title.trim()) { setError("Title хоосон байна."); return; }
 
     setSaving(true);
     try {
       let coverImageUrl: string | undefined;
 
-      // 1) cover upload
       if (coverFile) {
         setUploadingCover(true);
         setCoverProgress(0);
         try {
-          const result = await uploadImage(coverFile, (percent) => {
-            setCoverProgress(percent);
-          });
+          const result = await uploadImage(coverFile, (percent) => setCoverProgress(percent));
           coverImageUrl = (result as any).url;
           setCoverProgress(100);
         } finally {
@@ -95,8 +74,7 @@ export default function NewManhuaPage() {
         }
       }
 
-      // 2) manhua үүсгэх (editor endpoint)
-      const payload = {
+      const manhua = await editorCreateManhua({
         title: title.trim(),
         titleEn: titleEn.trim() || undefined,
         description: description.trim() || undefined,
@@ -105,243 +83,186 @@ export default function NewManhuaPage() {
         genres: selectedGenres,
         coverImage: coverImageUrl,
         coverImageUrl,
-      };
+      });
 
-      const manhua = await editorCreateManhua(payload);
-
-      // 3) амжилттай бол шууд admin manage руу үсэрнэ
       router.push(`/admin/manhuas/${manhua._id}`);
     } catch (err: any) {
-      console.error("[NewManhua] create error:", err);
-      setError(
-        err?.response?.data?.message || "Манхуа үүсгэх үед алдаа гарлаа"
-      );
+      setError(err?.response?.data?.message || "Манхуа үүсгэх үед алдаа гарлаа");
     } finally {
       setSaving(false);
     }
   };
 
+  const focusBorder = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = "oklch(0.72 0.17 195/.5)";
+  };
+  const blurBorder = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = "var(--arc-border)";
+  };
+
   return (
-    <AdminShell
-      title="Шинэ манхуа"
-      subtitle="Гарчиг, slug, жанр, төлөв, cover зурагтай шинэ манхуа үүсгэнэ."
-    >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)] pb-10">
+    <AdminShell title="Шинэ манхуа" subtitle="Гарчиг, slug, жанр, төлөв, cover зурагтай шинэ манхуа үүсгэнэ.">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr),minmax(0,1.2fr)] pb-10">
+
         {/* LEFT – FORM */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-950/95 p-4 shadow-lg shadow-black/40">
+        <div
+          className="rounded-[14px] p-5"
+          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+        >
           {error && (
-            <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+            <div className="mb-4 rounded-[8px] px-3 py-2 text-[11px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Title + Slug */}
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
-                  Title<span className="text-red-400">*</span>
+              <div>
+                <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                  Гарчиг <span style={{ color: "var(--arc-rose)" }}>*</span>
                 </label>
-                <input
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  placeholder="Жишээ: Solo Leveling"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                />
+                <input style={inputStyle} placeholder="Жишээ: Solo Leveling" value={title} onChange={(e) => setTitle(e.target.value)} required onFocus={focusBorder} onBlur={blurBorder} />
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
-                  Title (EN)
-                </label>
-                <input
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  placeholder="English title (optional)"
-                  value={titleEn}
-                  onChange={(e) => setTitleEn(e.target.value)}
-                />
+              <div>
+                <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Гарчиг (EN)</label>
+                <input style={inputStyle} placeholder="English title (optional)" value={titleEn} onChange={(e) => setTitleEn(e.target.value)} onFocus={focusBorder} onBlur={blurBorder} />
               </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
-                  Slug
-                  <span className="ml-1 text-[10px] text-slate-500">
-                    (/manhua/slug)
-                  </span>
+              <div>
+                <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                  Slug <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>(/manhua/slug)</span>
                 </label>
-                <input
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  placeholder={autoSlug || "solo-leveling"}
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                />
-                <p className="text-[10px] text-slate-500">
-                  Үр дүн:{" "}
-                  <span className="font-mono text-slate-200">
-                    /manhua/{effectiveSlug || "<slug>"}
-                  </span>
+                <input style={inputStyle} placeholder={autoSlug || "solo-leveling"} value={slug} onChange={(e) => setSlug(e.target.value)} onFocus={focusBorder} onBlur={blurBorder} />
+                <p className="mt-1 text-[10px]" style={{ color: "var(--arc-muted)" }}>
+                  Үр дүн: <span style={{ color: "var(--arc-dim)" }}>/manhua/{effectiveSlug || "<slug>"}</span>
                 </p>
+              </div>
+              <div>
+                <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Статус</label>
+                <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value as typeof status)} onFocus={focusBorder} onBlur={blurBorder}>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="completed">Completed</option>
+                  <option value="hiatus">Hiatus</option>
+                </select>
               </div>
             </div>
 
-            {/* Description */}
-            <div className="space-y-1">
-              <label className="text-[11px] text-slate-300">Тайлбар</label>
+            <div>
+              <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Тайлбар</label>
               <textarea
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                placeholder="Товч агуулга, гол санаа, уншигчдад өгөх мэдрэмж гэх мэт..."
+                style={{ ...inputStyle, resize: "vertical" }}
+                placeholder="Товч агуулга, гол санаа..."
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                onFocus={focusBorder}
+                onBlur={blurBorder}
               />
             </div>
 
-            {/* Status + Genres */}
-            <div className="grid gap-3 md:grid-cols-[1.1fr,2fr]">
-              {/* Status */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">Төлөв</label>
-                <select
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-cyan-500/60"
-                  value={status}
-                  onChange={(e) =>
-                    setStatus(
-                      e.target.value as "ongoing" | "completed" | "hiatus"
-                    )
-                  }
-                >
-                  <option value="ongoing">Одоо үргэлжилж буй</option>
-                  <option value="completed">Дууссан</option>
-                  <option value="hiatus">Завсарласан</option>
-                </select>
+            <div>
+              <label className="block mb-2 text-[11px]" style={{ color: "var(--arc-muted)" }}>Жанр</label>
+              <div className="flex flex-wrap gap-1.5">
+                {GENRE_OPTIONS.map((g) => {
+                  const active = selectedGenres.includes(g);
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => toggleGenre(g)}
+                      className="rounded-full text-[11px] transition-all"
+                      style={{
+                        padding: "3px 10px",
+                        border: active ? "1px solid oklch(0.72 0.17 195/.5)" : "1px solid var(--arc-border)",
+                        background: active ? "oklch(0.72 0.17 195/.1)" : "transparent",
+                        color: active ? "var(--arc-cyan)" : "var(--arc-dim)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
               </div>
-
-              {/* Genre chips */}
-              <div className="space-y-1">
-                <label className="text-[11px] text-slate-300">
-                  Genres (сонгох)
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {GENRE_OPTIONS.map((g) => {
-                    const active = selectedGenres.includes(g);
-                    return (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => toggleGenre(g)}
-                        className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
-                          active
-                            ? "border-cyan-400 bg-cyan-500/20 text-cyan-100"
-                            : "border-slate-700 bg-slate-900 text-slate-300 hover:border-slate-500"
-                        }`}
-                      >
-                        {g}
-                      </button>
-                    );
-                  })}
-                </div>
-                {selectedGenres.length > 0 && (
-                  <p className="text-[10px] text-slate-500">
-                    Сонгосон:{" "}
-                    <span className="text-slate-200">
-                      {selectedGenres.join(", ")}
-                    </span>
-                  </p>
-                )}
-              </div>
+              {selectedGenres.length > 0 && (
+                <p className="mt-1.5 text-[10px]" style={{ color: "var(--arc-muted)" }}>
+                  Сонгосон: <span style={{ color: "var(--arc-dim)" }}>{selectedGenres.join(", ")}</span>
+                </p>
+              )}
             </div>
 
-            {/* Submit */}
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-2" style={{ borderTop: "1px solid var(--arc-border)" }}>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-1.5 text-xs font-semibold text-slate-950 shadow shadow-emerald-500/40 disabled:opacity-60"
+                className="rounded-[9px] px-5 py-2 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+                style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
               >
-                {saving ? "Хадгалж байна..." : "Манхуа үүсгэх"}
+                {saving ? "Үүсгэж байна..." : "Манхуа үүсгэх"}
               </button>
             </div>
           </form>
-        </section>
+        </div>
 
-        {/* RIGHT – COVER PREVIEW */}
-        <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/90 p-4">
+        {/* RIGHT – COVER */}
+        <div
+          className="relative overflow-hidden rounded-[14px] p-5"
+          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
+        >
           {coverPreview && (
-            <div className="pointer-events-none absolute inset-0 opacity-25">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={coverPreview}
-                alt="Cover bg"
-                className="h-full w-full object-cover blur-xl"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 opacity-20">
+              <img src={coverPreview} alt="Cover bg" className="h-full w-full object-cover" style={{ filter: "blur(40px)", transform: "scale(1.1)" }} />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top,var(--arc-card),transparent)" }} />
             </div>
           )}
 
-          <div className="relative z-10 space-y-3">
+          <div className="relative z-10 space-y-4">
             <div>
-              <p className="text-xs font-semibold text-slate-100">
-                Cover зураг
-              </p>
-              <p className="text-[11px] text-slate-400">
-                JPG / PNG сонгоод, upload хийгдээгүй бол default зураг ашиглагдана.
-              </p>
+              <div className="text-[13px] font-semibold mb-1" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>Cover зураг</div>
+              <p className="text-[11px]" style={{ color: "var(--arc-muted)" }}>JPG · PNG · WebP</p>
             </div>
 
-            <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-medium text-slate-100 shadow shadow-black/40 hover:bg-slate-800">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+            <label
+              className="inline-flex cursor-pointer items-center justify-center rounded-[9px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
+              style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
+            >
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
               {coverFile ? "Файл солих" : "Файл сонгох"}
             </label>
 
             {coverProgress !== null && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>
-                    {uploadingCover ? "Upload хийж байна..." : "Upload"}
-                  </span>
-                  <span className="font-mono text-slate-200">
-                    {coverProgress}%
-                  </span>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                  <span>{uploadingCover ? "Upload хийж байна..." : "Дууслаа"}</span>
+                  <span style={{ color: "var(--arc-text)" }}>{coverProgress}%</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-                  <div
-                    className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
-                    style={{ width: `${coverProgress}%` }}
-                  />
+                <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--arc-elevated)" }}>
+                  <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${coverProgress}%`, background: "var(--arc-cyan)" }} />
                 </div>
               </div>
             )}
 
-            <div className="mt-2 flex justify-center">
-              <div className="aspect-[3/4] w-40 overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-lg shadow-black/50">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={
-                    coverPreview ||
-                    "https://via.placeholder.com/300x400?text=Cover"
-                  }
-                  alt="Cover preview"
-                  className="h-full w-full object-cover"
-                />
+            <div className="flex justify-center">
+              <div
+                className="overflow-hidden"
+                style={{ width: 150, aspectRatio: "3/4", borderRadius: 12, border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}
+              >
+                {coverPreview ? (
+                  <img src={coverPreview} alt="Cover preview" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center" style={{ opacity: 0.2 }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9l4-4 4 4 4-4 4 4"/><circle cx="8.5" cy="13.5" r="1.5"/></svg>
+                  </div>
+                )}
               </div>
             </div>
 
             {coverFile && (
-              <p className="mt-1 text-center text-[11px] text-slate-400">
-                Сонгосон файл:{" "}
-                <span className="font-medium text-slate-200">
-                  {coverFile.name}
-                </span>
+              <p className="text-center text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                {coverFile.name}
               </p>
             )}
           </div>
-        </section>
+        </div>
       </div>
     </AdminShell>
   );

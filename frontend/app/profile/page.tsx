@@ -22,6 +22,8 @@ import { ProfileSettings } from "./components/ProfileSettings";
 import { VipPurchase } from "./components/VipPurchase";
 import { useToast } from "@/app/components/ToastProvider";
 
+type Tab = "reading" | "favorites" | "bookmarks" | "settings";
+
 interface MeResponse {
   _id: string;
   username: string;
@@ -41,24 +43,20 @@ export default function ProfilePage() {
   const [invites, setInvites] = useState<TeamInvite[]>([]);
   const [loadingInvites, setLoadingInvites] = useState(true);
   const [workingInviteId, setWorkingInviteId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>("reading");
   const toast = useToast();
 
-  // Get last read chapter from bookmarks (most recent)
   const lastReadBookmark = useMemo(() => {
     if (bookmarks.length === 0) return null;
-    // Sort by updatedAt descending, get the most recent
-    const sorted = [...bookmarks].sort(
+    return [...bookmarks].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
-    return sorted[0];
+    )[0];
   }, [bookmarks]);
 
-  // Get recently read from localStorage
   const recentlyRead = useMemo(() => {
     try {
       const stored = localStorage.getItem("readChapterIds");
       if (!stored) return [];
-
       const readChapters = JSON.parse(stored) as Record<string, boolean>;
       const entries = Object.entries(readChapters)
         .filter(([_, isRead]) => isRead)
@@ -70,7 +68,6 @@ export default function ProfilePage() {
         })
         .filter((item): item is { slug: string; chapterNumber: number } => item !== null);
 
-      // Get unique manhuas, keep the highest chapter number for each
       const manhuaMap = new Map<string, { chapterNumber: number; slug: string }>();
       entries.forEach(({ slug, chapterNumber }) => {
         const existing = manhuaMap.get(slug);
@@ -79,17 +76,13 @@ export default function ProfilePage() {
         }
       });
 
-      // Convert to array and find titles from favorites/bookmarks
-      // Sort by chapter number descending to show most recent first
       return Array.from(manhuaMap.values())
         .sort((a, b) => b.chapterNumber - a.chapterNumber)
-        .slice(0, 10) // Limit to 10 most recent
+        .slice(0, 10)
         .map(({ slug, chapterNumber }) => {
-          // Try to find title from favorites or bookmarks
           const fav = favorites.find((f) => f.manhua.slug === slug);
           const bookmark = bookmarks.find((b) => b.manhua.slug === slug);
           const manhua = fav?.manhua || bookmark?.manhua;
-
           return {
             manhuaSlug: slug,
             chapterNumber,
@@ -106,13 +99,10 @@ export default function ProfilePage() {
     async function loadProfile() {
       try {
         setLoading(true);
-
-        // Load user data
         const res = await api.get("/auth/me");
         const userData = res.data?.user || res.data;
         setMe(userData);
 
-        // Load favorites and bookmarks in parallel
         const [favsData, bookmarksData] = await Promise.all([
           getMyFavorites().catch(() => [] as Favorite[]),
           getMyBookmarks().catch(() => [] as Bookmark[]),
@@ -121,28 +111,25 @@ export default function ProfilePage() {
         setFavorites(favsData);
         setBookmarks(bookmarksData);
 
-        // If we have a bookmark, get total chapters for progress calculation
         if (bookmarksData.length > 0) {
-          const mostRecent = bookmarksData.sort(
+          const mostRecent = [...bookmarksData].sort(
             (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
           )[0];
           try {
             const chapters = await getPublicChapters(mostRecent.manhua.slug);
             setTotalChapters(chapters?.length || undefined);
           } catch {
-            // Ignore errors fetching chapters
+            // ignore
           }
         }
       } catch (err: any) {
         const status = err?.response?.status;
-        console.error("Failed to load profile:", err);
         setErrorStatus(status || 500);
         setMe(null);
       } finally {
         setLoading(false);
       }
     }
-
     loadProfile();
   }, []);
 
@@ -150,22 +137,10 @@ export default function ProfilePage() {
     let active = true;
     setLoadingInvites(true);
     getMyTeamInvites()
-      .then((data) => {
-        if (!active) return;
-        setInvites(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => {
-        if (!active) return;
-        console.error("Failed to load invites:", err);
-        setInvites([]);
-      })
-      .finally(() => {
-        if (!active) return;
-        setLoadingInvites(false);
-      });
-    return () => {
-      active = false;
-    };
+      .then((data) => { if (active) setInvites(Array.isArray(data) ? data : []); })
+      .catch(() => { if (active) setInvites([]); })
+      .finally(() => { if (active) setLoadingInvites(false); });
+    return () => { active = false; };
   }, []);
 
   const handleAcceptInvite = async (inviteId: string) => {
@@ -175,7 +150,6 @@ export default function ProfilePage() {
       setInvites((prev) => prev.filter((i) => i._id !== inviteId));
       toast.success("Багийн хүсэлт зөвшөөрөгдлөө");
     } catch (err: any) {
-      console.error(err);
       toast.error(err?.response?.data?.message || "Алдаа гарлаа");
     } finally {
       setWorkingInviteId(null);
@@ -189,7 +163,6 @@ export default function ProfilePage() {
       setInvites((prev) => prev.filter((i) => i._id !== inviteId));
       toast.success("Хүсэлт татгалзлаа");
     } catch (err: any) {
-      console.error(err);
       toast.error(err?.response?.data?.message || "Алдаа гарлаа");
     } finally {
       setWorkingInviteId(null);
@@ -198,20 +171,20 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-400">
+      <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ color: "var(--arc-muted)" }}>
         Профайл ачаалж байна...
       </div>
     );
   }
 
-  // Not logged in
   if (!me && (errorStatus === 401 || errorStatus === 403)) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-slate-100">
-        <p className="text-sm">Профайл харахын өмнө нэвтэрнэ үү 🔒</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+        <p className="text-[13px]" style={{ color: "var(--arc-dim)" }}>Профайл харахын өмнө нэвтэрнэ үү 🔒</p>
         <button
           onClick={() => router.push("/login")}
-          className="rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+          className="rounded-[9px] px-4 py-2 text-[13px] font-semibold transition-all hover:brightness-110"
+          style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}
         >
           Нэвтрэх
         </button>
@@ -219,15 +192,11 @@ export default function ProfilePage() {
     );
   }
 
-  // Other errors
   if (!me && errorStatus && errorStatus !== 401 && errorStatus !== 403) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 text-sm text-red-400">
-        <p>Профайл ачаалах үед алдаа гарлаа (status {errorStatus}).</p>
-        <button
-          onClick={() => router.refresh()}
-          className="text-[12px] text-slate-300 underline-offset-2 hover:underline"
-        >
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2">
+        <p className="text-[13px]" style={{ color: "oklch(0.75 0.18 15)" }}>Профайл ачаалах үед алдаа гарлаа (status {errorStatus}).</p>
+        <button onClick={() => router.refresh()} className="text-[12px] underline-offset-2 hover:underline" style={{ color: "var(--arc-dim)", background: "none", border: "none", cursor: "pointer" }}>
           Дахин ачааллах
         </button>
       </div>
@@ -236,99 +205,102 @@ export default function ProfilePage() {
 
   if (!me) return null;
 
+  const stats = {
+    readCount: recentlyRead.length,
+    favoriteCount: favorites.length,
+    chapterCount: bookmarks.reduce((sum, b) => sum + b.chapterNumber, 0),
+  };
+
   return (
-    <div className="relative mx-auto max-w-3xl px-4 pb-16 pt-8">
-      <div className="pointer-events-none absolute inset-x-0 -top-12 -z-10 h-64 bg-gradient-to-b from-cyan-500/20 via-fuchsia-500/10 to-transparent blur-2xl" />
-      <div className="pointer-events-none absolute -right-10 top-16 -z-10 h-40 w-40 rounded-full bg-yellow-400/10 blur-3xl" />
-      <div className="pointer-events-none absolute -left-10 bottom-10 -z-10 h-52 w-52 rounded-full bg-fuchsia-500/10 blur-3xl" />
+    <div style={{ minHeight: "100vh" }}>
+      {/* Full-width hero with tabs */}
+      <ProfileHeader
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        stats={stats}
+      />
 
-      <div className="space-y-6">
-        {/* Top Summary */}
-        <ProfileHeader />
-
-        {/* Team Invites */}
-        {(loadingInvites || invites.length > 0) && (
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-6 shadow-lg shadow-black/40">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-200">Team хүсэлтүүд</h2>
-              <span className="text-xs text-slate-500">
-                {invites.length}
-              </span>
-            </div>
-            <div className="mt-3">
-              {loadingInvites ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 2 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-12 rounded-xl border border-slate-800 bg-slate-950/60 animate-pulse"
-                    />
-                  ))}
+      {/* Content area */}
+      <div
+        className="mx-auto px-4 sm:px-6 py-7 pb-16 grid grid-cols-1 md:grid-cols-[1fr_300px] gap-6"
+        style={{ maxWidth: 1100 }}
+      >
+        {/* Main column */}
+        <div className="space-y-5">
+          {/* Team invites */}
+          {(loadingInvites || invites.length > 0) && (
+            <section className="rounded-[14px] p-4 sm:p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-[3px] h-[14px] rounded-sm" style={{ background: "var(--arc-cyan)" }} />
+                  <h2 className="text-[13px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>Team хүсэлтүүд</h2>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {invites.map((invite) => (
-                    <div
-                      key={invite._id}
-                      className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-slate-100">
-                          {invite.team?.name || "Team"}
+                <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{invites.length}</span>
+              </div>
+              <div>
+                {loadingInvites ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="h-12 rounded-[9px] animate-pulse" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {invites.map((invite) => (
+                      <div
+                        key={invite._id}
+                        className="flex flex-col gap-2 rounded-[9px] px-4 py-3 text-[13px] sm:flex-row sm:items-center sm:justify-between"
+                        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}
+                      >
+                        <div className="min-w-0">
+                          <div className="font-medium" style={{ color: "var(--arc-text)" }}>{invite.team?.name || "Team"}</div>
+                          <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Урьсан: {invite.invitedBy?.username || "—"}</div>
                         </div>
-                        <div className="text-xs text-slate-500">
-                          Урьсан: {invite.invitedBy?.username || "—"}
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full px-2 py-1 text-[10px] uppercase font-semibold" style={{ background: "oklch(0.82 0.16 85/.08)", border: "1px solid oklch(0.82 0.16 85/.3)", color: "var(--arc-amber)" }}>pending</span>
+                          <span className="rounded-full px-2 py-1 text-[10px] uppercase" style={{ border: "1px solid var(--arc-border)", color: "var(--arc-dim)" }}>{invite.role}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => handleAcceptInvite(invite._id)} disabled={workingInviteId === invite._id}
+                            className="rounded-[7px] px-3 py-1.5 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-60"
+                            style={{ background: "oklch(0.72 0.16 145)", color: "#07070e", border: "none", cursor: "pointer" }}>
+                            Зөвшөөрөх
+                          </button>
+                          <button type="button" onClick={() => handleDeclineInvite(invite._id)} disabled={workingInviteId === invite._id}
+                            className="rounded-[7px] px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-60"
+                            style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: "pointer" }}>
+                            Татгалзах
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] uppercase text-amber-200">
-                          pending
-                        </span>
-                        <span className="rounded-full border border-slate-700 px-2 py-1 text-[10px] uppercase text-slate-300">
-                          {invite.role}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAcceptInvite(invite._id)}
-                          disabled={workingInviteId === invite._id}
-                          className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-60"
-                        >
-                          Зөвшөөрөх
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeclineInvite(invite._id)}
-                          disabled={workingInviteId === invite._id}
-                          className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-60"
-                        >
-                          Татгалзах
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
-        {/* Reading Progress */}
-        <ContinueReading bookmark={lastReadBookmark || undefined} totalChapters={totalChapters} />
+          {/* Tab content */}
+          {activeTab === "reading" && (
+            <ContinueReading bookmark={lastReadBookmark || undefined} totalChapters={totalChapters} />
+          )}
 
-        {/* Library Tabs */}
-        <LibraryTabs
-          favorites={favorites}
-          bookmarks={bookmarks}
-          recentlyRead={recentlyRead}
-        />
+          {(activeTab === "favorites" || activeTab === "bookmarks") && (
+            <LibraryTabs
+              favorites={favorites}
+              bookmarks={bookmarks}
+              recentlyRead={recentlyRead}
+              initialTab={activeTab === "favorites" ? "favorites" : "bookmarks"}
+            />
+          )}
 
-        {/* VIP Purchase */}
-        <VipPurchase />
+          {activeTab === "settings" && <ProfileSettings />}
+        </div>
 
-        {/* Profile Settings */}
-        <ProfileSettings />
+        {/* Sidebar — hidden on mobile */}
+        <div className="hidden md:flex flex-col gap-4">
+          <VipPurchase />
+        </div>
       </div>
     </div>
   );

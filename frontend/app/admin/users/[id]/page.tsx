@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminShell from "../../components/AdminShell";
 import {
@@ -88,10 +88,16 @@ export default function AdminUserDetailPage() {
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
+    background: "var(--arc-elevated)", padding: "8px 12px", fontSize: 12,
+    color: "var(--arc-text)", outline: "none",
+  };
+
   return (
-    <AdminShell>
+    <AdminShell title="Хэрэглэгч дэлгэрэнгүй" subtitle="Хэрэглэгчийн мэдээлэл засах, VIP олгох.">
       <div className="space-y-6">
-        {loading && <div className="text-sm text-slate-400">Loading...</div>}
+        {loading && <div className="text-[12px]" style={{ color: "var(--arc-muted)" }}>Ачаалж байна...</div>}
         {user && (
           <>
             <EditUserForm
@@ -103,54 +109,60 @@ export default function AdminUserDetailPage() {
               onUnblock={() => setConfirm("unblock")}
             />
 
-            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-lg shadow-black/30 space-y-3">
+            <div className="rounded-[14px] p-5 space-y-4" style={{ border: "1px solid oklch(0.82 0.16 85/.35)", background: "var(--arc-card)" }}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-amber-100">Record VIP payment + extend</h3>
-                  <p className="text-xs text-amber-200/80">
-                    This increases the monthly site balance for the payment month.
+                  <h3 className="text-[13px] font-semibold" style={{ color: "var(--arc-amber)" }}>VIP төлбөр бүртгэх + сунгах</h3>
+                  <p className="text-[11px] mt-0.5" style={{ color: "var(--arc-muted)" }}>
+                    Төлбөрийн сар дахь сарын балансыг нэмнэ.
                   </p>
                 </div>
-                <div className="text-xs text-amber-200">
-                  {user.vipExpiresAt ? `VIP until ${new Date(user.vipExpiresAt).toLocaleDateString()}` : "No VIP"}
+                <div className="text-[11px]" style={{ color: "var(--arc-dim)" }}>
+                  {user.vipExpiresAt ? `VIP дуусах: ${new Date(user.vipExpiresAt).toLocaleDateString()}` : "VIP байхгүй"}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-amber-200/80">Amount (MNT)</label>
+                <div>
+                  <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Дүн (MNT)</label>
                   <input
                     type="number"
                     min={0}
                     value={vipAmount}
                     onChange={(e) => setVipAmount(e.target.value)}
-                    placeholder="Optional"
-                    className="w-full rounded-xl border border-amber-500/30 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    placeholder="Сонголттой"
+                    style={inputStyle}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.82 0.16 85/.5)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-amber-200/80">Paid at</label>
+                <div>
+                  <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Төлсөн огноо</label>
                   <input
                     type="date"
                     value={vipPaidAt}
                     onChange={(e) => setVipPaidAt(e.target.value)}
-                    className="w-full rounded-xl border border-amber-500/30 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    style={inputStyle}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.82 0.16 85/.5)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-amber-200/80">Note</label>
+                <div>
+                  <label className="block mb-1 text-[11px]" style={{ color: "var(--arc-muted)" }}>Тэмдэглэл</label>
                   <input
                     type="text"
                     value={vipNote}
                     onChange={(e) => setVipNote(e.target.value)}
-                    placeholder="Optional"
-                    className="w-full rounded-xl border border-amber-500/30 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+                    placeholder="Сонголттой"
+                    style={inputStyle}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "oklch(0.82 0.16 85/.5)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--arc-border)")}
                   />
                 </div>
               </div>
 
               {vipError && (
-                <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                <div className="rounded-[9px] px-3 py-2 text-[11px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
                   {vipError}
                 </div>
               )}
@@ -161,9 +173,10 @@ export default function AdminUserDetailPage() {
                     key={m}
                     onClick={() => handleGrantVip(m)}
                     disabled={vipBusy}
-                    className="rounded-full border border-amber-400/70 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-50 hover:bg-amber-500/20 disabled:opacity-60"
+                    className="rounded-[8px] px-4 py-1.5 text-[11px] font-semibold transition-all hover:brightness-110 disabled:opacity-60"
+                    style={{ background: "var(--arc-amber)", color: "#07070e", border: "none", cursor: "pointer" }}
                   >
-                    +{m} month{m > 1 ? "s" : ""}
+                    +{m} сар
                   </button>
                 ))}
               </div>

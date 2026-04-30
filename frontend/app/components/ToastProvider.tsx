@@ -1,27 +1,10 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 type ToastVariant = "success" | "error" | "info";
-
-type ToastItem = {
-  id: string;
-  message: string;
-  variant: ToastVariant;
-  duration: number;
-};
-
-type ToastOptions = {
-  duration?: number;
-};
-
+type ToastItem = { id: string; message: string; variant: ToastVariant; duration: number };
+type ToastOptions = { duration?: number };
 type ToastContextValue = {
   success: (message: string, options?: ToastOptions) => void;
   error: (message: string, options?: ToastOptions) => void;
@@ -31,23 +14,23 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const VARIANT_STYLES: Record<
-  ToastVariant,
-  { container: string; accent: string; label: string }
-> = {
+const VARIANT_STYLES: Record<ToastVariant, { bg: string; border: string; dot: string; label: string }> = {
   success: {
-    container: "border-emerald-500/40 bg-emerald-500/10 text-emerald-50",
-    accent: "bg-emerald-400",
+    bg: "oklch(0.75 0.16 145/.08)",
+    border: "oklch(0.75 0.16 145/.35)",
+    dot: "oklch(0.75 0.16 145)",
     label: "Амжилттай",
   },
   error: {
-    container: "border-rose-500/40 bg-rose-500/10 text-rose-50",
-    accent: "bg-rose-400",
+    bg: "oklch(0.65 0.22 15/.08)",
+    border: "oklch(0.65 0.22 15/.35)",
+    dot: "oklch(0.65 0.22 15)",
     label: "Алдаа",
   },
   info: {
-    container: "border-cyan-500/40 bg-cyan-500/10 text-cyan-50",
-    accent: "bg-cyan-400",
+    bg: "oklch(0.72 0.17 195/.08)",
+    border: "oklch(0.72 0.17 195/.35)",
+    dot: "oklch(0.72 0.17 195)",
     label: "Мэдээлэл",
   },
 };
@@ -57,37 +40,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const timeouts = useRef<Map<string, number>>(new Map());
 
   const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    const timeoutId = timeouts.current.get(id);
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-      timeouts.current.delete(id);
-    }
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+    const tid = timeouts.current.get(id);
+    if (tid) { window.clearTimeout(tid); timeouts.current.delete(id); }
   }, []);
 
-  const pushToast = useCallback(
-    (variant: ToastVariant, message: string, options?: ToastOptions) => {
-      const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      const duration =
-        options?.duration ?? (variant === "error" ? 5000 : 3000);
-      const item: ToastItem = { id, message, variant, duration };
+  const pushToast = useCallback((variant: ToastVariant, message: string, options?: ToastOptions) => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const duration = options?.duration ?? (variant === "error" ? 5000 : 3000);
+    setToasts((prev) => [...prev, { id, message, variant, duration }]);
+    const tid = window.setTimeout(() => dismiss(id), duration);
+    timeouts.current.set(id, tid);
+  }, [dismiss]);
 
-      setToasts((prev) => [...prev, item]);
-      const timeoutId = window.setTimeout(() => dismiss(id), duration);
-      timeouts.current.set(id, timeoutId);
-    },
-    [dismiss]
-  );
-
-  const value = useMemo<ToastContextValue>(
-    () => ({
-      success: (message, options) => pushToast("success", message, options),
-      error: (message, options) => pushToast("error", message, options),
-      info: (message, options) => pushToast("info", message, options),
-      dismiss,
-    }),
-    [dismiss, pushToast]
-  );
+  const value = useMemo<ToastContextValue>(() => ({
+    success: (m, o) => pushToast("success", m, o),
+    error: (m, o) => pushToast("error", m, o),
+    info: (m, o) => pushToast("info", m, o),
+    dismiss,
+  }), [dismiss, pushToast]);
 
   return (
     <ToastContext.Provider value={value}>
@@ -98,27 +69,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         aria-atomic="true"
       >
         {toasts.map((toast) => {
-          const styles = VARIANT_STYLES[toast.variant];
+          const s = VARIANT_STYLES[toast.variant];
           return (
             <div
               key={toast.id}
-              className={`flex items-start gap-3 rounded-2xl border px-3 py-2 shadow-xl shadow-black/40 backdrop-blur ${styles.container}`}
+              className="flex items-start gap-3 rounded-[12px] px-3 py-2.5 shadow-xl"
+              style={{ background: s.bg, border: `1px solid ${s.border}`, backdropFilter: "blur(12px)" }}
             >
-              <span
-                className={`mt-1 h-2.5 w-2.5 rounded-full ${styles.accent}`}
-              />
+              <span className="mt-[3px] h-2 w-2 rounded-full shrink-0" style={{ background: s.dot }} />
               <div className="flex-1">
-                <p className="text-[10px] uppercase tracking-wide text-slate-300/80">
-                  {styles.label}
-                </p>
-                <p className="text-[12px] leading-snug text-slate-100">
-                  {toast.message}
-                </p>
+                <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: s.dot, opacity: 0.8 }}>{s.label}</p>
+                <p className="text-[12px] leading-snug" style={{ color: "var(--arc-text)" }}>{toast.message}</p>
               </div>
               <button
                 type="button"
                 onClick={() => dismiss(toast.id)}
-                className="rounded-full px-2 py-1 text-[12px] text-slate-300 hover:text-slate-100"
+                className="rounded-full px-1 text-[14px] leading-none transition-opacity opacity-50 hover:opacity-100"
+                style={{ color: "var(--arc-dim)" }}
                 aria-label="Dismiss"
               >
                 ×
@@ -133,8 +100,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export function useToast() {
   const ctx = useContext(ToastContext);
-  if (!ctx) {
-    throw new Error("useToast must be used within ToastProvider");
-  }
+  if (!ctx) throw new Error("useToast must be used within ToastProvider");
   return ctx;
 }

@@ -177,7 +177,7 @@ export default function AdminVipSettingsPage() {
         title="VIP Тохиргоо"
         subtitle="VIP төлөвлөгөө болон төлбөрийн мэдээллийг удирдах"
       >
-        <div className="flex min-h-[60vh] items-center justify-center text-sm text-slate-400">
+        <div className="flex min-h-[60vh] items-center justify-center text-[13px]" style={{ color: "var(--arc-muted)" }}>
           Ачаалж байна...
         </div>
       </AdminShell>
@@ -192,86 +192,78 @@ export default function AdminVipSettingsPage() {
       <div className="space-y-6">
         {/* Success/Error Messages */}
         {success && (
-          <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          <div className="rounded-[9px] px-4 py-3 text-[13px]" style={{ border: "1px solid oklch(0.75 0.17 145/.4)", background: "oklch(0.75 0.17 145/.08)", color: "oklch(0.8 0.14 145)" }}>
             VIP тохиргоо амжилттай хадгалагдлаа.
           </div>
         )}
         {error && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <div className="rounded-[9px] px-4 py-3 text-[13px]" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
             {error}
           </div>
         )}
 
         {/* Free Read Mode */}
-        <section className="rounded-2xl border border-amber-500/30 bg-slate-950/85 p-6 shadow-md shadow-black/40">
+        <section className="rounded-[14px] p-6" style={{ border: "1px solid oklch(0.82 0.16 85/.3)", background: "var(--arc-card)" }}>
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold text-slate-50">
+              <h3 className="text-[15px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
                 Үнэгүй унших горим
               </h3>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-[12px]" style={{ color: "var(--arc-muted)" }}>
                 Идэвхжүүлсэн үед бүх хэрэглэгч VIP байлгүйгээр унших боломжтой болно.
               </p>
             </div>
             <button
               onClick={() => setFreeReadEnabled((v) => !v)}
-              className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                freeReadEnabled ? "bg-amber-500" : "bg-slate-700"
-              }`}
+              className="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"
+              style={{ background: freeReadEnabled ? "var(--arc-amber)" : "var(--arc-border)" }}
             >
               <span
-                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
-                  freeReadEnabled ? "translate-x-5" : "translate-x-0"
-                }`}
+                className={`pointer-events-none inline-block h-6 w-6 transform rounded-full shadow ring-0 transition duration-200 ${freeReadEnabled ? "translate-x-5" : "translate-x-0"}`}
+                style={{ background: "#f0f0f5" }}
               />
             </button>
           </div>
 
           {freeReadEnabled && (
             <div className="mt-4">
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+              <label className="mb-1.5 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
                 Дуусах огноо (сонголттой — хоосон бол хугацаагүй)
               </label>
-              <input
-                type="datetime-local"
-                value={freeReadExpiresAt}
-                onChange={(e) => setFreeReadExpiresAt(e.target.value)}
-                className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 focus:border-amber-500/50 focus:outline-none"
-              />
+              <input type="datetime-local" value={freeReadExpiresAt} onChange={(e) => setFreeReadExpiresAt(e.target.value)}
+                className="rounded-[9px] px-3 py-2 text-[13px] outline-none"
+                style={{ border: "1px solid oklch(0.82 0.16 85/.4)", background: "var(--arc-elevated)", color: "var(--arc-text)" }} />
             </div>
           )}
 
           {freeReadSuccess && (
-            <p className="mt-3 text-xs text-emerald-400">Амжилттай хадгалагдлаа.</p>
+            <p className="mt-3 text-[11px]" style={{ color: "oklch(0.8 0.14 145)" }}>Амжилттай хадгалагдлаа.</p>
           )}
 
           <div className="mt-4 flex items-center gap-3">
-            <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-              freeReadEnabled
-                ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
-                : "bg-slate-800 text-slate-400 border border-slate-700"
-            }`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${freeReadEnabled ? "bg-amber-400" : "bg-slate-500"}`} />
+            <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium"
+              style={freeReadEnabled
+                ? { border: "1px solid oklch(0.82 0.16 85/.3)", background: "oklch(0.82 0.16 85/.08)", color: "var(--arc-amber)" }
+                : { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: freeReadEnabled ? "var(--arc-amber)" : "var(--arc-muted)" }} />
               {freeReadEnabled ? "Идэвхтэй" : "Идэвхгүй"}
             </div>
-            <button
-              onClick={handleFreeReadSave}
-              disabled={freeReadSaving}
-              className="rounded-lg bg-amber-500 px-4 py-1.5 text-xs font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
+            <button onClick={handleFreeReadSave} disabled={freeReadSaving}
+              className="rounded-[9px] px-4 py-1.5 text-[12px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+              style={{ background: "var(--arc-amber)", color: "#07070e", border: "none", cursor: "pointer" }}>
               {freeReadSaving ? "Хадгалж байна..." : "Хадгалах"}
             </button>
           </div>
         </section>
 
         {/* Payment Settings */}
-        <section className="rounded-2xl border border-slate-800/80 bg-slate-950/85 p-6 shadow-md shadow-black/40">
-          <h3 className="mb-4 text-base font-semibold text-slate-50">
+        <section className="rounded-[14px] p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+          <h3 className="mb-4 text-[15px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
             Төлбөрийн мэдээлэл
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+              <label className="mb-1.5 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
                 Банкны нэр
               </label>
               <input
@@ -280,12 +272,12 @@ export default function AdminVipSettingsPage() {
                 onChange={(e) =>
                   setPayment({ ...payment, bankName: e.target.value })
                 }
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
+                className="w-full rounded-[9px] px-3 py-2 text-[13px] outline-none" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
                 placeholder="Жишээ: ХААН Банк"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+              <label className="mb-1.5 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
                 Дансны нэр
               </label>
               <input
@@ -294,13 +286,13 @@ export default function AdminVipSettingsPage() {
                 onChange={(e) =>
                   setPayment({ ...payment, accountName: e.target.value })
                 }
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
+                className="w-full rounded-[9px] px-3 py-2 text-[13px] outline-none" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
                 placeholder="Жишээ: МАНХУА ПЛАТФОРМ"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                Дансны дугаар <span className="text-red-400">*</span>
+              <label className="mb-1.5 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
+                Дансны дугаар <span style={{ color: "var(--arc-rose)" }}>*</span>
               </label>
               <input
                 type="text"
@@ -308,20 +300,20 @@ export default function AdminVipSettingsPage() {
                 onChange={(e) =>
                   setPayment({ ...payment, accountNumber: e.target.value })
                 }
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none font-mono"
+                className="w-full rounded-[9px] px-3 py-2 text-[13px] outline-none font-mono" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
                 placeholder="XXXX-XXXX-XXXX"
                 required
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-slate-300">
+              <label className="mb-1.5 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
                 Тэмдэглэл (сонголттой)
               </label>
               <textarea
                 value={payment.note}
                 onChange={(e) => setPayment({ ...payment, note: e.target.value })}
                 rows={2}
-                className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
+                className="w-full rounded-[9px] px-3 py-2 text-[13px] outline-none" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)" }}
                 placeholder="Жишээ: Хуулга/гүйлгээ хийсний дараа админ баталгаажуулна."
               />
             </div>
@@ -329,144 +321,63 @@ export default function AdminVipSettingsPage() {
         </section>
 
         {/* Plans Settings */}
-        <section className="rounded-2xl border border-slate-800/80 bg-slate-950/85 p-6 shadow-md shadow-black/40">
-          <h3 className="mb-4 text-base font-semibold text-slate-50">
+        <section className="rounded-[14px] p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+          <h3 className="mb-4 text-[15px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>
             VIP Төлөвлөгөө (3 төлөвлөгөө)
           </h3>
           <div className="space-y-6">
             {plans.map((plan, planIndex) => (
-              <div
-                key={planIndex}
-                className="rounded-xl border border-slate-800 bg-slate-900/50 p-4"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <h4 className="text-sm font-semibold text-slate-200">
-                    Төлөвлөгөө {planIndex + 1}
-                  </h4>
-                </div>
+              <div key={planIndex} className="rounded-[12px] p-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+                <h4 className="text-[13px] font-semibold mb-4" style={{ color: "var(--arc-text)" }}>Төлөвлөгөө {planIndex + 1}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                      Key (Plan Code) <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={plan.key}
-                      onChange={(e) =>
-                        updatePlan(planIndex, { key: e.target.value })
-                      }
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none font-mono"
-                      placeholder="Жишээ: 1M, 3M, 6M"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                      Нэр <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={plan.title}
-                      onChange={(e) =>
-                        updatePlan(planIndex, { title: e.target.value })
-                      }
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
-                      placeholder="Жишээ: ACCESS 1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                      Үнэ (MNT) <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={plan.priceMnt}
-                      onChange={(e) =>
-                        updatePlan(planIndex, {
-                          priceMnt: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                      Хугацаа (өдөр) <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={plan.durationDays}
-                      onChange={(e) =>
-                        updatePlan(planIndex, {
-                          durationDays: parseInt(e.target.value) || 0,
-                        })
-                      }
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-300">
-                      Badge Label (сонголттой)
-                    </label>
-                    <input
-                      type="text"
-                      value={plan.badgeLabel || ""}
-                      onChange={(e) =>
-                        updatePlan(planIndex, {
-                          badgeLabel: e.target.value || null,
-                        })
-                      }
-                      className="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
-                      placeholder="Жишээ: Supporter, Founder"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 flex items-center gap-2 text-xs font-medium text-slate-300">
+                  {[
+                    { label: "Key (Plan Code)", key: "key" as const, type: "text", placeholder: "Жишээ: 1M, 3M, 6M", mono: true, required: true },
+                    { label: "Нэр", key: "title" as const, type: "text", placeholder: "Жишээ: ACCESS 1", required: true },
+                    { label: "Үнэ (MNT)", key: "priceMnt" as const, type: "number", required: true },
+                    { label: "Хугацаа (өдөр)", key: "durationDays" as const, type: "number", required: true },
+                    { label: "Badge Label (сонголттой)", key: "badgeLabel" as const, type: "text", placeholder: "Жишээ: Supporter, Founder" },
+                  ].map(({ label, key, type, placeholder, mono, required }) => (
+                    <div key={key}>
+                      <label className="mb-1.5 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
+                        {label}{required && <span style={{ color: "var(--arc-rose)" }}>*</span>}
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={plan.isHighlighted}
-                        onChange={(e) =>
-                          updatePlan(planIndex, { isHighlighted: e.target.checked })
-                        }
-                        className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500/50"
+                        type={type}
+                        value={(plan[key] as string | number) ?? ""}
+                        onChange={(e) => updatePlan(planIndex, { [key]: type === "number" ? (parseInt(e.target.value) || 0) : (e.target.value || (key === "badgeLabel" ? null : e.target.value)) } as any)}
+                        className={`w-full rounded-[9px] px-3 py-2 text-[12px] outline-none${mono ? " font-mono" : ""}`}
+                        style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-text)" }}
+                        placeholder={placeholder}
+                        required={required}
                       />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-2 text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>
+                      <input type="checkbox" checked={plan.isHighlighted} onChange={(e) => updatePlan(planIndex, { isHighlighted: e.target.checked })} className="h-4 w-4 accent-cyan-500" />
                       Most Popular (Highlight)
                     </label>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs font-medium text-slate-300">
-                    Онцлогууд
-                  </label>
+                  <label className="mb-2 block text-[11px] font-medium" style={{ color: "var(--arc-muted)" }}>Онцлогууд</label>
                   <div className="space-y-2">
                     {plan.features.map((feature, featureIndex) => (
                       <div key={featureIndex} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={feature}
-                          onChange={(e) =>
-                            updateFeature(planIndex, featureIndex, e.target.value)
-                          }
-                          className="flex-1 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none"
-                          placeholder="Онцлог"
-                        />
-                        <button
-                          onClick={() => removeFeature(planIndex, featureIndex)}
-                          className="rounded-lg border border-red-500/40 bg-red-500/10 px-2 py-1.5 text-xs text-red-300 hover:bg-red-500/20 transition-colors"
-                        >
+                        <input type="text" value={feature} onChange={(e) => updateFeature(planIndex, featureIndex, e.target.value)}
+                          className="flex-1 rounded-[9px] px-3 py-1.5 text-[12px] outline-none"
+                          style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-text)" }}
+                          placeholder="Онцлог" />
+                        <button onClick={() => removeFeature(planIndex, featureIndex)}
+                          className="rounded-[7px] px-2 py-1.5 text-[11px] transition-colors"
+                          style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)", cursor: "pointer" }}>
                           Устгах
                         </button>
                       </div>
                     ))}
-                    <button
-                      onClick={() => addFeature(planIndex)}
-                      className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
-                    >
+                    <button onClick={() => addFeature(planIndex)}
+                      className="rounded-[7px] px-3 py-1.5 text-[11px] transition-colors"
+                      style={{ border: "1px solid var(--arc-border)", background: "transparent", color: "var(--arc-dim)", cursor: "pointer" }}>
                       + Онцлог нэмэх
                     </button>
                   </div>
@@ -476,13 +387,10 @@ export default function AdminVipSettingsPage() {
           </div>
         </section>
 
-        {/* Save Button */}
         <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
+          <button onClick={handleSave} disabled={saving}
+            className="rounded-[9px] px-6 py-2.5 text-[13px] font-semibold transition-all hover:brightness-110 disabled:opacity-50"
+            style={{ background: "var(--arc-cyan)", color: "#07070e", border: "none", cursor: "pointer" }}>
             {saving ? "Хадгалж байна..." : "Хадгалах"}
           </button>
         </div>
