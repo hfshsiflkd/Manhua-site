@@ -77,11 +77,12 @@ type PopularTodayProps = {
 
 const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
   const [popular, setPopular] = useState<PopularItem[]>(legacyPopular || []);
-  const [loading, setLoading] = useState(!legacyPopular);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Server-с prop ирсэн бол дахин fetch хийхгүй
     if (legacyPopular && legacyPopular.length > 0) return;
-    const fetch = async () => {
+    const doFetch = async () => {
       try {
         setLoading(true);
         const res = await api.get<PopularItem[]>("/manhuas/popular-today", { params: { limit: 6 } });
@@ -92,7 +93,7 @@ const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
         setLoading(false);
       }
     };
-    fetch();
+    doFetch();
   }, [legacyPopular]);
 
   return (

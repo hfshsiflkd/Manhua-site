@@ -2,10 +2,13 @@
 "use client";
 
 import { useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 
-type Props = { isVIP?: boolean; vipExpiresAt?: string | null };
+export default function VipTrialReminder() {
+  const { user } = useAuth();
+  const isVIP = user?.isVIP;
+  const vipExpiresAt = user?.vipExpiresAt;
 
-export default function VipTrialReminder({ isVIP, vipExpiresAt }: Props) {
   const info = useMemo(() => {
     if (!isVIP || !vipExpiresAt) return null;
     const exp = new Date(vipExpiresAt).getTime();

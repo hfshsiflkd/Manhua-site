@@ -187,10 +187,7 @@ export default function ChapterReaderPage() {
 
   return (
     <div className="w-full">
-      <VipTrialReminder
-        isVIP={user?.isVIP}
-        vipExpiresAt={user?.vipExpiresAt ?? null}
-      />
+      <VipTrialReminder />
 
       {/* Sticky topbar with prev/next + progress bar */}
       <ChapterHeader
