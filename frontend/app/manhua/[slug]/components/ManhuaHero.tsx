@@ -59,6 +59,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   const lastUpdate = getTimeAgo(manhua.latestChapterAt || manhua.updatedAt);
   const status = (manhua.status || "ongoing").toLowerCase();
   const statusStyle = STATUS_STYLE[status] || STATUS_STYLE.ongoing;
+  const rating = manhua.ratingAverage || manhua.rating || 0;
 
   const favStyle: React.CSSProperties = {
     border: `1px solid ${fav.isFavorited ? "oklch(0.65 0.22 15/.5)" : "var(--arc-border)"}`,
@@ -146,10 +147,10 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
                 {manhua.status}
               </span>
               <div className="flex flex-wrap gap-2 text-[11px]" style={{ color: "var(--arc-muted)" }}>
-                {typeof manhua.ratingAverage === "number" && (
+                {rating > 0 && (
                   <span className="flex items-center gap-1">
                     <svg width="10" height="10" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)"><polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" /></svg>
-                    <b style={{ color: "var(--arc-text)" }}>{manhua.ratingAverage.toFixed(1)}</b>
+                    <b style={{ color: "var(--arc-text)" }}>{rating.toFixed(1)}</b>
                   </span>
                 )}
                 {totalChapters > 0 && <span>{totalChapters} ch</span>}
@@ -214,10 +215,10 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-[12px]" style={{ color: "var(--arc-dim)" }}>
-              {typeof manhua.ratingAverage === "number" && (
+              {rating > 0 && (
                 <span className="flex items-center gap-1.5">
                   <svg width="12" height="12" viewBox="0 0 20 20" fill="oklch(0.82 0.16 85)"><polygon points="10,1 12.9,7 19.5,7.6 14.5,12 16.2,18.5 10,15 3.8,18.5 5.5,12 0.5,7.6 7.1,7" /></svg>
-                  <b style={{ color: "var(--arc-text)" }}>{manhua.ratingAverage.toFixed(1)}</b>
+                  <b style={{ color: "var(--arc-text)" }}>{rating.toFixed(1)}</b>
                   <span style={{ color: "var(--arc-muted)" }}>/ 5</span>
                 </span>
               )}
