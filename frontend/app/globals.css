@@ -79,6 +79,12 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* Hide global header/footer inside chapter reader */
+[data-reader="true"] footer,
+[data-reader="true"] > body > header {
+  display: none !important;
+}
+
 /* Manhua reader full-bleed mobile */
 @media (max-width: 640px) {
   .reader-full-bleed img {

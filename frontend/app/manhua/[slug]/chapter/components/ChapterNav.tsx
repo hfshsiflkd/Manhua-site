@@ -48,7 +48,7 @@ export function ChapterNav({ slug, chapterNumber, hasPrev, hasNext, totalPages =
     else router.push(`/manhua/${slug}`);
   };
 
-  const visible = scrollPct >= 90;
+  const visible = scrollPct >= 100;
 
   return (
     <div

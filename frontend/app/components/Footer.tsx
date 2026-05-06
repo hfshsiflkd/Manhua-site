@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const Footer = () => {
   const pathname = usePathname();
-  if (/\/manhua\/.+\/chapter\//.test(pathname)) return null;
+  if (pathname?.includes("/manhua/") && pathname?.includes("/chapter/")) return null;
 
   return (
     <footer

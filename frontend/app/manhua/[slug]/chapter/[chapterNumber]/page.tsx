@@ -27,6 +27,12 @@ export default function ChapterReaderPage() {
   const params = useParams();
   const router = useRouter();
 
+  // Hide global header/footer while in reader
+  useEffect(() => {
+    document.documentElement.setAttribute("data-reader", "true");
+    return () => document.documentElement.removeAttribute("data-reader");
+  }, []);
+
   const slug = params.slug as string;
   const chapterNumber = Number(params.chapterNumber as string);
 
@@ -192,6 +198,7 @@ export default function ChapterReaderPage() {
       {/* Sticky topbar with prev/next + progress bar */}
       <ChapterHeader
         slug={slug}
+        manhuaTitle={decodeURIComponent(slug).replace(/-/g, " ").replace(/^\w/, (c) => c.toUpperCase())}
         chapter={chapter}
         onBack={() => router.back()}
         onPrev={() => chapter?.hasPrev && chapterNumber > 1 && router.push(`/manhua/${slug}/chapter/${chapterNumber - 1}`)}
