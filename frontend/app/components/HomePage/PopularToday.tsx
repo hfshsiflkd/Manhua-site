@@ -78,6 +78,8 @@ type PopularTodayProps = {
 const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
   const [popular, setPopular] = useState<PopularItem[]>(legacyPopular || []);
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     // Server-с prop ирсэн бол дахин fetch хийхгүй
@@ -186,7 +188,7 @@ const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
                         <span
                           className="text-[11px]"
                           style={{
-                            color: isChapterRead(item.slug, latestCh)
+                            color: mounted && isChapterRead(item.slug, latestCh)
                               ? "var(--arc-muted)"
                               : "var(--arc-dim)",
                           }}

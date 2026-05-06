@@ -181,7 +181,7 @@ exports.getPopularToday = async (req, res, next) => {
 // GET /api/home
 exports.getHomeSections = async (req, res, next) => {
   try {
-    const latestUpdatesLimit = Math.min(Number(req.query.latestUpdatesLimit) || 6, 30);
+    const latestUpdatesLimit = Math.min(Number(req.query.latestUpdatesLimit) || 6, 50);
     const cacheKey = `home-sections-${latestUpdatesLimit}`;
     const cached = await redisCache.get(cacheKey);
     if (cached) {

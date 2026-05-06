@@ -9,7 +9,7 @@ async function fetchHomeData() {
   const BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
   try {
     const res = await fetch(
-      `${BASE}/manhuas/home/sections?latestUpdatesLimit=6`,
+      `${BASE}/manhuas/home/sections?latestUpdatesLimit=50`,
       { next: { revalidate: 60 } }   // 60 сек кэш — DB-д дахин дахин хандахгүй
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -33,7 +33,7 @@ export default async function HomePage() {
       <HomePageHeader slides={data.hero} />
       <VipTrialReminder />
       <PopularToday popular={data.popularToday} />
-      <LatestUpdates updates={data.latestUpdates} limitDesktop={6} />
+      <LatestUpdates updates={data.latestUpdates} limitDesktop={50} />
       <TrialSurprise />
     </div>
   );

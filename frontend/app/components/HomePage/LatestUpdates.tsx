@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "./SectionHeader";
 import { isChapterRead } from "@/lib/useReadState";
 
@@ -29,14 +30,6 @@ type LatestUpdatesProps = {
   limitDesktop?: number;
 };
 
-function isNewWithinHours(date?: string | Date, hours = 8): boolean {
-  if (!date) return false;
-  const d = date instanceof Date ? date : new Date(date as string);
-  if (isNaN(d.getTime())) return false;
-  const diffMs = Date.now() - d.getTime();
-  return diffMs >= 0 && diffMs <= hours * 3600000;
-}
-
 function formatTimeAgo(date?: string | Date): string {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date as string);
@@ -50,12 +43,14 @@ function formatTimeAgo(date?: string | Date): string {
     if (mins >= 1) return `${mins}м өмнө`;
     return "Саяхан";
   }
-  if (days === 1) return "1 өдөр өмнө";
   if (days < 7) return `${days} өдөр өмнө`;
   return `${Math.floor(days / 7)} дол. өмнө`;
 }
 
-const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
+const LatestUpdates = ({ updates, limitDesktop = 50 }: LatestUpdatesProps) => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const items = updates.slice(0, limitDesktop);
 
   return (
@@ -63,44 +58,75 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
       <div className="mx-auto" style={{ maxWidth: "var(--arc-max-w)" }}>
         <SectionHeader title="Latest Updates" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: "2px" }}>
+        {/* 1 col mobile, 2 col desktop */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-2"
+          style={{ gap: "2px 32px" }}
+        >
           {items.map((item) => {
-            const chapters = (item.latestChapters?.length ? item.latestChapters : item.chapters).slice(0, 3);
+            const chapters = (
+              item.latestChapters?.length ? item.latestChapters : item.chapters
+            ).slice(0, 3);
 
             return (
               <div
                 key={item.manhuaId}
-                className="group flex gap-3 rounded-[10px] transition-colors"
-                style={{ padding: "12px", margin: "0 -12px" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                className="group flex gap-4 rounded-[10px] transition-colors"
+                style={{ padding: "14px 10px", margin: "0 -10px" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.background =
+                    "rgba(255,255,255,0.03)")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.background =
+                    "transparent")
+                }
               >
-                {/* COVER */}
-                <Link href={`/manhua/${item.slug}`} prefetch={false} className="shrink-0 block">
+                {/* COVER — large square */}
+                <Link
+                  href={`/manhua/${item.slug}`}
+                  prefetch={false}
+                  className="shrink-0 block"
+                >
                   <div
-                    className="overflow-hidden"
+                    className="overflow-hidden rounded-[10px]"
                     style={{
-                      width: 50,
-                      height: 70,
-                      borderRadius: 7,
+                      width: 76,
+                      height: 108,
                       background: "var(--arc-elevated)",
+                      border: "1px solid var(--arc-border)",
+                      flexShrink: 0,
                     }}
                   >
-                    <img
-                      src={item.cover}
-                      alt={item.title}
-                      className="h-full w-full object-cover"
-                    />
+                    {item.cover ? (
+                      <img
+                        src={item.cover}
+                        alt={item.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="h-full w-full flex items-center justify-center"
+                        style={{ color: "var(--arc-muted)" }}
+                      >
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" opacity={0.3}>
+                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                      </div>
+                    )}
                   </div>
                 </Link>
 
                 {/* BODY */}
-                <div className="flex flex-1 flex-col min-w-0 gap-1.5">
+                <div className="flex flex-1 flex-col min-w-0 gap-2">
+                  {/* Title */}
                   <Link href={`/manhua/${item.slug}`} prefetch={false}>
                     <h3
-                      className="line-clamp-2 text-[13px] font-semibold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
+                      className="line-clamp-1 font-bold leading-snug transition-colors group-hover:text-[var(--arc-cyan)]"
                       style={{
-                        fontFamily: "var(--font-head, 'Space Grotesk', sans-serif)",
+                        fontFamily:
+                          "var(--font-head, 'Space Grotesk', sans-serif)",
+                        fontSize: 15,
                         color: "var(--arc-text)",
                       }}
                     >
@@ -108,48 +134,62 @@ const LatestUpdates = ({ updates, limitDesktop = 6 }: LatestUpdatesProps) => {
                     </h3>
                   </Link>
 
-                  <div className="flex flex-col gap-1">
+                  {/* Chapters */}
+                  <div className="flex flex-col gap-1.5">
                     {chapters.map((ch, idx) => {
-                      const isRead = isChapterRead(item.slug, ch.chapterNumber ?? null);
-                      const isNew = !isRead && isNewWithinHours(ch.createdAt, 8);
-                      const label = ch.chapterNumber != null ? `Chapter ${ch.chapterNumber}` : `Chapter ${idx + 1}`;
-                      const href = ch.chapterNumber != null
-                        ? `/manhua/${item.slug}/chapter/${ch.chapterNumber}`
-                        : `/manhua/${item.slug}`;
+                      const chNum = ch.chapterNumber ?? ch.number;
+                      const isRead =
+                        mounted && isChapterRead(item.slug, chNum ?? null);
+                      const label =
+                        chNum != null ? `Chapter ${chNum}` : `Chapter ${idx + 1}`;
+                      const href =
+                        chNum != null
+                          ? `/manhua/${item.slug}/chapter/${chNum}`
+                          : `/manhua/${item.slug}`;
+                      const timeStr = formatTimeAgo(ch.createdAt);
 
                       return (
                         <div
                           key={`${item.slug}-${idx}`}
-                          className="flex items-center gap-1.5 text-[12px]"
-                          style={{ color: isRead ? "var(--arc-muted)" : "var(--arc-dim)" }}
+                          className="flex items-center gap-2"
                         >
+                          {/* red dot */}
                           <span
                             className="shrink-0 rounded-full"
                             style={{
-                              width: 5,
-                              height: 5,
-                              background: isRead ? "var(--arc-muted)" : "var(--arc-rose)",
+                              width: 6,
+                              height: 6,
+                              background: isRead
+                                ? "var(--arc-muted)"
+                                : "var(--arc-rose)",
                               opacity: isRead ? 0.4 : 1,
+                              flexShrink: 0,
                             }}
                           />
+
+                          {/* chapter link — takes remaining space */}
                           <Link
                             href={href}
                             prefetch={false}
-                            className="flex-1 min-w-0 truncate hover:text-white transition-colors"
+                            className="flex-1 min-w-0 truncate text-[13px] transition-colors hover:text-white"
+                            style={{
+                              color: isRead
+                                ? "var(--arc-muted)"
+                                : "var(--arc-dim)",
+                            }}
                           >
                             {label}
                           </Link>
-                          {isNew && (
+
+                          {/* time — right-aligned */}
+                          {timeStr && (
                             <span
-                              className="shrink-0 rounded text-[9px] font-bold px-1 py-px"
-                              style={{ background: "var(--arc-rose)", color: "#fff" }}
+                              className="shrink-0 text-[11px]"
+                              style={{ color: "var(--arc-muted)" }}
                             >
-                              NEW
+                              {timeStr}
                             </span>
                           )}
-                          <span className="ml-auto shrink-0 text-[10px]" style={{ color: "var(--arc-muted)" }}>
-                            {formatTimeAgo(ch.createdAt)}
-                          </span>
                         </div>
                       );
                     })}
