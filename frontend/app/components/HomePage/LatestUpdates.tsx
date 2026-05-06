@@ -30,6 +30,10 @@ type LatestUpdatesProps = {
   limitDesktop?: number;
 };
 
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
 function formatTimeAgo(date?: string | Date): string {
   if (!date) return "";
   const d = date instanceof Date ? date : new Date(date as string);
@@ -38,13 +42,11 @@ function formatTimeAgo(date?: string | Date): string {
   const mins = Math.floor(diffMs / 60000);
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
-  if (days === 0) {
-    if (hours >= 1) return `${hours}ц өмнө`;
-    if (mins >= 1) return `${mins}м өмнө`;
-    return "Саяхан";
-  }
-  if (days < 7) return `${days} өдөр өмнө`;
-  return `${Math.floor(days / 7)} дол. өмнө`;
+  if (mins < 1) return "Саяхан";
+  if (mins < 60) return `${mins}м өмнө`;
+  if (hours < 24) return `${hours}ц өмнө`;
+  if (days < 30) return `${days} өдөр өмнө`;
+  return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}`;
 }
 
 const LatestUpdates = ({ updates, limitDesktop = 50 }: LatestUpdatesProps) => {

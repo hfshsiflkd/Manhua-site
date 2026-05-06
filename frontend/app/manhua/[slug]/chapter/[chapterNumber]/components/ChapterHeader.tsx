@@ -9,6 +9,24 @@ import SmallSpinner from "./SmallSpinner";
 interface ChapterListItem {
   chapterNumber: number;
   title?: string;
+  createdAt?: string;
+}
+
+function formatChapterDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const diffMs = Date.now() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays < 30) {
+    if (diffDays === 0) {
+      const mins = Math.floor(diffMs / 60000);
+      if (mins < 60) return mins <= 1 ? "Саяхан" : `${mins}м өмнө`;
+      return `${Math.floor(mins / 60)}ц өмнө`;
+    }
+    return `${diffDays} өдөр өмнө`;
+  }
+  return d.toLocaleDateString("mn-MN", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 export default function ChapterHeader({
@@ -330,13 +348,23 @@ export default function ChapterHeader({
                       >
                         Ch. {ch.chapterNumber}
                       </span>
-                      {ch.title && (
+                      {ch.title ? (
                         <span style={{ fontSize: 12, color: "var(--arc-muted)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {ch.title}
                         </span>
+                      ) : (
+                        <span style={{ flex: 1 }} />
                       )}
+                      {(() => {
+                        const dateLabel = formatChapterDate(ch.createdAt);
+                        return dateLabel ? (
+                          <span style={{ fontSize: 10, color: "var(--arc-muted)", flexShrink: 0, whiteSpace: "nowrap" }}>
+                            {dateLabel}
+                          </span>
+                        ) : null;
+                      })()}
                       {isCurrent && (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ color: "var(--arc-cyan)", flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ color: "var(--arc-cyan)", flexShrink: 0, marginLeft: 4 }}>
                           <path d="M20 6L9 17l-5-5"/>
                         </svg>
                       )}

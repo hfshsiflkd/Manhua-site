@@ -1,6 +1,7 @@
 // src/controllers/authController.js
 const { getClientIP } = require("../utils/ip");
-const { registerUser, loginUser, getMe } = require("../services/authService");
+const { registerUser, loginUser } = require("../services/authService");
+const { computeIsVIP } = require("../utils/vip");
 
 const User = require("../models/User");
 const crypto = require("crypto");
@@ -261,8 +262,25 @@ exports.login = async (req, res, next) => {
 exports.me = async (req, res, next) => {
   try {
     noStore(res);
-    const me = await getMe(req.user.id);
-    return sendSuccess(res, { user: me });
+    const user = req.user; // already fetched by protect middleware — no second DB query
+    const isVIP = computeIsVIP(user);
+
+    // If VIP expired since last login, update DB async (don't block response)
+    if (user.isVIP !== isVIP) {
+      User.findByIdAndUpdate(user._id || user.id, { isVIP }).catch(() => {});
+    }
+
+    return sendSuccess(res, {
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        isVIP,
+        vipExpiresAt: user.vipExpiresAt,
+        avatar: user.avatar || null,
+      },
+    });
   } catch (err) {
     if (err.statusCode) {
       return sendError(res, err.statusCode, err.message, err.code || "ERROR");

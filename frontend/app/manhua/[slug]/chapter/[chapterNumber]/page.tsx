@@ -63,56 +63,45 @@ export default function ChapterReaderPage() {
 
     async function run() {
       try {
-        // 1) ME + free read mode хамт авах
-        let me: UserMe | null = null;
-        try {
-          const [meRes, freeRes] = await Promise.all([
-            api.get("/auth/me", { headers: { "Cache-Control": "no-store" } }),
-            getPublicFreeReadMode().catch(() => ({ active: false, expiresAt: null })),
-          ]);
-          me = meRes.data?.user || meRes.data;
-          if (!cancelled) setFreeReadActive(freeRes.active);
-        } catch (err: any) {
-          console.error("Failed to fetch user:", err);
-          me = null;
-        }
+        // Гурвыг зэрэг fetch — waterfall арилгана
+        const [meResult, freeResult, chapterResult] = await Promise.allSettled([
+          api.get("/auth/me"),
+          getPublicFreeReadMode().catch(() => ({ active: false, expiresAt: null })),
+          api.get<Chapter>(`/manhuas/${slug}/chapters/${chapterNumber}`),
+        ]);
 
         if (cancelled) return;
+
+        // Auth
+        let me: UserMe | null = null;
+        if (meResult.status === "fulfilled") {
+          me = meResult.value.data?.user || meResult.value.data;
+        }
+
+        // Free read
+        if (freeResult.status === "fulfilled") {
+          setFreeReadActive((freeResult.value as { active: boolean }).active);
+        }
+
         setUser(me);
 
-        // login шаардах бол chapter авахгүй
         if (me === null) {
           setLoading(false);
           return;
         }
 
-        // 2) дараа нь chapter (VIP state тодорхой болсон үед)
-        try {
-          const r2 = await api.get<Chapter>(
-            `/manhuas/${slug}/chapters/${chapterNumber}`,
-            { headers: { "Cache-Control": "no-store" } } // bonus
-          );
-          if (cancelled) return;
-
-          setChapter(r2.data);
-
-          // Set total pages count
-          const pages = Array.isArray(r2.data?.pages) ? r2.data.pages : [];
+        // Chapter
+        if (chapterResult.status === "fulfilled") {
+          const data = chapterResult.value.data;
+          setChapter(data);
+          const pages = Array.isArray(data?.pages) ? data.pages : [];
           setTotalPagesCount(pages.length);
           setImagesLoading(pages.length > 0);
-
-          // Mark chapter as read when successfully loaded
-          if (Number.isFinite(r2.data?.chapterNumber)) {
-            markChapterAsRead(slug, r2.data.chapterNumber);
+          if (Number.isFinite(data?.chapterNumber)) {
+            markChapterAsRead(slug, data.chapterNumber);
           }
-
-          // VIP мөртлөө pages байхгүй бол backend дээр VIP танигдахгүй байна гэсэн дохио
-          if (me.isVIP && !("pages" in (r2.data as any))) {
-            // энэ тохиолдолд gate-аа заавал асаахгүй, харин backend-ээ засах хэрэгтэй гэдгийг илтгэнэ
-            // хүсвэл энд console.warn хийж болно
-          }
-        } catch (err: any) {
-          if (cancelled) return;
+        } else {
+          const err = chapterResult.reason as any;
           if (err?.response?.status === 403) setVipGateFromApi(true);
           setChapter(null);
         }

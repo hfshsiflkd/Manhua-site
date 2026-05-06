@@ -24,15 +24,13 @@ function getTimeAgo(dateStr?: string | null) {
   const diffMs = Date.now() - date.getTime();
   if (diffMs < 0) return "Soon";
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} мин`;
+  if (mins < 1) return "Саяхан";
+  if (mins < 60) return `${mins}м өмнө`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}ц`;
+  if (hours < 24) return `${hours}ц өмнө`;
   const days = Math.floor(hours / 24);
-  if (days === 1) return "1 өдөр";
-  if (days < 7) return `${days} өдөр`;
-  if (days < 30) return `${Math.floor(days / 7)} дол.`;
-  return `${Math.floor(days / 30)} сар`;
+  if (days < 30) return `${days} өдөр өмнө`;
+  return date.toLocaleDateString("mn-MN", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 function isNew(dateStr?: string | null) {
@@ -105,7 +103,7 @@ export function ManhuaChapters({ slug, chapters, manhua }: ManhuaChaptersProps) 
                 <div className="w-[3px] h-[14px] rounded-sm" style={{ background: "var(--arc-cyan)", boxShadow: "0 0 8px var(--arc-cyan-glow)" }} />
                 <span className="text-[14px] font-bold" style={{ fontFamily: "var(--font-head,'Space Grotesk',sans-serif)", color: "var(--arc-text)" }}>Chapters</span>
                 {chapters.length > 0 && (
-                  <span className="text-[12px]" style={{ color: "var(--arc-muted)" }}>{chapters.length} total</span>
+                  <span className="text-[11px] font-semibold rounded-full px-2 py-0.5" style={{ background: "var(--arc-cyan-dim, oklch(0.72 0.17 195/.1))", color: "var(--arc-cyan)" }}>{chapters.length}</span>
                 )}
               </div>
               <button

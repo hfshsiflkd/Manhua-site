@@ -15,14 +15,15 @@ function getTimeAgo(d?: string | number | Date | null) {
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return "";
   const ms = Date.now() - date.getTime();
-  if (ms < 0) return "Soon";
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return "Just now";
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const dy = Math.floor(h / 24);
-  return dy === 1 ? "1 day ago" : `${dy} days ago`;
+  if (ms < 0) return "";
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "Саяхан";
+  if (mins < 60) return `${mins}м өмнө`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}ц өмнө`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} өдөр өмнө`;
+  return date.toLocaleDateString("mn-MN", { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
@@ -56,7 +57,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
   const totalChapters = chapters.length;
   const latestCh = totalChapters > 0 ? chapters[0] : null;
   const firstCh = totalChapters > 0 ? chapters[totalChapters - 1] : null;
-  const lastUpdate = getTimeAgo(manhua.latestChapterAt || manhua.updatedAt);
+  const lastUpdate = getTimeAgo(manhua.latestChapterAt);
   const status = (manhua.status || "ongoing").toLowerCase();
   const statusStyle = STATUS_STYLE[status] || STATUS_STYLE.ongoing;
   const rating = manhua.ratingAverage || manhua.rating || 0;
