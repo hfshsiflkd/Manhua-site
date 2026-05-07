@@ -1,5 +1,6 @@
 // src/controllers/settingsController.js
 const AppSetting = require("../models/AppSetting");
+const redisCache = require("../cache/redisCache");
 
 // Default VIP settings
 const DEFAULT_VIP_SETTINGS = {
@@ -52,13 +53,16 @@ const DEFAULT_VIP_SETTINGS = {
 
 // Helper to get or create VIP settings
 async function getOrCreateVipSettings() {
+  const cKey = "settings:vip";
+  const cached = await redisCache.get(cKey);
+  if (cached) return cached;
+
   let setting = await AppSetting.findOne({ key: "vip" });
   if (!setting) {
-    setting = await AppSetting.create({
-      key: "vip",
-      value: DEFAULT_VIP_SETTINGS,
-    });
+    setting = await AppSetting.create({ key: "vip", value: DEFAULT_VIP_SETTINGS });
   }
+
+  redisCache.set(cKey, setting.value, 3600).catch(() => {}); // 1 цаг
   return setting.value;
 }
 

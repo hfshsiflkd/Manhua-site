@@ -1,6 +1,7 @@
 // src/services/manhuaService.js
 const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
+const redisCache = require("../cache/redisCache");
 
 /**
  * query-с filter үүсгэнэ
@@ -74,6 +75,14 @@ async function getLastChapters(manhuaIds = []) {
 
 exports.fetchManhuaList = async ({ query, page, limit }) => {
   const filter = buildFilter(query);
+  // Filter байвал (search/genre) cache хийхгүй — үргэлж өөр result
+  const isDefaultQuery = !query.q && !query.genre && !query.status && !query.teamId;
+  const cKey = isDefaultQuery ? `manhua:list:${page}:${limit}` : null;
+
+  if (cKey) {
+    const cached = await redisCache.get(cKey);
+    if (cached) return cached;
+  }
 
   const { manhuas, total } = await getManhuas(filter, page, limit);
   const lastChapterMap = await getLastChapters(manhuas.map((m) => m._id));
@@ -89,14 +98,20 @@ exports.fetchManhuaList = async ({ query, page, limit }) => {
     };
   });
 
-  return { items, total };
+  const result = { items, total };
+  if (cKey) redisCache.set(cKey, result, 120).catch(() => {}); // 2 мин
+  return result;
 };
 
 /**
  * Single manhua
  */
 exports.fetchManhuaBySlug = async (slug) => {
-  return Manhua.findOne({ slug })
+  const cKey = `manhua:slug:${slug}`;
+  const cached = await redisCache.get(cKey);
+  if (cached) return cached;
+
+  const manhua = await Manhua.findOne({ slug })
     .populate({
       path: "chapters",
       match: { status: "published" },
@@ -104,4 +119,7 @@ exports.fetchManhuaBySlug = async (slug) => {
       select: "chapterNumber title language status views createdAt updatedAt",
     })
     .lean();
+
+  if (manhua) redisCache.set(cKey, manhua, 300).catch(() => {}); // 5 мин
+  return manhua;
 };

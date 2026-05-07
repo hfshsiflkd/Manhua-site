@@ -1,5 +1,8 @@
 const Favorite = require("../models/Favorite");
 const Manhua = require("../models/Manhua");
+const redisCache = require("../cache/redisCache");
+
+const favCacheKey = (userId) => `user:favorites:${userId}`;
 
 // POST /api/me/favorites/:manhuaId (toggle)
 exports.toggleFavorite = async (req, res, next) => {
@@ -19,18 +22,12 @@ exports.toggleFavorite = async (req, res, next) => {
     });
 
     if (existing) {
-      // Remove favorite
-      await Favorite.findOneAndDelete({
-        user: req.user._id,
-        manhua: manhuaId,
-      });
+      await Favorite.findOneAndDelete({ user: req.user._id, manhua: manhuaId });
+      redisCache.del(favCacheKey(req.user._id)).catch(() => {});
       return res.json({ isFavorited: false, message: "Favorite removed" });
     } else {
-      // Add favorite
-      const fav = await Favorite.create({
-        user: req.user._id,
-        manhua: manhuaId,
-      });
+      const fav = await Favorite.create({ user: req.user._id, manhua: manhuaId });
+      redisCache.del(favCacheKey(req.user._id)).catch(() => {});
       return res.json({ isFavorited: true, favorite: fav });
     }
   } catch (err) {
@@ -85,10 +82,15 @@ exports.removeFavorite = async (req, res, next) => {
 // GET /api/me/favorites
 exports.getMyFavorites = async (req, res, next) => {
   try {
-    const favorites = await Favorite.find({ user: req.user._id })
-      .populate("manhua")
+    const cKey = favCacheKey(req.user._id || req.user.id);
+    const cached = await redisCache.get(cKey);
+    if (cached) return res.json(cached);
+
+    const favorites = await Favorite.find({ user: req.user._id || req.user.id })
+      .populate("manhua", "title slug coverImageUrl coverImage")
       .lean();
 
+    redisCache.set(cKey, favorites, 60).catch(() => {}); // 1 мин
     res.json(favorites);
   } catch (err) {
     next(err);
