@@ -16,14 +16,12 @@ function getRedisClient() {
   if (!url) return null;
 
   redis = new Redis(url, {
-    // Keep default retry strategy; callers should handle null client if not configured
-    maxRetriesPerRequest: 1,
-    enableReadyCheck: true,
-    lazyConnect: true,
+    maxRetriesPerRequest: 0,   // fail fast — DB fallback тэр даруй
+    enableReadyCheck: false,
+    lazyConnect: false,        // cold start-д тэр даруй холбогдоно
+    connectTimeout: 3000,
+    commandTimeout: 1000,      // 1s-д хариу өгөхгүй бол skip
   });
-
-  // Best-effort connect; don't crash the app if Redis is down.
-  redis.connect().catch(() => {});
 
   return redis;
 }
