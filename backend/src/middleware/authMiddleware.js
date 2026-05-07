@@ -104,6 +104,28 @@ exports.protect = async (req, res, next) => {
   }
 };
 
+// /auth/me зэрэг зөвхөн профайл буцаадаг endpoint-д ашиглана.
+// DB/Redis дуудахгүй — JWT payload-аас шууд буцаана (<5ms).
+exports.protectLight = (req, res, next) => {
+  let token;
+  if (req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  if (!token) return res.status(401).json({ message: "Token олдсонгүй" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+
+    if (req.audit) {
+      req.audit.user = { id: decoded.id, username: decoded.username, role: decoded.role };
+    }
+    next();
+  } catch {
+    return res.status(401).json({ message: "Token алдаатай" });
+  }
+};
+
 exports.requireRole =
   (...allowedRoles) =>
   (req, res, next) => {

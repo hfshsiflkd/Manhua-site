@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { register, login, me } = require("../controllers/authController");
 const authController = require("../controllers/authController");
-const { protect } = require("../middleware/authMiddleware");
+const { protect, protectLight } = require("../middleware/authMiddleware");
 const {
   forgotPasswordIpLimiter,
   forgotPasswordEmailLimiter,
@@ -17,8 +17,8 @@ router.post("/register", registerLimiter, register);
 // Нэвтрэх (email эсвэл username ашиглаж болно)
 router.post("/login", loginLimiter, login);
 
-// Өөрийгөө авах
-router.get("/me", protect, me);
+// Өөрийгөө авах — DB дуудахгүй, JWT-аас шууд (protectLight)
+router.get("/me", protectLight, me);
 
 // Forgot password with rate limiting
 router.post(

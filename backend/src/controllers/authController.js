@@ -259,34 +259,23 @@ exports.login = async (req, res, next) => {
   }
 };
 
-exports.me = async (req, res, next) => {
-  try {
-    noStore(res);
-    const user = req.user; // already fetched by protect middleware — no second DB query
-    const isVIP = computeIsVIP(user);
+exports.me = (req, res) => {
+  noStore(res);
+  // req.user = JWT decoded payload (protectLight) — DB дуудахгүй
+  const u = req.user;
+  const isVIP = u.vipExpiresAt ? new Date(u.vipExpiresAt).getTime() > Date.now() : (u.isVIP || false);
 
-    // If VIP expired since last login, update DB async (don't block response)
-    if (user.isVIP !== isVIP) {
-      User.findByIdAndUpdate(user._id || user.id, { isVIP }).catch(() => {});
-    }
-
-    return sendSuccess(res, {
-      user: {
-        _id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        isVIP,
-        vipExpiresAt: user.vipExpiresAt,
-        avatar: user.avatar || null,
-      },
-    });
-  } catch (err) {
-    if (err.statusCode) {
-      return sendError(res, err.statusCode, err.message, err.code || "ERROR");
-    }
-    next(err);
-  }
+  return sendSuccess(res, {
+    user: {
+      _id: u.id || u._id,
+      username: u.username,
+      email: u.email,
+      role: u.role,
+      isVIP,
+      vipExpiresAt: u.vipExpiresAt || null,
+      avatar: u.avatar || null,
+    },
+  });
 };
 
 exports.forgotPassword = async (req, res, next) => {
