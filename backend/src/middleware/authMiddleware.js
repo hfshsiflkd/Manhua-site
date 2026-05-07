@@ -1,5 +1,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { get: cacheGet, set: cacheSet, del: cacheDel } = require("../cache/redisCache");
+
+const USER_CACHE_TTL = 60; // seconds
+
+function cacheKey(userId) {
+  return `auth:user:${userId}`;
+}
 
 exports.protect = async (req, res, next) => {
   let token;
@@ -18,68 +25,70 @@ exports.protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id);
+    const key = cacheKey(decoded.id);
+    let user = await cacheGet(key);
+
+    // Cache hit but sessionToken changed (new login) → re-fetch
+    if (user && user.sessionToken !== (decoded.sessionToken || null)) {
+      user = null;
+    }
+
+    if (!user) {
+      user = await User.findById(decoded.id)
+        .select("-bookmarks -recentlyViewed")
+        .lean();
+      if (user) {
+        cacheSet(key, user, USER_CACHE_TTL).catch(() => {});
+      }
+    }
 
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "Хэрэглэгч идэвхгүй байна" });
     }
 
-    // ✅ LOCK CHECK - Check if user is locked
+    // LOCK CHECK
     const now = Date.now();
     if (user.lockUntil && new Date(user.lockUntil).getTime() > now) {
       const lockUntil = new Date(user.lockUntil);
       const remainingSeconds = Math.ceil((lockUntil.getTime() - now) / 1000);
 
-      // Check if this is a device switch lock
       const isDeviceSwitchLock = user.lockReason === "Too many device switches";
       const response = {
         success: false,
         message: "Түр түгжигдсэн. Дахин оролдоно уу.",
-        code: isDeviceSwitchLock
-          ? "DEVICE_SWITCH_LOCK"
-          : user.lockReason || "LOCKED",
+        code: isDeviceSwitchLock ? "DEVICE_SWITCH_LOCK" : user.lockReason || "LOCKED",
         lockUntil: lockUntil.toISOString(),
         remainingSeconds,
         reason: user.lockReason || "LOCKED",
       };
 
-      // Add devicePolicy metadata for device switch locks
       if (isDeviceSwitchLock && user.deviceSwitchCount) {
-        const lockMinutes = Math.ceil(remainingSeconds / 60);
         response.devicePolicy = {
           status: "locked",
           count: user.deviceSwitchCount,
-          minutesLocked: lockMinutes,
+          minutesLocked: Math.ceil(remainingSeconds / 60),
         };
       }
 
       return res.status(423).json(response);
     }
 
-    // ✅ SINGLE SESSION CHECK
-    // login дээр user.sessionToken шинэчлэгддэг.
-    // JWT-д sessionToken хадгалагдсан байдаг (genToken дээр чинь байгаа).
+    // SINGLE SESSION CHECK
     const jwtSession = decoded.sessionToken || null;
     const dbSession = user.sessionToken || null;
-
     if (jwtSession !== dbSession) {
-      return res.status(401).json({
-        message: "Session expired. Дахин нэвтэрнэ үү.",
-      });
+      return res.status(401).json({ message: "Session expired. Дахин нэвтэрнэ үү." });
     }
 
-    // tokenVersion check to force logout existing tokens
+    // tokenVersion check
     const jwtVersion = decoded.tokenVersion || 0;
     const dbVersion = user.tokenVersion || 0;
     if (jwtVersion !== dbVersion) {
-      return res
-        .status(401)
-        .json({ message: "Session invalidated. Please login again." });
+      return res.status(401).json({ message: "Session invalidated. Please login again." });
     }
 
-    req.user = user.toObject({ getters: true });
+    req.user = user;
 
-    // Attach user info to audit context
     if (req.audit) {
       req.audit.user = {
         id: req.user._id || req.user.id,
@@ -103,10 +112,13 @@ exports.requireRole =
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return res
-        .status(403)
-        .json({ message: "Энэ үйлдэлд эрх хүрэхгүй байна" });
+      return res.status(403).json({ message: "Энэ үйлдэлд эрх хүрэхгүй байна" });
     }
 
     next();
   };
+
+// Call after login/password-change/ban so the next request re-fetches from DB
+exports.invalidateUserCache = (userId) => {
+  cacheDel(cacheKey(userId)).catch(() => {});
+};

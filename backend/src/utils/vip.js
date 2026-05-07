@@ -1,6 +1,7 @@
 function computeIsVIP(user) {
   if (!user.vipExpiresAt) return false;
-  return user.vipExpiresAt.getTime() > Date.now();
+  const d = user.vipExpiresAt instanceof Date ? user.vipExpiresAt : new Date(user.vipExpiresAt);
+  return d.getTime() > Date.now();
 }
 
 module.exports = { computeIsVIP };
