@@ -2,13 +2,16 @@ const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
 const Team = require("../models/Team");
 const cache = require("../utils/cache");
+const redisCache = require("../cache/redisCache");
+const { invalidatePublicManhuaCache } = require("../utils/invalidatePublicManhuaCache");
 const mongoose = require("mongoose");
 
 function isValidId(id) {
   return /^[0-9a-fA-F]{24}$/.test(String(id));
 }
 
-const TTL_MINE = 30_000; // 30s
+// 🗝️ Редис нь serverless бүх process-д нийтлэг — invalidation бүгдэд хүрнэ
+const TTL_MINE_SEC = 30; // 30s
 
 /**
  * GET /api/editor/manhuas/mine
@@ -18,7 +21,7 @@ exports.getMyManhuas = async (req, res, next) => {
     const userId = String(req.user._id);
     const cacheKey = `editor:manhuas:mine:${userId}`;
 
-    const cached = cache.get(cacheKey);
+    const cached = await redisCache.get(cacheKey);
     if (cached) return res.json(cached);
 
     const teams = await Team.find({ "members.user": req.user._id })
@@ -35,7 +38,7 @@ exports.getMyManhuas = async (req, res, next) => {
 
     const manhuas = await Manhua.find(query).sort({ createdAt: -1 }).lean();
 
-    cache.set(cacheKey, manhuas, TTL_MINE);
+    redisCache.set(cacheKey, manhuas, TTL_MINE_SEC).catch(() => {});
     res.json(manhuas);
   } catch (err) {
     next(err);
@@ -102,12 +105,14 @@ exports.createManhua = async (req, res, next) => {
       team: teamId || null,
     });
 
-    // ✅ cache invalidate (mine list)
-    cache.del(`editor:manhuas:mine:${String(req.user._id)}`);
+    // ✅ cache invalidate (mine list) — await чухал: response явахаас өмнө Redis-ийн DEL дуусна
+    await redisCache.del(`editor:manhuas:mine:${String(req.user._id)}`);
     if (teamId) {
-      for (const m of team.members || []) {
-        cache.del(`editor:manhuas:mine:${String(m.user)}`);
-      }
+      await Promise.all(
+        (team.members || []).map((m) =>
+          redisCache.del(`editor:manhuas:mine:${String(m.user)}`)
+        )
+      );
     }
     cache.delPrefix("admin:manhuas:list:");
 
@@ -208,19 +213,19 @@ exports.updateManhua = async (req, res, next) => {
     const doc = await Manhua.findByIdAndUpdate(id, updates, { new: true }).lean();
 
     // ✅ cache invalidate
-    cache.del(`editor:manhuas:mine:${String(req.user._id)}`);
+    redisCache.del(`editor:manhuas:mine:${String(req.user._id)}`);
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
     if (oldTeamId) {
       const oldTeam = await Team.findById(oldTeamId).lean();
       for (const m of oldTeam?.members || []) {
-        cache.del(`editor:manhuas:mine:${String(m.user)}`);
+        redisCache.del(`editor:manhuas:mine:${String(m.user)}`);
       }
     }
     if (doc?.team && String(doc.team) !== oldTeamId) {
       const newTeam = await Team.findById(doc.team).lean();
       for (const m of newTeam?.members || []) {
-        cache.del(`editor:manhuas:mine:${String(m.user)}`);
+        redisCache.del(`editor:manhuas:mine:${String(m.user)}`);
       }
     }
 
@@ -266,9 +271,10 @@ exports.deleteManhua = async (req, res, next) => {
       { $set: { deletedAt: now, deletedBy: req.user._id } }
     );
 
-    cache.del(`editor:manhuas:mine:${String(req.user._id)}`);
+    await redisCache.del(`editor:manhuas:mine:${String(req.user._id)}`);
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
+    await invalidatePublicManhuaCache();
 
     res.json({ message: "Manhua moved to trash" });
   } catch (err) {

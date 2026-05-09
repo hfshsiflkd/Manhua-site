@@ -3,6 +3,7 @@ const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
 const Team = require("../models/Team");
 const { trackView } = require("../utils/viewCounter");
+const { invalidatePublicManhuaCache } = require("../utils/invalidatePublicManhuaCache");
 
 /* =====================================================
    🔥 IN-MEMORY CACHE (60 секунд)
@@ -344,6 +345,7 @@ exports.adminDeleteChapter = async (req, res, next) => {
     chapter.deletedBy = req.user._id;
     await chapter.save();
     invalidateChapterCache(manhuaId);
+    await invalidatePublicManhuaCache();
 
     res.json({ message: "Chapter moved to trash" });
   } catch (err) {
@@ -484,6 +486,7 @@ exports.editorDeleteChapter = async (req, res, next) => {
     chapter.deletedBy = req.user._id;
     await chapter.save();
     invalidateChapterCache(manhuaId);
+    await invalidatePublicManhuaCache();
 
     res.json({ message: "Chapter moved to trash" });
   } catch (err) {

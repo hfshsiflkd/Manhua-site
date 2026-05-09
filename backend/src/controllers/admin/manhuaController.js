@@ -1,5 +1,6 @@
 const Manhua = require("../../models/Manhua");
 const cache = require("../../utils/cache");
+const { invalidatePublicManhuaCache } = require("../../utils/invalidatePublicManhuaCache");
 
 // TTL (хүсвэл өөрчил)
 const TTL_LIST = 30_000; // 30s
@@ -142,10 +143,11 @@ exports.deleteManhuaAdmin = async (req, res, next) => {
       { $set: { deletedAt: now, deletedBy: req.user._id } }
     );
 
-    // ✅ cache invalidate
+    // ✅ cache invalidate (admin + public)
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
     cache.delPrefix("editor:manhuas:mine:");
+    await invalidatePublicManhuaCache();
 
     res.json({ message: "Manhua moved to trash" });
   } catch (err) {

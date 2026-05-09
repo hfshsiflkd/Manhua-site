@@ -44,4 +44,33 @@ async function del(key) {
   fallback.del(key);
 }
 
-module.exports = { get, set, del };
+// 🧹 Prefix-ээр олон key цэвэрлэх — SCAN ашиглана (KEYS блоклодог).
+// Жишээ: delPrefix("manhua:") → manhua:list:*, manhua:slug:* бүгдийг устгана.
+async function delPrefix(prefix) {
+  const redis = getRedisClient();
+  if (redis) {
+    try {
+      let cursor = "0";
+      do {
+        const [next, keys] = await redis.scan(
+          cursor,
+          "MATCH",
+          `${prefix}*`,
+          "COUNT",
+          100
+        );
+        cursor = next;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+      } while (cursor !== "0");
+    } catch (err) {
+      console.warn("[redisCache] delPrefix failed:", err.message);
+    }
+  }
+  if (typeof fallback.delByPrefix === "function") {
+    fallback.delByPrefix(prefix);
+  }
+}
+
+module.exports = { get, set, del, delPrefix };

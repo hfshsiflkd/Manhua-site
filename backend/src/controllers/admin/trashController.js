@@ -2,6 +2,7 @@
 const Manhua = require("../../models/Manhua");
 const Chapter = require("../../models/Chapter");
 const cache = require("../../utils/cache");
+const { invalidatePublicManhuaCache } = require("../../utils/invalidatePublicManhuaCache");
 
 function isValidId(id) {
   return /^[0-9a-fA-F]{24}$/.test(String(id));
@@ -129,6 +130,7 @@ exports.restoreManhua = async (req, res, next) => {
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
     cache.delPrefix("editor:manhuas:mine:");
+    await invalidatePublicManhuaCache();
 
     res.json({ success: true, message: "Manhua restored" });
   } catch (err) {
@@ -164,6 +166,7 @@ exports.restoreChapter = async (req, res, next) => {
       { _id: id },
       { $set: { deletedAt: null, deletedBy: null } }
     );
+    await invalidatePublicManhuaCache();
 
     res.json({ success: true, message: "Chapter restored" });
   } catch (err) {
@@ -190,6 +193,7 @@ exports.permanentDeleteManhua = async (req, res, next) => {
 
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
+    await invalidatePublicManhuaCache();
 
     res.json({ success: true, message: "Permanently deleted" });
   } catch (err) {
