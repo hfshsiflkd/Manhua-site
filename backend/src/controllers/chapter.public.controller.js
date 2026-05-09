@@ -3,16 +3,34 @@ const Chapter = require("../models/Chapter");
 const { logAudit } = require("../utils/auditLogger");
 const { getManhuaIdBySlug } = require("../services/manhua.service");
 const { chapterCache } = require("../cache/chapterCache");
+const AppSetting = require("../models/AppSetting");
+const redisCache = require("../cache/redisCache");
+
+const FREE_READ_CACHE_KEY = "setting:freeReadMode";
+
+async function isFreeReadActive() {
+  const cached = await redisCache.get(FREE_READ_CACHE_KEY);
+  if (cached !== null) return cached;
+
+  const doc = await AppSetting.findOne({ key: "freeReadMode" });
+  const setting = doc?.value || { enabled: false, expiresAt: null };
+  const active =
+    setting.enabled &&
+    (!setting.expiresAt || new Date(setting.expiresAt).getTime() > Date.now());
+
+  redisCache.set(FREE_READ_CACHE_KEY, active, 30).catch(() => {});
+  return active;
+}
 
 function computeIsVip(user) {
   if (!user?.vipExpiresAt) return false;
   return new Date(user.vipExpiresAt).getTime() > Date.now();
 }
 
-// ✅ cache key: VIP/FREE заавал салгаж өгнө
-function makePublicChapterCacheKey({ manhuaId, chapterNumber, isVIP }) {
+// cache key reflects actual access level (full vs restricted)
+function makePublicChapterCacheKey({ manhuaId, chapterNumber, full }) {
   return `${manhuaId.toString()}:ch:${Number(chapterNumber)}:tier:${
-    isVIP ? "vip" : "free"
+    full ? "full" : "free"
   }`;
 }
 
@@ -28,13 +46,15 @@ exports.getChapter = async (req, res, next) => {
     const manhuaId = await getManhuaIdBySlug(slug);
     if (!manhuaId) return res.status(404).json({ message: "Manhua not found" });
 
-    // ✅ optionalProtect-аас ирсэн user дээр үндэслэнэ
+    // optionalProtect-аас ирсэн user + global free read mode
     const isVIP = computeIsVip(req.user);
+    const freeRead = await isFreeReadActive();
+    const canAccessPages = isVIP || freeRead;
 
     const cacheKey = makePublicChapterCacheKey({
       manhuaId,
       chapterNumber: chNum,
-      isVIP,
+      full: canAccessPages,
     });
 
     const cached = chapterCache.get(cacheKey);
@@ -46,6 +66,7 @@ exports.getChapter = async (req, res, next) => {
           manhua: manhuaId,
           language: "mn",
           status: "published",
+          deletedAt: null,
         },
       },
       {
@@ -84,7 +105,8 @@ exports.getChapter = async (req, res, next) => {
           slug,
           chapterNumber: chNum,
           isVIP,
-          hasPages: isVIP && Array.isArray(chapter.pages),
+          freeRead,
+          hasPages: canAccessPages && Array.isArray(chapter.pages),
         },
       });
     }
@@ -103,18 +125,13 @@ exports.getChapter = async (req, res, next) => {
       pageCount: Array.isArray(chapter.pages) ? chapter.pages.length : 0,
     };
 
-    // ✅ зөвхөн VIP үед pages өгнө
-    if (isVIP) {
+    // VIP эсвэл free read mode идэвхтэй үед pages өгнө
+    if (canAccessPages) {
       payload.pages = chapter.pages;
-    } else {
-      // 🔒 Хэрвээ FREE хэрэглэгчийг бүрэн хаахыг хүсвэл uncomment хийнэ:
-      // return res
-      //   .status(403)
-      //   .json({ message: "VIP required", code: "VIP_REQUIRED" });
     }
 
-    // ✅ safety: ямар нэг merge/old cache-н нөлөө байвал pages-г хүчээр арилгана
-    if (!isVIP && "pages" in payload) {
+    // safety: хандах эрхгүй үед pages байвал арилгана
+    if (!canAccessPages && "pages" in payload) {
       delete payload.pages;
     }
 

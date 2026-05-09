@@ -85,11 +85,11 @@ exports.getMonthlyFinance = async (req, res) => {
 
   const [chapCounts, manhuaCounts, statsRows, manhuaStatsRows, manhuas] = await Promise.all([
     Chapter.aggregate([
-      { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
+      { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end }, deletedAt: null } },
       { $group: { _id: "$uploadedBy", count: { $sum: 1 } } },
     ]),
     Manhua.aggregate([
-      { $match: { createdBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
+      { $match: { createdBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end }, deletedAt: null } },
       { $group: { _id: "$createdBy", count: { $sum: 1 } } },
     ]),
     // Fast path: pre-aggregated editor monthly views

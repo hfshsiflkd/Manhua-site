@@ -11,6 +11,7 @@ const {
   getManhuaDetailAdmin,
   updateManhuaAdmin,
   deleteManhuaAdmin,
+  setManhuaOwners,
   listLogs,
   unlockUser,
 } = require("../../controllers/admin");
@@ -28,6 +29,7 @@ router.use("/trial", require("./trialRoutes"));
 router.use("/users", require("./userAdminRoutes"));
 router.use("/finance", require("./financeRoutes"));
 router.use("/feedback", require("./feedbackRoutes"));
+router.use("/trash", require("./trashRoutes"));
 router.get(
   "/requests",
   require("../../controllers/admin/requestAdminController").listRequests
@@ -42,6 +44,7 @@ router.get("/stats", getAdminStats);
 router.get("/manhuas", listManhuasWithOwner);
 router.get("/manhuas/:id", getManhuaDetailAdmin);
 router.patch("/manhuas/:id", updateManhuaAdmin);
+router.put("/manhuas/:id/owners", setManhuaOwners);
 router.delete("/manhuas/:id", deleteManhuaAdmin);
 
 // ✅ ADMIN manhua chapters

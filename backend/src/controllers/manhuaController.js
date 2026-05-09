@@ -124,6 +124,7 @@ exports.getPopularToday = async (req, res, next) => {
         $match: {
           manhua: { $in: manhuaIds },
           status: "published",
+          deletedAt: null,
         },
       },
       {

@@ -53,6 +53,17 @@ function hasTeamAccess(role) {
   return role === "owner" || role === "admin" || role === "editor";
 }
 
+// Манхуагийн эзэмшигч мөн эсэхийг шалгана: createdBy эсвэл owners массив дотор байна уу
+function isManhuaOwner(manhua, userId) {
+  if (!manhua || !userId) return false;
+  const uid = String(userId);
+  if (String(manhua.createdBy) === uid) return true;
+  if (Array.isArray(manhua.owners)) {
+    return manhua.owners.some((o) => String(o) === uid);
+  }
+  return false;
+}
+
 /* =====================================================
    slug -> manhuaId CACHE (max 500 entry, LRU-light)
 ===================================================== */
@@ -118,6 +129,7 @@ exports.getChapter = async (req, res, next) => {
           manhua: manhuaId,
           language: "mn",
           status: "published",
+          deletedAt: null,
         },
       },
       {
@@ -327,10 +339,13 @@ exports.adminDeleteChapter = async (req, res, next) => {
     if (!chapter) return res.status(404).json({ message: "Chapter not found" });
 
     const manhuaId = chapter.manhua;
-    await chapter.deleteOne();
+    // 🗑️ Soft delete
+    chapter.deletedAt = new Date();
+    chapter.deletedBy = req.user._id;
+    await chapter.save();
     invalidateChapterCache(manhuaId);
 
-    res.json({ message: "Chapter deleted" });
+    res.json({ message: "Chapter moved to trash" });
   } catch (err) {
     next(err);
   }
@@ -345,9 +360,9 @@ exports.editorListChaptersOfManhua = async (req, res, next) => {
       return res.status(404).json({ message: "Manhua not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө manhua эсвэл багийнх
+    // admin бол бүгдэд, editor/translator зөвхөн өөрийнх эсвэл багийнх
     if (req.user.role !== "admin") {
-      const isOwner = String(manhua.createdBy) === String(req.user._id);
+      const isOwner = isManhuaOwner(manhua, req.user._id);
       const teamRole = await getTeamRole(manhua.team, req.user._id);
       if (!isOwner && !hasTeamAccess(teamRole)) {
         return res.status(403).json({ message: "No permission for this manhua" });
@@ -381,9 +396,9 @@ exports.editorGetChapterById = async (req, res, next) => {
 
     const manhua = chapter.manhua;
 
-    // admin биш бол зөвхөн өөрийн manhua эсвэл багийнх
+    // admin бол бүгдэд, editor/translator зөвхөн өөрийнх эсвэл багийнх
     if (req.user.role !== "admin") {
-      const isOwner = String(manhua.createdBy) === String(req.user._id);
+      const isOwner = isManhuaOwner(manhua, req.user._id);
       const teamRole = await getTeamRole(manhua.team, req.user._id);
       if (!isOwner && !hasTeamAccess(teamRole)) {
         return res
@@ -414,10 +429,9 @@ exports.editorUpdateChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө manhua эсвэл багийнх
+    // admin бол бүгдэд, editor/translator зөвхөн өөрийнх эсвэл багийнх
     if (req.user.role !== "admin") {
-      const isOwner =
-        String(chapter.manhua.createdBy) === String(req.user._id);
+      const isOwner = isManhuaOwner(chapter.manhua, req.user._id);
       const teamRole = await getTeamRole(chapter.manhua.team, req.user._id);
       if (!isOwner && !hasTeamAccess(teamRole)) {
         return res.status(403).json({ message: "No permission" });
@@ -455,9 +469,9 @@ exports.editorDeleteChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
-    // Admin бүх chapter устгаж болно
+    // admin бол бүгдэд, editor/translator зөвхөн өөрийнх эсвэл багийнх
     if (req.user.role !== "admin") {
-      const isOwner = String(chapter.manhua.createdBy) === String(req.user._id);
+      const isOwner = isManhuaOwner(chapter.manhua, req.user._id);
       const teamRole = await getTeamRole(chapter.manhua.team, req.user._id);
       if (!isOwner && !hasTeamAccess(teamRole)) {
         return res.status(403).json({ message: "Only owner can delete" });
@@ -465,10 +479,13 @@ exports.editorDeleteChapter = async (req, res, next) => {
     }
 
     const manhuaId = chapter.manhua?._id || chapter.manhua;
-    await chapter.deleteOne();
+    // 🗑️ Soft delete
+    chapter.deletedAt = new Date();
+    chapter.deletedBy = req.user._id;
+    await chapter.save();
     invalidateChapterCache(manhuaId);
 
-    res.json({ message: "Chapter deleted" });
+    res.json({ message: "Chapter moved to trash" });
   } catch (err) {
     next(err);
   }
@@ -485,9 +502,9 @@ exports.editorCreateChapter = async (req, res, next) => {
       return res.status(404).json({ message: "Manhua not found" });
     }
 
-    // admin биш бол зөвхөн өөрийнхөө манхуа эсвэл багийнх
+    // admin бол бүгдэд, editor/translator зөвхөн өөрийнх эсвэл багийнх
     if (req.user.role !== "admin") {
-      const isOwner = String(manhua.createdBy) === String(req.user._id);
+      const isOwner = isManhuaOwner(manhua, req.user._id);
       const teamRole = await getTeamRole(manhua.team, req.user._id);
       if (!isOwner && !hasTeamAccess(teamRole)) {
         return res

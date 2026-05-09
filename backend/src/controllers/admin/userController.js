@@ -1,6 +1,7 @@
 // src/controllers/admin/userController.js
 const User = require("../../models/User");
 const logAction = require("../../utils/logAction");
+const { invalidateUserCache } = require("../../middleware/authMiddleware");
 
 function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -105,6 +106,7 @@ exports.updateUserByAdmin = async (req, res) => {
     if (isActive !== undefined) user.isActive = isActive;
 
     await user.save();
+    invalidateUserCache(user._id);
 
     await logAction({
       userId: req.user._id,

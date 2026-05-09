@@ -276,7 +276,7 @@ export default function AdminManhuaDetailPage() {
           </div>
 
           <div className="space-y-4">
-            <OwnerPanel manhua={manhua} />
+            <OwnerPanel manhua={manhua} onUpdated={(m) => setManhua(m)} />
             <SystemInfoPanel
               manhua={manhua}
               createdAt={createdAt}

@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const FinanceMonth = require("../../models/FinanceMonth");
 const { writeAudit } = require("../../utils/audit");
+const { invalidateUserCache } = require("../../middleware/authMiddleware");
 
 function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -156,6 +157,7 @@ exports.updateUser = async (req, res) => {
   user.isVIP = !!user.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
   await user.save();
+  invalidateUserCache(user._id);
 
   const after = buildSafeUser(user);
   await writeAudit({

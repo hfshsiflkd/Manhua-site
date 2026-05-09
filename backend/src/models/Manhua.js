@@ -68,6 +68,16 @@ const manhuaSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 👥 Олон эзэмшигч — хамтын ажиллагаа (collaborators).
+    // Хоосон бол createdBy ганц эзэмшигч гэж тооцоно.
+    owners: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        index: true,
+      },
+    ],
+
     team: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
@@ -90,6 +100,18 @@ const manhuaSchema = new mongoose.Schema(
     weeklyViews: {
       type: Number,
       default: 0,
+    },
+
+    // 🗑️ Soft delete
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
   },
   {
@@ -114,6 +136,16 @@ manhuaSchema.index({ updatedAt: -1 });
 // Popular fallback sorts
 manhuaSchema.index({ weeklyViews: -1 });
 manhuaSchema.index({ views: -1 });
+
+// 🗑️ Soft delete: бүх find query-нд устгасныг хасна (хэрвээ `withDeleted` сонголт өгөөгүй бол)
+manhuaSchema.pre(/^find/, function (next) {
+  if (this.getOptions && this.getOptions().withDeleted) return next();
+  const query = this.getQuery();
+  if (query.deletedAt === undefined) {
+    this.where({ deletedAt: null });
+  }
+  next();
+});
 
 // slug автоматаар үүсгэх
 manhuaSchema.pre("save", function (next) {

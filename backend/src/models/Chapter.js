@@ -62,11 +62,33 @@ const chapterSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+
+    // 🗑️ Soft delete
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// 🗑️ Soft delete: бүх find query-нд устгасныг хасна
+chapterSchema.pre(/^find/, function (next) {
+  if (this.getOptions && this.getOptions().withDeleted) return next();
+  const query = this.getQuery();
+  if (query.deletedAt === undefined) {
+    this.where({ deletedAt: null });
+  }
+  next();
+});
 
 /* =========================
    🔹 INDEX-ҮҮД (ЧУХАЛ)

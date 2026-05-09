@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { editorGetMyManhuas, editorUpdateManhua, uploadImage, Manhua, editorGetTeams, Team } from "@/lib/api";
+import { editorGetMyManhuas, editorUpdateManhua, editorDeleteManhua, uploadImage, Manhua, editorGetTeams, Team } from "@/lib/api";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -123,10 +123,25 @@ export default function EditorManhuaDetailPage() {
 
   const handleDelete = async () => {
     if (!manhua?._id) return;
-    const ok = await confirm({ title: "Манхуа устгах уу?", description: `"${manhua.title}" устгах уу? Буцаах боломжгүй.`, confirmText: "Устгах", cancelText: "Болих" });
+    const ok = await confirm({
+      title: "Манхуа устгах уу?",
+      description: `"${manhua.title}" устгахад chapter-ууд хамт сагсанд орно. Админ сэргээх боломжтой.`,
+      confirmText: "Устгах",
+      cancelText: "Болих",
+    });
     if (!ok) return;
-    const msg = "Editor эрхтэй хэрэглэгч манхуа устгах боломжгүй. Админ-тай холбогдоно уу.";
-    setError(msg); toast.error(msg); setDeleting(false);
+    setDeleting(true);
+    setError(null);
+    try {
+      await editorDeleteManhua(manhua._id);
+      toast.success("Манхуа сагсанд оров");
+      router.push("/editor/manhuas");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || "Устгах үед алдаа гарлаа";
+      setError(msg);
+      toast.error(msg);
+      setDeleting(false);
+    }
   };
 
   const errorDiv = (msg: string) => (

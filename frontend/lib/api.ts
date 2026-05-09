@@ -117,7 +117,7 @@ api.interceptors.response.use(
   }
 );
 
-export type UserRole = "user" | "translator" | "admin";
+export type UserRole = "user" | "translator" | "editor" | "admin";
 
 export type TrialSettings = {
   enabled: boolean;
@@ -216,6 +216,11 @@ export interface Manhua {
     email?: string;
     role?: string;
   };
+  // 👥 хамтын эзэмшигчид (populate хийсэн object эсвэл ID string массив байна)
+  owners?: Array<
+    | { _id: string; username: string; email?: string; role?: string }
+    | string
+  >;
   team?: { _id: string; name: string } | string | null;
   rating: number;
   chapterCount?: number;
@@ -381,6 +386,12 @@ export async function editorUpdateManhua(
   return res.data;
 }
 
+// ✅ Editor – өөрийн манхуа устгах (soft delete → admin сагсанд орно)
+export async function editorDeleteManhua(id: string) {
+  const res = await api.delete<{ message: string }>(`/editor/manhuas/${id}`);
+  return res.data;
+}
+
 // Public list
 export async function getManhuas(params?: { page?: number; limit?: number }) {
   const res = await api.get<any>("/manhuas", { params });
@@ -415,6 +426,73 @@ export async function adminGetManhua(id: string) {
 // 🔥 Admin – manhua delete
 export async function adminDeleteManhua(id: string) {
   const res = await api.delete<{ message: string }>(`/admin/manhuas/${id}`);
+  return res.data;
+}
+
+// 👥 Admin – манхуагийн эзэмшигчдийг тохируулах (multiple owners)
+export async function adminSetManhuaOwners(id: string, ownerIds: string[]) {
+  const res = await api.put<Manhua>(`/admin/manhuas/${id}/owners`, { ownerIds });
+  return res.data;
+}
+
+/* ─── 🗑️  Admin Trash (soft delete) ─────────────────────── */
+export interface TrashManhua extends Manhua {
+  deletedAt: string;
+  deletedBy: { _id: string; username: string; email?: string } | null;
+  chapterStats: { totalChapters: number; deletedChapters: number };
+}
+export interface TrashChapterMin {
+  _id: string;
+  chapterNumber: number;
+  title?: string | null;
+  status: string;
+  deletedAt: string | null;
+  deletedBy?: { _id: string; username: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface TrashManhuaDetail extends TrashManhua {
+  chapters: TrashChapterMin[];
+}
+export interface TrashChapter extends TrashChapterMin {
+  manhua: { _id: string; title: string; slug: string; deletedAt: string | null };
+  deletedBy: { _id: string; username: string; email?: string } | null;
+}
+
+export async function adminListTrashManhuas() {
+  const res = await api.get<TrashManhua[]>("/admin/trash/manhuas");
+  return res.data;
+}
+export async function adminGetTrashManhua(id: string) {
+  const res = await api.get<TrashManhuaDetail>(`/admin/trash/manhuas/${id}`);
+  return res.data;
+}
+export async function adminListTrashChapters() {
+  const res = await api.get<TrashChapter[]>("/admin/trash/chapters");
+  return res.data;
+}
+export async function adminRestoreManhua(id: string) {
+  const res = await api.post<{ success: boolean; message: string }>(
+    `/admin/trash/manhuas/${id}/restore`
+  );
+  return res.data;
+}
+export async function adminRestoreChapter(id: string) {
+  const res = await api.post<{ success: boolean; message: string }>(
+    `/admin/trash/chapters/${id}/restore`
+  );
+  return res.data;
+}
+export async function adminPermanentDeleteManhua(id: string) {
+  const res = await api.delete<{ success: boolean; message: string }>(
+    `/admin/trash/manhuas/${id}`
+  );
+  return res.data;
+}
+export async function adminPermanentDeleteChapter(id: string) {
+  const res = await api.delete<{ success: boolean; message: string }>(
+    `/admin/trash/chapters/${id}`
+  );
   return res.data;
 }
 

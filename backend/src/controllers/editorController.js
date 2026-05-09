@@ -1,4 +1,5 @@
 const Manhua = require("../models/Manhua");
+const Chapter = require("../models/Chapter");
 const Team = require("../models/Team");
 const cache = require("../utils/cache");
 const mongoose = require("mongoose");
@@ -25,10 +26,12 @@ exports.getMyManhuas = async (req, res, next) => {
       .lean();
     const teamIds = teams.map((t) => t._id);
 
-    const query =
-      teamIds.length > 0
-        ? { $or: [{ createdBy: req.user._id }, { team: { $in: teamIds } }] }
-        : { createdBy: req.user._id };
+    const orConditions = [
+      { createdBy: req.user._id },
+      { owners: req.user._id }, // 👥 хамт ажилладаг манхуа
+    ];
+    if (teamIds.length > 0) orConditions.push({ team: { $in: teamIds } });
+    const query = { $or: orConditions };
 
     const manhuas = await Manhua.find(query).sort({ createdAt: -1 }).lean();
 
@@ -135,8 +138,13 @@ exports.updateManhua = async (req, res, next) => {
     }
 
     let hasAccess = req.user.role === "admin";
-    if (!hasAccess && String(manhua.createdBy) === String(req.user._id)) {
-      hasAccess = true;
+    if (!hasAccess) {
+      const uid = String(req.user._id);
+      const isOwner =
+        String(manhua.createdBy) === uid ||
+        (Array.isArray(manhua.owners) &&
+          manhua.owners.some((o) => String(o) === uid));
+      if (isOwner) hasAccess = true;
     }
 
     if (!hasAccess && manhua.team) {
@@ -217,6 +225,52 @@ exports.updateManhua = async (req, res, next) => {
     }
 
     res.json(doc);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/editor/manhuas/:id
+ */
+exports.deleteManhua = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!isValidId(id)) {
+      return res.status(400).json({ message: "Manhua ID буруу байна" });
+    }
+
+    const manhua = await Manhua.findById(id).lean();
+    if (!manhua) return res.status(404).json({ message: "Manhua not found" });
+
+    // admin бол бүгдийг устгаж болно; editor/owner зөвхөн эзэмшдэг манхуагаа
+    if (req.user.role !== "admin") {
+      const uid = String(req.user._id);
+      const isOwner =
+        String(manhua.createdBy) === uid ||
+        (Array.isArray(manhua.owners) &&
+          manhua.owners.some((o) => String(o) === uid));
+      if (!isOwner) {
+        return res.status(403).json({ message: "Зөвхөн эзэмшигч манхуагаа устгаж болно" });
+      }
+    }
+
+    // 🗑️ Soft delete: манхуа + chapter-ууд хамт
+    const now = new Date();
+    await Manhua.updateOne(
+      { _id: id },
+      { $set: { deletedAt: now, deletedBy: req.user._id } }
+    );
+    await Chapter.updateMany(
+      { manhua: manhua._id, deletedAt: null },
+      { $set: { deletedAt: now, deletedBy: req.user._id } }
+    );
+
+    cache.del(`editor:manhuas:mine:${String(req.user._id)}`);
+    cache.del(`admin:manhuas:detail:${id}`);
+    cache.delPrefix("admin:manhuas:list:");
+
+    res.json({ message: "Manhua moved to trash" });
   } catch (err) {
     next(err);
   }

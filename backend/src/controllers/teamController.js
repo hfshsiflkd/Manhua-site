@@ -449,7 +449,7 @@ exports.listTeamManhuas = async (req, res, next) => {
 
     const ids = manhuas.map((m) => m._id);
     const stats = await Chapter.aggregate([
-      { $match: { manhua: { $in: ids } } },
+      { $match: { manhua: { $in: ids }, deletedAt: null } },
       {
         $group: {
           _id: "$manhua",

@@ -58,7 +58,7 @@ async function getLastChapters(manhuaIds = []) {
   if (!manhuaIds.length) return new Map();
 
   const data = await Chapter.aggregate([
-    { $match: { manhua: { $in: manhuaIds }, status: "published" } },
+    { $match: { manhua: { $in: manhuaIds }, status: "published", deletedAt: null } },
     { $sort: { chapterNumber: -1 } },
     {
       $group: {

@@ -8,6 +8,7 @@ const {
   getMyManhuas,
   createManhua,
   updateManhua,
+  deleteManhua,
 } = require("../controllers/editorController");
 const { getEditorLeaderboard } = require("../controllers/editorLeaderboardController");
 
@@ -51,6 +52,9 @@ router.post("/manhuas", createManhua);
 
 // манхуа update хийх
 router.patch("/manhuas/:id", updateManhua);
+
+// манхуа устгах (admin бүгдийг, editor өөрийнхийг)
+router.delete("/manhuas/:id", deleteManhua);
 
 // ✅ EDITOR: өөрийн manhua-ны chapter-ууд (LIST)
 router.get("/manhuas/:slug/chapters", editorListChaptersOfManhua);

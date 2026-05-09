@@ -77,7 +77,7 @@ exports.getEditorLeaderboard = async (req, res) => {
 
   const [chapCounts, statsRows, teams] = await Promise.all([
     Chapter.aggregate([
-      { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end } } },
+      { $match: { uploadedBy: { $in: editorIds }, createdAt: { $gte: start, $lt: end }, deletedAt: null } },
       { $group: { _id: "$uploadedBy", count: { $sum: 1 } } },
     ]),
     // Pre-aggregated monthly stats (fast path)
