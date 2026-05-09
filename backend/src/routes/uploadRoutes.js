@@ -12,8 +12,8 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-// POST /api/upload — зөвхөн translator/admin
-router.post("/", protect, requireRole("translator", "admin"), upload.single("file"), async (req, res) => {
+// POST /api/upload — editor/translator/admin зураг оруулж болно
+router.post("/", protect, requireRole("editor", "translator", "admin"), upload.single("file"), async (req, res) => {
   try {
     if (
       !process.env.R2_ACCOUNT_ID ||
