@@ -140,7 +140,12 @@ exports.requireRole =
     next();
   };
 
-// Call after login/password-change/ban so the next request re-fetches from DB
-exports.invalidateUserCache = (userId) => {
-  cacheDel(cacheKey(userId)).catch(() => {});
+// Call after login/password-change/role-change/ban so the next request re-fetches from DB.
+// IMPORTANT: returns a promise — `await` it before sending response so the cache is truly cleared.
+exports.invalidateUserCache = async (userId) => {
+  try {
+    await cacheDel(cacheKey(userId));
+  } catch {
+    // Redis алдаа гарвал TTL дуустал хүлээнэ — silent
+  }
 };

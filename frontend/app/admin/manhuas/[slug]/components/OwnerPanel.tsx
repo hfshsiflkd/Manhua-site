@@ -3,10 +3,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import type { Manhua, User } from "@/lib/api";
-import {
-  adminGetUsers,
-  adminSetManhuaOwners,
-} from "@/lib/api";
+import { adminGetUsers, adminSetManhuaOwners } from "@/lib/api";
 import { PanelShell } from "./PanelShell";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -25,7 +22,10 @@ interface OwnerLite {
 function normalizeOwners(manhua: Manhua): OwnerLite[] {
   if (!Array.isArray(manhua.owners)) return [];
   return manhua.owners
-    .filter((o): o is OwnerLite => typeof o === "object" && o !== null && "_id" in o)
+    .filter(
+      (o): o is OwnerLite =>
+        typeof o === "object" && o !== null && "_id" in o
+    )
     .map((o) => ({
       _id: o._id,
       username: o.username,
@@ -34,35 +34,150 @@ function normalizeOwners(manhua: Manhua): OwnerLite[] {
     }));
 }
 
-const removeBtn: React.CSSProperties = {
-  fontSize: 10,
-  padding: "3px 8px",
-  borderRadius: 5,
-  border: "1px solid oklch(0.65 0.22 25 / .35)",
-  color: "oklch(0.78 0.18 25)",
-  background: "transparent",
-  cursor: "pointer",
+const ROLE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
+  admin: {
+    bg: "oklch(0.65 0.22 25 / .12)",
+    fg: "oklch(0.78 0.18 25)",
+    border: "oklch(0.65 0.22 25 / .35)",
+  },
+  editor: {
+    bg: "oklch(0.72 0.17 195 / .12)",
+    fg: "var(--arc-cyan)",
+    border: "oklch(0.72 0.17 195 / .35)",
+  },
+  translator: {
+    bg: "oklch(0.72 0.17 285 / .12)",
+    fg: "oklch(0.78 0.16 285)",
+    border: "oklch(0.72 0.17 285 / .35)",
+  },
+  user: {
+    bg: "var(--arc-elevated)",
+    fg: "var(--arc-muted)",
+    border: "var(--arc-border)",
+  },
 };
-const addBtn: React.CSSProperties = {
-  fontSize: 10,
-  padding: "5px 11px",
-  borderRadius: 6,
-  border: "1px solid oklch(0.72 0.17 195 / .4)",
-  color: "var(--arc-cyan)",
-  background: "transparent",
-  cursor: "pointer",
-  fontWeight: 600,
-};
+
+function RoleBadge({ role }: { role?: string }) {
+  const r = role || "user";
+  const c = ROLE_COLORS[r] || ROLE_COLORS.user;
+  return (
+    <span
+      className="text-[9px] font-bold uppercase tracking-wide"
+      style={{
+        padding: "2px 6px",
+        borderRadius: 4,
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.border}`,
+        letterSpacing: "0.04em",
+      }}
+    >
+      {r}
+    </span>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  const initial = (name || "?").charAt(0).toUpperCase();
+  // simple deterministic hue from name
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return (
+    <div
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        flexShrink: 0,
+        background: `oklch(0.62 0.16 ${hue})`,
+        color: "#0a0a14",
+        fontSize: 12,
+        fontWeight: 700,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        letterSpacing: "-0.01em",
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  padding: "6px 9px",
-  borderRadius: 6,
+  padding: "8px 11px 8px 32px",
+  borderRadius: 8,
   border: "1px solid var(--arc-border)",
   background: "var(--arc-elevated)",
   color: "var(--arc-text)",
-  fontSize: 11,
+  fontSize: 12,
   outline: "none",
+  fontFamily: "var(--font-body, 'DM Sans', sans-serif)",
 };
+
+const SearchIcon = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{
+      position: "absolute",
+      left: 10,
+      top: "50%",
+      transform: "translateY(-50%)",
+      color: "var(--arc-muted)",
+      pointerEvents: "none",
+    }}
+  >
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+const CrownIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2l3 5 5-3-2 11H6L4 4l5 3 3-5z" />
+  </svg>
+);
 
 export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
   const toast = useToast();
@@ -83,6 +198,7 @@ export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
     const q = query.trim();
     if (q.length < 2) {
       setResults([]);
+      setSearching(false);
       return;
     }
     let cancelled = false;
@@ -91,7 +207,6 @@ export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
       try {
         const users = await adminGetUsers(q);
         if (cancelled) return;
-        // зөвхөн editor/admin/translator role-уудыг харуулна
         const allowed = new Set(["editor", "admin", "translator"]);
         const filtered = (users || []).filter((u) =>
           allowed.has(String(u.role || "user"))
@@ -131,10 +246,7 @@ export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
   }
 
   async function handleAdd(u: User) {
-    if (ownerIds.has(u._id)) {
-      toast.error("Энэ хэрэглэгч аль хэдийн эзэмшигч байна");
-      return;
-    }
+    if (ownerIds.has(u._id)) return;
     const next = [
       ...owners,
       { _id: u._id, username: u.username, email: u.email, role: u.role },
@@ -144,57 +256,69 @@ export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
     await persist(next);
   }
 
-  async function handleRemove(id: string) {
-    if (!confirm("Эзэмшигчийг хасах уу?")) return;
+  async function handleRemove(id: string, username: string) {
+    if (!confirm(`"${username}"-г эзэмшигчээс хасах уу?`)) return;
     const next = owners.filter((o) => o._id !== id);
     await persist(next);
   }
 
+  const totalCount = owners.length + (creator ? 1 : 0);
+
   return (
-    <PanelShell title="Эзэмшигчид">
-      <div className="space-y-3">
-        {/* Үүсгэгч (createdBy) — өөрчлөгдөхгүй */}
+    <PanelShell
+      title="Эзэмшигчид"
+      right={
+        <span
+          className="text-[10px] font-semibold"
+          style={{
+            padding: "2px 8px",
+            borderRadius: 10,
+            background: "var(--arc-elevated)",
+            border: "1px solid var(--arc-border)",
+            color: "var(--arc-dim)",
+          }}
+        >
+          {totalCount}
+        </span>
+      }
+    >
+      <div className="space-y-4">
+        {/* Үүсгэгч (creator) */}
         {creator && typeof creator === "object" && (
           <div>
             <div
-              className="text-[10px] uppercase tracking-wider mb-1.5"
+              className="flex items-center gap-1.5 mb-1.5 text-[10px] font-semibold uppercase tracking-wider"
               style={{ color: "var(--arc-muted)" }}
             >
+              <CrownIcon />
               Үүсгэгч
             </div>
             <div
-              className="rounded-[6px] px-2.5 py-2 flex items-center justify-between"
+              className="rounded-[8px] p-2.5 flex items-center gap-2.5"
               style={{
-                background: "var(--arc-elevated)",
-                border: "1px solid var(--arc-border)",
+                background:
+                  "linear-gradient(135deg, oklch(0.82 0.16 85 / .08), var(--arc-elevated))",
+                border: "1px solid oklch(0.82 0.16 85 / .25)",
               }}
             >
-              <div>
+              <Avatar name={(creator as any).username || "?"} />
+              <div className="flex-1 min-w-0">
                 <div
-                  className="text-[12px] font-medium"
+                  className="text-[12px] font-semibold truncate leading-tight"
                   style={{ color: "var(--arc-text)" }}
                 >
                   {(creator as any).username}
                 </div>
                 {(creator as any).email && (
                   <div
-                    className="text-[10px]"
+                    className="text-[10px] truncate leading-tight mt-0.5"
                     style={{ color: "var(--arc-muted)" }}
                   >
                     {(creator as any).email}
                   </div>
                 )}
               </div>
-              <span
-                className="rounded-[4px] px-2 py-0.5 text-[9px] font-semibold uppercase"
-                style={{
-                  background: "var(--arc-card)",
-                  border: "1px solid var(--arc-border)",
-                  color: "var(--arc-dim)",
-                }}
-              >
-                {(creator as any).role || "user"}
-              </span>
+              <RoleBadge role={(creator as any).role} />
             </div>
           </div>
         )}
@@ -202,73 +326,75 @@ export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
         {/* Хамтын эзэмшигчид */}
         <div>
           <div
-            className="text-[10px] uppercase tracking-wider mb-1.5"
+            className="flex items-center justify-between mb-1.5"
             style={{ color: "var(--arc-muted)" }}
           >
-            Хамтын эзэмшигчид ({owners.length})
+            <span className="text-[10px] font-semibold uppercase tracking-wider">
+              Хамтын эзэмшигчид
+            </span>
+            <span className="text-[10px]">{owners.length}</span>
           </div>
           {owners.length === 0 ? (
-            <p
-              className="text-[11px] py-1"
-              style={{ color: "var(--arc-muted)" }}
+            <div
+              className="rounded-[8px] py-4 text-center text-[11px]"
+              style={{
+                background: "var(--arc-elevated)",
+                border: "1px dashed var(--arc-border)",
+                color: "var(--arc-muted)",
+              }}
             >
-              Бүртгэгдээгүй. Доорх хайлтаас нэмж болно.
-            </p>
+              Эзэмшигч байхгүй. Доорх хайлтаар нэмнэ үү.
+            </div>
           ) : (
             <div className="space-y-1.5">
               {owners.map((o) => (
                 <div
                   key={o._id}
-                  className="rounded-[6px] px-2.5 py-2 flex items-center justify-between"
+                  className="rounded-[8px] p-2.5 flex items-center gap-2.5 transition-colors group"
                   style={{
                     background: "var(--arc-elevated)",
                     border: "1px solid var(--arc-border)",
-                    opacity: o._id === creatorId ? 0.6 : 1,
                   }}
                 >
-                  <div className="min-w-0">
+                  <Avatar name={o.username} />
+                  <div className="flex-1 min-w-0">
                     <div
-                      className="text-[12px] font-medium truncate"
+                      className="text-[12px] font-semibold truncate leading-tight"
                       style={{ color: "var(--arc-text)" }}
                     >
                       {o.username}
-                      {o._id === creatorId && (
-                        <span
-                          className="ml-2 text-[9px]"
-                          style={{ color: "var(--arc-muted)" }}
-                        >
-                          (үүсгэгч)
-                        </span>
-                      )}
                     </div>
                     {o.email && (
                       <div
-                        className="text-[10px] truncate"
+                        className="text-[10px] truncate leading-tight mt-0.5"
                         style={{ color: "var(--arc-muted)" }}
                       >
                         {o.email}
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-1.5 items-center">
-                    <span
-                      className="rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold uppercase"
-                      style={{
-                        background: "var(--arc-card)",
-                        border: "1px solid var(--arc-border)",
-                        color: "var(--arc-dim)",
-                      }}
-                    >
-                      {o.role || "user"}
-                    </span>
-                    <button
-                      style={removeBtn}
-                      disabled={busy}
-                      onClick={() => handleRemove(o._id)}
-                    >
-                      Хасах
-                    </button>
-                  </div>
+                  <RoleBadge role={o.role} />
+                  <button
+                    title="Эзэмшигчээс хасах"
+                    disabled={busy}
+                    onClick={() => handleRemove(o._id, o.username)}
+                    className="opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30"
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 6,
+                      border: "1px solid oklch(0.65 0.22 25 / .35)",
+                      background: "transparent",
+                      color: "oklch(0.78 0.18 25)",
+                      cursor: busy ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <TrashIcon />
+                  </button>
                 </div>
               ))}
             </div>
@@ -281,81 +407,135 @@ export function OwnerPanel({ manhua, onUpdated }: OwnerPanelProps) {
           style={{ borderTop: "1px solid var(--arc-border)" }}
         >
           <div
-            className="text-[10px] uppercase tracking-wider mb-1.5"
+            className="text-[10px] font-semibold uppercase tracking-wider mb-2"
             style={{ color: "var(--arc-muted)" }}
           >
             Эзэмшигч нэмэх
           </div>
-          <input
-            type="text"
-            placeholder="Username эсвэл email-ээр хайх (editor/translator/admin)…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            disabled={busy}
-            style={inputStyle}
-          />
+          <div style={{ position: "relative" }}>
+            <SearchIcon />
+            <input
+              type="text"
+              placeholder="Username / email хайх…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              disabled={busy}
+              style={inputStyle}
+            />
+          </div>
+
+          <p
+            className="text-[10px] mt-1.5"
+            style={{ color: "var(--arc-muted)" }}
+          >
+            Зөвхөн{" "}
+            <span style={{ color: "var(--arc-cyan)" }}>editor</span> /{" "}
+            <span style={{ color: "oklch(0.78 0.16 285)" }}>translator</span> /{" "}
+            <span style={{ color: "oklch(0.78 0.18 25)" }}>admin</span>{" "}
+            нэмж болно
+          </p>
+
+          {/* Search states */}
           {searching && (
-            <p
-              className="text-[10px] mt-1.5"
+            <div
+              className="text-[11px] mt-2 flex items-center gap-2"
               style={{ color: "var(--arc-muted)" }}
             >
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  border: "1.5px solid var(--arc-border)",
+                  borderTopColor: "var(--arc-cyan)",
+                  animation: "spin 0.7s linear infinite",
+                  display: "inline-block",
+                }}
+              />
               Хайж байна…
-            </p>
+            </div>
           )}
           {!searching && query.trim().length >= 2 && results.length === 0 && (
             <p
-              className="text-[10px] mt-1.5"
+              className="text-[11px] mt-2"
               style={{ color: "var(--arc-muted)" }}
             >
               Хэрэглэгч олдсонгүй.
             </p>
           )}
           {results.length > 0 && (
-            <div className="space-y-1 mt-2">
+            <div className="space-y-1.5 mt-2">
               {results.slice(0, 8).map((u) => {
                 const already = ownerIds.has(u._id);
+                const isCreator = u._id === creatorId;
                 return (
-                  <div
+                  <button
                     key={u._id}
-                    className="rounded-[6px] px-2.5 py-2 flex items-center justify-between"
+                    type="button"
+                    disabled={busy || already || isCreator}
+                    onClick={() => handleAdd(u)}
+                    className="w-full rounded-[8px] p-2.5 flex items-center gap-2.5 text-left transition-colors"
                     style={{
                       background: "var(--arc-elevated)",
                       border: "1px solid var(--arc-border)",
+                      cursor:
+                        busy || already || isCreator ? "not-allowed" : "pointer",
+                      opacity: already || isCreator ? 0.55 : 1,
                     }}
                   >
-                    <div className="min-w-0">
+                    <Avatar name={u.username} />
+                    <div className="flex-1 min-w-0">
                       <div
-                        className="text-[12px] font-medium truncate"
+                        className="text-[12px] font-semibold truncate leading-tight"
                         style={{ color: "var(--arc-text)" }}
                       >
-                        {u.username}{" "}
-                        <span
-                          className="text-[9px] uppercase"
-                          style={{ color: "var(--arc-muted)" }}
-                        >
-                          {u.role}
-                        </span>
+                        {u.username}
                       </div>
                       <div
-                        className="text-[10px] truncate"
+                        className="text-[10px] truncate leading-tight mt-0.5"
                         style={{ color: "var(--arc-muted)" }}
                       >
                         {u.email}
                       </div>
                     </div>
-                    <button
-                      style={addBtn}
-                      disabled={busy || already}
-                      onClick={() => handleAdd(u)}
-                    >
-                      {already ? "Орсон" : "+ Нэмэх"}
-                    </button>
-                  </div>
+                    <RoleBadge role={u.role} />
+                    {already || isCreator ? (
+                      <span
+                        className="text-[9px] font-semibold uppercase"
+                        style={{
+                          padding: "3px 7px",
+                          borderRadius: 4,
+                          background: "var(--arc-card)",
+                          border: "1px solid var(--arc-border)",
+                          color: "var(--arc-muted)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isCreator ? "Үүсгэгч" : "Орсон"}
+                      </span>
+                    ) : (
+                      <span
+                        className="flex items-center gap-1 text-[10px] font-bold uppercase"
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          background: "oklch(0.72 0.17 195 / .15)",
+                          color: "var(--arc-cyan)",
+                          border: "1px solid oklch(0.72 0.17 195 / .4)",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <PlusIcon /> Нэмэх
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
           )}
         </div>
+
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </PanelShell>
   );

@@ -238,14 +238,15 @@ export async function loginApi(identifier: string, password: string) {
   return res.data;
 }
 
-// Admin API
+// Admin API — backend нь { items, page, limit, total } shape буцаана
 export async function adminGetUsers(q?: string, role?: UserRole) {
   const params: Record<string, string> = {};
   if (q) params.q = q;
   if (role) params.role = role;
 
-  const res = await api.get<User[]>("/admin/users", { params });
-  return res.data;
+  const res = await api.get<{ items: User[] } | User[]>("/admin/users", { params });
+  if (Array.isArray(res.data)) return res.data;
+  return res.data?.items || [];
 }
 
 export async function adminCreateUser(payload: {

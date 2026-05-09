@@ -157,7 +157,7 @@ exports.updateUser = async (req, res) => {
   user.isVIP = !!user.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
   await user.save();
-  invalidateUserCache(user._id);
+  await invalidateUserCache(user._id);
 
   const after = buildSafeUser(user);
   await writeAudit({

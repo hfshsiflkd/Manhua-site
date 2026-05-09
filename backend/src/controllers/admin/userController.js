@@ -106,7 +106,7 @@ exports.updateUserByAdmin = async (req, res) => {
     if (isActive !== undefined) user.isActive = isActive;
 
     await user.save();
-    invalidateUserCache(user._id);
+    await invalidateUserCache(user._id);
 
     await logAction({
       userId: req.user._id,
