@@ -497,12 +497,62 @@ export async function adminPermanentDeleteChapter(id: string) {
   return res.data;
 }
 
+// Vercel serverless body хязгаар — 4.5MB. Үүнээс ХЭТ доогуур байх ёстой.
+const HARD_LIMIT = 4 * 1024 * 1024; // 4MB — Vercel 413 болохоос сэргийлсэн safety margin
+const COMPRESS_THRESHOLD = 1.5 * 1024 * 1024; // 1.5MB — энэ дээгүүр аль ч файлыг шахна
+
 export async function uploadImage(
-  file: File,
+  fileInput: File,
   onProgress?: (percent: number) => void
 ) {
-  const formData = new FormData();
+  // 🗜️ Browser дээр аль аль том файлыг шахна:
+  //   - PNG нь WebP-ээс хэд дахин том байх ёстой
+  //   - 1.5MB+ PNG/JPEG-г 2000px webp болгоход 200-800KB болдог
+  let file = fileInput;
+  const isImage = file.type.startsWith("image/");
+  const shouldCompress =
+    isImage && file.size > COMPRESS_THRESHOLD && file.type !== "image/gif";
 
+  const origSize = file.size;
+  const origType = file.type;
+
+  if (shouldCompress) {
+    try {
+      const { compressImage } = await import("./compressImage");
+      file = await compressImage(fileInput, {
+        maxDimension: 2000,
+        quality: 0.82,
+        skipIfSmallerThan: 0, // өндөр threshold аль хэдийн дамжсан → үргэлж шахна
+      });
+      console.log(
+        `[uploadImage] compressed: ${(origSize / 1024 / 1024).toFixed(2)}MB ${origType} → ${(file.size / 1024 / 1024).toFixed(2)}MB ${file.type}`
+      );
+    } catch (e) {
+      console.warn("[uploadImage] compress failed", e);
+    }
+  }
+
+  // Шахсаны дараа ч хэт том бол дахин агрессив шахалт оролдоно
+  if (file.size > HARD_LIMIT) {
+    try {
+      const { compressImage } = await import("./compressImage");
+      file = await compressImage(file, {
+        maxDimension: 1600,
+        quality: 0.7,
+        skipIfSmallerThan: 0,
+      });
+    } catch {
+      // skip
+    }
+  }
+
+  if (file.size > HARD_LIMIT) {
+    throw new Error(
+      `Файл хэт том байна (${(file.size / 1024 / 1024).toFixed(1)}MB). Жижиг хэмжээтэй зураг сонгоно уу.`
+    );
+  }
+
+  const formData = new FormData();
   formData.append("file", file);
 
   const res = await api.post<{ url: string }>("/upload", formData, {
