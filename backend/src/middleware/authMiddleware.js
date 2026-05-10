@@ -130,10 +130,22 @@ exports.requireRole =
   (...allowedRoles) =>
   (req, res, next) => {
     if (!req.user) {
+      console.log("[requireRole] ❌ NO req.user", {
+        path: req.originalUrl,
+        method: req.method,
+      });
       return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай" });
     }
 
     if (!allowedRoles.includes(req.user.role)) {
+      console.log("[requireRole] ❌ ROLE BLOCKED", {
+        path: req.originalUrl,
+        method: req.method,
+        userRole: req.user.role,
+        userId: String(req.user._id || req.user.id),
+        username: req.user.username,
+        allowed: allowedRoles,
+      });
       return res.status(403).json({ message: "Энэ үйлдэлд эрх хүрэхгүй байна" });
     }
 

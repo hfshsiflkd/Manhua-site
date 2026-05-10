@@ -94,10 +94,11 @@ chapterSchema.pre(/^find/, function (next) {
    🔹 INDEX-ҮҮД (ЧУХАЛ)
 ========================= */
 
-// ✅ 1. Давхцахгүй байх (танд байсан)
+// ✅ 1. Давхцахгүй байх — partial: зөвхөн идэвхтэй (устгаагүй) chapter-уудад л үйлчилнэ.
+//    Тэгснээр soft-deleted chapter байхад л шинэ ижил дугаартай үүсгэхэд саад болохгүй.
 chapterSchema.index(
   { manhua: 1, chapterNumber: 1, language: 1 },
-  { unique: true }
+  { unique: true, partialFilterExpression: { deletedAt: null } }
 );
 
 // ✅ 2. MAIN getChapter query (хамгийн чухал)

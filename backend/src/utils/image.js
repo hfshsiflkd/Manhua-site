@@ -13,8 +13,24 @@ function assertImageFile(file) {
 
 async function toWebpBuffer(file) {
   assertImageFile(file);
-  const buffer = await sharp(file.buffer).webp({ quality: 80 }).toBuffer();
-  return { buffer, contentType: "image/webp" };
+  // failOn: "none" — corrupted/warning-тэй PNG-уудыг ч уншина
+  // limitInputPixels: false — том PNG/чимэг зургийн pixel limit-г тойрно
+  // rotate() — EXIF-н дагуу зөв эргүүлнэ
+  try {
+    const buffer = await sharp(file.buffer, {
+      failOn: "none",
+      limitInputPixels: false,
+    })
+      .rotate()
+      .webp({ quality: 80, effort: 4 })
+      .toBuffer();
+    return { buffer, contentType: "image/webp" };
+  } catch (err) {
+    // Sharp алдааг clone-доод дээш буулгаж тодорхой message өгөх
+    const e = new Error(`Image convert failed: ${err.message}`);
+    e.cause = err;
+    throw e;
+  }
 }
 
 function makeWebpKey(folder) {
