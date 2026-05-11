@@ -4,6 +4,7 @@ const Chapter = require("../models/Chapter");
 const Team = require("../models/Team");
 const { trackView } = require("../utils/viewCounter");
 const { invalidatePublicManhuaCache } = require("../utils/invalidatePublicManhuaCache");
+const { signPages } = require("../utils/signPages");
 
 /* =====================================================
    🔥 IN-MEMORY CACHE (60 секунд)
@@ -296,6 +297,7 @@ exports.getChapterById = async (req, res, next) => {
       return res.status(404).json({ message: "Chapter not found" });
     }
 
+    chapter.pages = await signPages(chapter.pages);
     res.json(chapter);
   } catch (err) {
     next(err);
@@ -409,6 +411,8 @@ exports.editorGetChapterById = async (req, res, next) => {
       }
     }
 
+    // Editor засах үед ч signed URL ашиглана
+    chapter.pages = await signPages(chapter.pages);
     res.json(chapter);
   } catch (err) {
     next(err);

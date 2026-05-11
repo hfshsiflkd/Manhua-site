@@ -22,7 +22,8 @@ async function toWebpBuffer(file) {
       limitInputPixels: false,
     })
       .rotate()
-      .webp({ quality: 93, effort: 4 })
+      // nearLossless: манхуа шугам/текст зурагт lossy-тэй ижил хэмжээ, хамаагүй дээр чанар
+      .webp({ nearLossless: true, quality: 90, effort: 4 })
       .toBuffer();
     return { buffer, contentType: "image/webp" };
   } catch (err) {
