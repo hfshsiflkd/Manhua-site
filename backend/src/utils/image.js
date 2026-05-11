@@ -22,7 +22,7 @@ async function toWebpBuffer(file) {
       limitInputPixels: false,
     })
       .rotate()
-      .webp({ quality: 80, effort: 4 })
+      .webp({ quality: 93, effort: 4 })
       .toBuffer();
     return { buffer, contentType: "image/webp" };
   } catch (err) {

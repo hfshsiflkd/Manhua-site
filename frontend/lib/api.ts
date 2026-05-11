@@ -499,7 +499,7 @@ export async function adminPermanentDeleteChapter(id: string) {
 
 // Vercel serverless body хязгаар — 4.5MB. Үүнээс ХЭТ доогуур байх ёстой.
 const HARD_LIMIT = 4 * 1024 * 1024; // 4MB — Vercel 413 болохоос сэргийлсэн safety margin
-const COMPRESS_THRESHOLD = 1.5 * 1024 * 1024; // 1.5MB — энэ дээгүүр аль ч файлыг шахна
+const COMPRESS_THRESHOLD = 3.5 * 1024 * 1024; // 3.5MB — зөвхөн хязгаараас давах файлыг шахна
 
 export async function uploadImage(
   fileInput: File,
@@ -520,9 +520,9 @@ export async function uploadImage(
     try {
       const { compressImage } = await import("./compressImage");
       file = await compressImage(fileInput, {
-        maxDimension: 2000,
-        quality: 0.82,
-        skipIfSmallerThan: 0, // өндөр threshold аль хэдийн дамжсан → үргэлж шахна
+        maxDimension: 2400,
+        quality: 0.92,
+        skipIfSmallerThan: 0,
       });
       console.log(
         `[uploadImage] compressed: ${(origSize / 1024 / 1024).toFixed(2)}MB ${origType} → ${(file.size / 1024 / 1024).toFixed(2)}MB ${file.type}`
@@ -537,8 +537,8 @@ export async function uploadImage(
     try {
       const { compressImage } = await import("./compressImage");
       file = await compressImage(file, {
-        maxDimension: 1600,
-        quality: 0.7,
+        maxDimension: 2000,
+        quality: 0.82,
         skipIfSmallerThan: 0,
       });
     } catch {

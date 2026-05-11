@@ -551,9 +551,9 @@ exports.editorCreateChapter = async (req, res, next) => {
       }
     }
 
-    // ChapterNumber давхацуулахгүй болгож шалгана (идэвхтэй + сагсанд буй хоёуланг нь)
+    // Зөвхөн идэвхтэй (устгаагүй) chapter давхцаж байгаа эсэхийг шалгана.
+    // Сагсанд буй chapter нь оршихгүй мэт авч үзнэ — шинэ chapter үүсгэхэд саад болохгүй.
     if (chapterNumber != null) {
-      // Идэвхтэй (устгаагүй) chapter байгаа эсэх
       const exists = await Chapter.findOne({
         manhua: manhua._id,
         chapterNumber,
@@ -564,26 +564,8 @@ exports.editorCreateChapter = async (req, res, next) => {
           existingId: String(exists._id),
         });
         return res
-          .status(400)
-          .json({ message: "Энэ дугаартай chapter аль хэдийнэ байна." });
-      }
-
-      // Сагсанд буй chapter байгаа эсэх
-      const trashed = await Chapter.findOne({
-        manhua: manhua._id,
-        chapterNumber,
-        language: language || "mn",
-        deletedAt: { $ne: null },
-      }).setOptions({ withDeleted: true });
-      if (trashed) {
-        log(requestId, "❌ DUPLICATE — trashed chapter exists", {
-          trashedId: String(trashed._id),
-          deletedAt: trashed.deletedAt,
-        });
-        return res.status(400).json({
-          message:
-            "Энэ дугаартай chapter сагсанд байна. Админаас сэргээ эсвэл өөр дугаар сонго.",
-        });
+          .status(409)
+          .json({ message: "Энэ дугаартай chapter аль хэдийн байна." });
       }
     }
 
@@ -624,9 +606,8 @@ exports.editorCreateChapter = async (req, res, next) => {
           keyPattern: err.keyPattern,
           keyValue: err.keyValue,
         });
-        return res.status(400).json({
-          message:
-            "Энэ дугаартай chapter аль хэдийн байна (магадгүй сагсанд). Өөр дугаар сонгоно уу.",
+        return res.status(409).json({
+          message: "Энэ дугаартай chapter аль хэдийн байна. Өөр дугаар сонгоно уу.",
         });
       }
       log(requestId, "❌ Chapter.create threw", {

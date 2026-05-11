@@ -25,13 +25,14 @@ async function connectDB() {
 
     console.log("✅ MongoDB connected");
 
-    // ⚠️ Index-үүдийг 1 УДАА sync хийнэ (production-д SYNC_INDEXES=true тохируулбал ажиллана)
-    if (process.env.NODE_ENV !== "production" || process.env.SYNC_INDEXES === "true") {
-      const Chapter = require("../models/Chapter");
-      const Manhua = require("../models/Manhua");
-      await Promise.all([Chapter.syncIndexes(), Manhua.syncIndexes()]);
-      console.log("📌 Indexes synced");
-    }
+    // Index sync — Chapter-т partial unique index байгаа эсэхийг хянана.
+    // syncIndexes: schema-д байхгүй хуучин index-ийг устгаад шинийг үүсгэнэ.
+    // Serverless cold start-д нэг удаа л ажиллах тул performance-д нөлөөгүй.
+    const Chapter = require("../models/Chapter");
+    const Manhua = require("../models/Manhua");
+    await Promise.all([Chapter.syncIndexes(), Manhua.syncIndexes()]);
+    console.log("📌 Indexes synced");
+
     return cached.conn;
   } catch (err) {
     cached.promise = null;
