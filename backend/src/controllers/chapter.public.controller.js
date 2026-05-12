@@ -128,7 +128,7 @@ exports.getChapter = async (req, res, next) => {
     // VIP эсвэл free read mode идэвхтэй үед pages өгнө
     // Bucket public тул pub URL-ийг шууд буцаана (signed URL expire асуудалгүй)
     if (canAccessPages) {
-      payload.pages = chapter.pages;
+      payload.pages = chapter.pages.map(({ pageNumber, imageUrl }) => ({ pageNumber, imageUrl }));
     }
 
     // safety: хандах эрхгүй үед pages байвал арилгана
