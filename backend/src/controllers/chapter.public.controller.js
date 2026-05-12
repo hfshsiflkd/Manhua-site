@@ -5,7 +5,6 @@ const { getManhuaIdBySlug } = require("../services/manhua.service");
 const { chapterCache } = require("../cache/chapterCache");
 const AppSetting = require("../models/AppSetting");
 const redisCache = require("../cache/redisCache");
-const { signPages } = require("../utils/signPages");
 
 const FREE_READ_CACHE_KEY = "setting:freeReadMode";
 
@@ -127,9 +126,9 @@ exports.getChapter = async (req, res, next) => {
     };
 
     // VIP эсвэл free read mode идэвхтэй үед pages өгнө
+    // Bucket public тул pub URL-ийг шууд буцаана (signed URL expire асуудалгүй)
     if (canAccessPages) {
-      // R2 bucket private байгаа тул signed URL-ээр солино (4 цаг хүчинтэй)
-      payload.pages = await signPages(chapter.pages);
+      payload.pages = chapter.pages;
     }
 
     // safety: хандах эрхгүй үед pages байвал арилгана
@@ -137,7 +136,7 @@ exports.getChapter = async (req, res, next) => {
       delete payload.pages;
     }
 
-    // ✅ cache 60s (signed URL 4 цаг хүчинтэй тул 60s cache аюулгүй)
+    // pub URL expire болохгүй тул cache илүү удаан байж болно
     chapterCache.set(cacheKey, payload, 60_000);
     return res.json(payload);
   } catch (err) {
