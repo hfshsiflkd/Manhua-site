@@ -182,30 +182,8 @@ const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
                     >
                       {item.title}
                     </h3>
-                    <StarRating rating={rating} />
-                    <div className="flex items-center justify-between">
-                      {latestCh ? (
-                        <span
-                          className="text-[11px]"
-                          style={{
-                            color: mounted && isChapterRead(item.slug, latestCh)
-                              ? "var(--arc-muted)"
-                              : "var(--arc-dim)",
-                          }}
-                        >
-                          Ch. {latestCh}
-                        </span>
-                      ) : (
-                        <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
-                          No chapters
-                        </span>
-                      )}
-                      {item.latestChapterAddedAt && (
-                        <span className="text-[10px]" style={{ color: "var(--arc-muted)" }}>
-                          {formatTimeAgo(item.latestChapterAddedAt)}
-                        </span>
-                      )}
-                    </div>
+                    
+                    
                   </div>
                 </Link>
               );
