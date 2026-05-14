@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { SectionHeader } from "./SectionHeader";
-import { isChapterRead } from "@/lib/useReadState";
 
 type PopularItem = {
   _id: string;
@@ -26,50 +25,12 @@ function PopularCardSkeleton() {
       <div className="relative w-full rounded-[10px] aspect-[3/4]" style={{ background: "var(--arc-elevated)" }} />
       <div className="mt-2.5 flex flex-col gap-1.5">
         <div className="h-9 w-3/4 rounded" style={{ background: "var(--arc-elevated)" }} />
-        <div className="h-3 w-1/2 rounded" style={{ background: "var(--arc-elevated)" }} />
-        <div className="h-3 w-1/3 rounded" style={{ background: "var(--arc-elevated)" }} />
       </div>
     </div>
   );
 }
 
-function formatTimeAgo(date?: string): string {
-  if (!date) return "";
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return "";
-  const diffMs = Date.now() - d.getTime();
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 0) {
-    if (diffHours >= 1) return `${diffHours}ц өмнө`;
-    const mins = Math.floor(diffMs / 60000);
-    if (mins >= 1) return `${mins}м өмнө`;
-    return "Саяхан";
-  }
-  if (diffDays === 1) return "1 өдөр өмнө";
-  if (diffDays < 7) return `${diffDays} өдөр өмнө`;
-  return `${Math.floor(diffDays / 7)} дол. өмнө`;
-}
 
-function StarRating({ rating }: { rating: number }) {
-  const full = Math.floor(rating);
-  const half = rating % 1 >= 0.5;
-  const empty = Math.max(0, 5 - full - (half ? 1 : 0));
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: full }).map((_, i) => (
-        <span key={`f${i}`} className="leading-none" style={{ color: "var(--arc-amber)", fontSize: 10 }}>★</span>
-      ))}
-      {half && <span className="leading-none" style={{ color: "var(--arc-amber)", fontSize: 10 }}>½</span>}
-      {Array.from({ length: empty }).map((_, i) => (
-        <span key={`e${i}`} className="leading-none" style={{ color: "rgba(255,255,255,0.15)", fontSize: 10 }}>★</span>
-      ))}
-      <span className="ml-0.5 leading-none" style={{ fontSize: 10, color: "var(--arc-dim)" }}>
-        {rating.toFixed(1)}
-      </span>
-    </div>
-  );
-}
 
 type PopularTodayProps = {
   popular?: PopularItem[];
@@ -78,8 +39,6 @@ type PopularTodayProps = {
 const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
   const [popular, setPopular] = useState<PopularItem[]>(legacyPopular || []);
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     // Server-с prop ирсэн бол дахин fetch хийхгүй
@@ -182,8 +141,6 @@ const PopularToday = ({ popular: legacyPopular }: PopularTodayProps) => {
                     >
                       {item.title}
                     </h3>
-                    
-                    
                   </div>
                 </Link>
               );
