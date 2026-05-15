@@ -66,12 +66,8 @@ async function applyDeviceSwitchPolicy({ user, deviceId }) {
     const windowStartMs = new Date(user.deviceSwitchFirstAt).getTime();
     const windowElapsed = now - windowStartMs;
     if (windowElapsed > DEVICE_SWITCH_WINDOW_MS) {
-      // Reset window
       user.deviceSwitchFirstAt = new Date(now);
       user.deviceSwitchCount = 0;
-      console.log(
-        `[DevicePolicy] Reset window for user ${user._id} (window expired)`
-      );
     }
   }
 
@@ -80,13 +76,8 @@ async function applyDeviceSwitchPolicy({ user, deviceId }) {
     if (!user.deviceSwitchFirstAt) {
       user.deviceSwitchFirstAt = new Date(now);
       user.deviceSwitchCount = 1;
-      console.log(`[DevicePolicy] First switch for user ${user._id}`);
     } else {
-      // Increment count
       user.deviceSwitchCount = (user.deviceSwitchCount || 0) + 1;
-      console.log(
-        `[DevicePolicy] Switch #${user.deviceSwitchCount} for user ${user._id}`
-      );
     }
 
     const count = user.deviceSwitchCount || 0;
@@ -120,10 +111,6 @@ async function applyDeviceSwitchPolicy({ user, deviceId }) {
 
       const lockUntil = new Date(user.lockUntil);
       const remainingSeconds = Math.ceil((lockUntil.getTime() - now) / 1000);
-
-      console.log(
-        `[DevicePolicy] Locked user ${user._id} for ${lockMinutes} minutes (switch #${count})`
-      );
 
       return {
         locked: true,

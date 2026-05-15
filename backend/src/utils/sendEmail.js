@@ -16,14 +16,7 @@ async function getTransporter() {
   if (transporterPromise) return transporterPromise;
 
   transporterPromise = (async () => {
-    const { host, port, user, pass, from } = getEnv();
-
-    console.log("SMTP CONFIG =>", {
-      host,
-      port,
-      user: user ? "***" : null,
-      from: from || null,
-    });
+    const { host, port, user, pass } = getEnv();
 
     if (!host || !user || !pass) {
       throw new Error("SMTP env дутуу байна (SMTP_HOST/SMTP_USER/SMTP_PASS).");
@@ -53,12 +46,9 @@ async function getTransporter() {
     if (process.env.NODE_ENV === "production" && !transporterVerified) {
       try {
         await transporter.verify();
-        console.log("✅ SMTP transporter verified");
-        transporterVerified = true; // Mark as verified so we don't verify again
+        transporterVerified = true;
       } catch (e) {
-        console.error("❌ SMTP verify failed", e?.message || e);
-        // Don't throw - allow transporter to be used anyway (verify is optional)
-        // Connection will be tested on first actual send
+        console.error("SMTP verify failed", e?.message || e);
       }
     }
 
@@ -82,24 +72,9 @@ async function sendWithSMTP({ to, subject, html }) {
       subject,
       html,
     });
-
-    // Helpful in debugging intermittent issues
-    console.log("✅ Email sent", {
-      to,
-      messageId: info?.messageId,
-      response: info?.response,
-    });
-
     return info;
   } catch (e) {
-    console.error("❌ Email send failed", {
-      to,
-      code: e?.code,
-      response: e?.response,
-      message: e?.message,
-    });
-
-    // Reset cached transporter so next attempt can recreate it
+    console.error("Email send failed", { code: e?.code, message: e?.message });
     transporterPromise = null;
     throw e;
   }

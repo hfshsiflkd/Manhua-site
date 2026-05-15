@@ -23,7 +23,7 @@ exports.protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
 
     const key = cacheKey(decoded.id);
     let user = await cacheGet(key);
@@ -98,8 +98,7 @@ exports.protect = async (req, res, next) => {
     }
 
     next();
-  } catch (error) {
-    console.error(error);
+  } catch {
     return res.status(401).json({ message: "Token алдаатай" });
   }
 };
@@ -114,7 +113,7 @@ exports.protectLight = (req, res, next) => {
   if (!token) return res.status(401).json({ message: "Token олдсонгүй" });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     req.user = decoded;
 
     if (req.audit) {
@@ -130,25 +129,11 @@ exports.requireRole =
   (...allowedRoles) =>
   (req, res, next) => {
     if (!req.user) {
-      console.log("[requireRole] ❌ NO req.user", {
-        path: req.originalUrl,
-        method: req.method,
-      });
       return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай" });
     }
-
     if (!allowedRoles.includes(req.user.role)) {
-      console.log("[requireRole] ❌ ROLE BLOCKED", {
-        path: req.originalUrl,
-        method: req.method,
-        userRole: req.user.role,
-        userId: String(req.user._id || req.user.id),
-        username: req.user.username,
-        allowed: allowedRoles,
-      });
       return res.status(403).json({ message: "Энэ үйлдэлд эрх хүрэхгүй байна" });
     }
-
     next();
   };
 

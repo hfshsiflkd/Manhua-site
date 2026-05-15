@@ -10,6 +10,7 @@ const { enqueueEmail } = require("../queues/emailQueue");
 const { genSessionToken } = require("../utils/token");
 const { normalizeEmail } = require("../utils/normalize");
 const { logAudit } = require("../utils/auditLogger");
+const { invalidateUserCache } = require("../middleware/authMiddleware");
 
 // ✅ no-store helper
 function noStore(res) {
@@ -256,6 +257,40 @@ exports.login = async (req, res, next) => {
       identifier: identifier ? identifier.substring(0, 3) + "***" : "none",
     });
     return next(err);
+  }
+};
+
+exports.logout = async (req, res) => {
+  noStore(res);
+  try {
+    const userId = req.user?._id || req.user?.id;
+    if (!userId) {
+      return sendSuccess(res, {}, "Logged out");
+    }
+
+    // Bump tokenVersion + clear sessionToken → all JWTs for this user become invalid.
+    await User.updateOne(
+      { _id: userId },
+      { $inc: { tokenVersion: 1 }, $set: { sessionToken: null } }
+    );
+
+    // Drop the cached user so the next request re-fetches.
+    await invalidateUserCache(userId);
+
+    if (req.audit) {
+      logAudit(req, {
+        level: "INFO",
+        category: "auth",
+        action: "logout_success",
+        message: `User logged out: ${req.user.username || userId}`,
+        meta: { username: req.user.username },
+      });
+    }
+
+    return sendSuccess(res, {}, "Logged out");
+  } catch (err) {
+    console.error("Logout error:", err);
+    return sendSuccess(res, {}, "Logged out");
   }
 };
 

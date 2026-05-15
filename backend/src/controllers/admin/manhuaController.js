@@ -103,8 +103,27 @@ exports.updateManhuaAdmin = async (req, res, next) => {
   try {
     const id = req.params.id;
 
-    const manhua = await Manhua.findByIdAndUpdate(id, req.body, {
+    // Field whitelist — prevent mass-assignment of _id, createdBy, deletedAt, views, etc.
+    const ALLOWED_FIELDS = [
+      "title",
+      "titleEn",
+      "description",
+      "coverImage",
+      "coverImageUrl",
+      "status",
+      "genres",
+      "rating",
+    ];
+    const update = {};
+    for (const key of ALLOWED_FIELDS) {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+        update[key] = req.body[key];
+      }
+    }
+
+    const manhua = await Manhua.findByIdAndUpdate(id, update, {
       new: true,
+      runValidators: true,
     })
       .populate("createdBy", "username email role")
       .lean();
@@ -113,10 +132,9 @@ exports.updateManhuaAdmin = async (req, res, next) => {
       return res.status(404).json({ message: "Manhua not found" });
     }
 
-    // ✅ cache invalidate
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
-    cache.delPrefix("editor:manhuas:mine:"); // editor mine list ч өөрчлөгдөнө
+    cache.delPrefix("editor:manhuas:mine:");
 
     res.json(manhua);
   } catch (err) {

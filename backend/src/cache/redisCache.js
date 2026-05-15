@@ -13,8 +13,8 @@ async function get(key) {
     try {
       const raw = await redis.get(key);
       if (raw) return JSON.parse(raw);
-    } catch (err) {
-      console.warn("[redisCache] get failed, using fallback:", err.message);
+    } catch {
+      // Redis алдаа — fallback ашиглана
     }
   }
   return fallback.get(key);
@@ -25,8 +25,8 @@ async function set(key, data, ttlSec = 60) {
   if (redis) {
     try {
       await redis.set(key, JSON.stringify(data), "EX", ttlSec);
-    } catch (err) {
-      console.warn("[redisCache] set failed, using fallback:", err.message);
+    } catch {
+      // Redis алдаа — fallback ашиглана
     }
   }
   fallback.set(key, data, ttlSec * 1000);
@@ -37,15 +37,14 @@ async function del(key) {
   if (redis) {
     try {
       await redis.del(key);
-    } catch (err) {
-      console.warn("[redisCache] del failed:", err.message);
+    } catch {
+      // Redis алдаа — fallback ашиглана
     }
   }
   fallback.del(key);
 }
 
 // 🧹 Prefix-ээр олон key цэвэрлэх — SCAN ашиглана (KEYS блоклодог).
-// Жишээ: delPrefix("manhua:") → manhua:list:*, manhua:slug:* бүгдийг устгана.
 async function delPrefix(prefix) {
   const redis = getRedisClient();
   if (redis) {
@@ -64,8 +63,8 @@ async function delPrefix(prefix) {
           await redis.del(...keys);
         }
       } while (cursor !== "0");
-    } catch (err) {
-      console.warn("[redisCache] delPrefix failed:", err.message);
+    } catch {
+      // Redis алдаа — fallback ашиглана
     }
   }
   if (typeof fallback.delByPrefix === "function") {

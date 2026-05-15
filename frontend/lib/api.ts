@@ -99,7 +99,6 @@ api.interceptors.response.use(
         // Don't clear token on login/register endpoints (they return 401 for invalid credentials)
         // Also don't clear token on password confirmation failures
         if (!isAuthEndpoint && !isPasswordCheckEndpoint) {
-          console.warn("Authentication failed, clearing token");
           localStorage.removeItem("token");
           
           // Only redirect if not already on login page
@@ -513,13 +512,6 @@ export async function uploadImage(
   const shouldCompress =
     isImage && file.size > COMPRESS_THRESHOLD && file.type !== "image/gif";
 
-  const origSize = file.size;
-  const origType = file.type;
-
-  console.log(
-    `[uploadImage] file: ${(origSize / 1024 / 1024).toFixed(2)}MB ${origType} | compress=${shouldCompress} (threshold=${(COMPRESS_THRESHOLD / 1024 / 1024).toFixed(1)}MB)`
-  );
-
   if (shouldCompress) {
     try {
       const { compressImage } = await import("./compressImage");
@@ -528,11 +520,8 @@ export async function uploadImage(
         quality: 0.95,
         skipIfSmallerThan: 0,
       });
-      console.log(
-        `[uploadImage] canvas compressed: ${(origSize / 1024 / 1024).toFixed(2)}MB → ${(file.size / 1024 / 1024).toFixed(2)}MB ${file.type}`
-      );
-    } catch (e) {
-      console.warn("[uploadImage] compress failed", e);
+    } catch {
+      // Шахалт амжилтгүй бол анхны файлыг ашиглана
     }
   }
 

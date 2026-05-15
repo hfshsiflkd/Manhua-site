@@ -36,9 +36,9 @@ export default function Header() {
         : "text-[var(--arc-dim)] hover:text-[var(--arc-text)] hover:bg-white/5"
     }`;
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
     setIsOpen(false);
+    await logout();
     router.push("/");
   };
 

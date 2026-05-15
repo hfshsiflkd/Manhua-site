@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { register, login, me } = require("../controllers/authController");
+const { register, login, me, logout } = require("../controllers/authController");
 const authController = require("../controllers/authController");
 const { protect, protectLight } = require("../middleware/authMiddleware");
 const {
@@ -19,6 +19,10 @@ router.post("/login", loginLimiter, login);
 
 // Өөрийгөө авах — DB дуудахгүй, JWT-аас шууд (protectLight)
 router.get("/me", protectLight, me);
+
+// Logout — DB-д tokenVersion bump хийж, sessionToken цэвэрлэнэ.
+// protectLight ашиглах нь user-ийн token expire болсон ч logout хийх боломжтой.
+router.post("/logout", protectLight, logout);
 
 // Forgot password with rate limiting
 router.post(

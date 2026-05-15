@@ -38,18 +38,7 @@ function uploadSingle(req, res, next) {
 
 // POST /api/upload — editor/translator/admin зураг оруулж болно
 router.post("/", protect, requireRole("editor", "translator", "admin"), uploadSingle, async (req, res) => {
-  const log = (...args) => console.log("[upload]", ...args);
-  const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
   try {
-    log(reqId, "START", {
-      userId: req.user?._id ? String(req.user._id) : "no-user",
-      userRole: req.user?.role,
-      hasFile: !!req.file,
-      fileSize: req.file?.size,
-      mimeType: req.file?.mimetype,
-    });
-
     if (
       !process.env.R2_ACCOUNT_ID ||
       !process.env.R2_ACCESS_KEY_ID ||
@@ -57,20 +46,10 @@ router.post("/", protect, requireRole("editor", "translator", "admin"), uploadSi
       !process.env.R2_BUCKET_NAME ||
       !process.env.R2_PUBLIC_BASE_URL
     ) {
-      log(reqId, "❌ R2 ENV missing", {
-        hasAccountId: !!process.env.R2_ACCOUNT_ID,
-        hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
-        hasSecret: !!process.env.R2_SECRET_ACCESS_KEY,
-        hasBucket: !!process.env.R2_BUCKET_NAME,
-        hasPublicBase: !!process.env.R2_PUBLIC_BASE_URL,
-      });
-      return res
-        .status(500)
-        .json({ message: "R2 тохиргоо (env) дутуу байна." });
+      return res.status(500).json({ message: "R2 тохиргоо (env) дутуу байна." });
     }
 
     if (!req.file) {
-      log(reqId, "❌ NO FILE");
       return res.status(400).json({ message: "Файл ирсэнгүй." });
     }
 
@@ -80,13 +59,6 @@ router.post("/", protect, requireRole("editor", "translator", "admin"), uploadSi
     try {
       converted = await toWebpBuffer(req.file);
     } catch (e) {
-      log(reqId, "❌ toWebpBuffer failed", {
-        error: e?.message,
-        cause: e?.cause?.message,
-        mimetype: req.file?.mimetype,
-        size: req.file?.size,
-        originalName: req.file?.originalname,
-      });
       return res.status(400).json({
         message: `Зураг хөрвүүлж чадсангүй: ${e?.message || "тодорхойгүй алдаа"}`,
       });
@@ -105,15 +77,9 @@ router.post("/", protect, requireRole("editor", "translator", "admin"), uploadSi
     await r2Client.send(command);
 
     const publicUrl = `${process.env.R2_PUBLIC_BASE_URL}/${key}`;
-    log(reqId, "✅ UPLOADED", { key, sizeAfter: buffer.length });
-
     return res.json({ url: publicUrl });
   } catch (err) {
-    log(reqId, "❌ R2 upload error", {
-      name: err?.name,
-      message: err?.message,
-      code: err?.code,
-    });
+    console.error("R2 upload error:", err?.message);
     return res.status(500).json({ message: "R2 upload хийхэд алдаа гарлаа." });
   }
 });

@@ -77,8 +77,7 @@ exports.uploadAvatar = [
             await r2Client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: oldKey }));
           }
         } catch {
-          // Non-fatal — log but continue
-          console.warn("[uploadAvatar] Old avatar delete failed");
+          // Хуучин avatar устгахад алдаа гарвал үргэлжлүүлнэ — non-fatal
         }
       }
 

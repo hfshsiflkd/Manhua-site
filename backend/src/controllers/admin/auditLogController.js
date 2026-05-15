@@ -2,6 +2,10 @@
 const AuditLog = require("../../models/AuditLog");
 const { parsePagination } = require("../../utils/pagination");
 
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * GET /api/admin/logs
  * Query params:
@@ -34,25 +38,27 @@ exports.listLogs = async (req, res, next) => {
     // Build query
     const query = {};
 
-    // Search query
+    // Search query — escape user input before passing to regex (ReDoS / injection)
     if (q) {
+      const safeQ = escapeRegex(String(q).slice(0, 200));
       query.$or = [
-        { message: { $regex: q, $options: "i" } },
-        { action: { $regex: q, $options: "i" } },
-        { path: { $regex: q, $options: "i" } },
-        { ip: { $regex: q, $options: "i" } },
-        { "user.username": { $regex: q, $options: "i" } },
+        { message: { $regex: safeQ, $options: "i" } },
+        { action: { $regex: safeQ, $options: "i" } },
+        { path: { $regex: safeQ, $options: "i" } },
+        { ip: { $regex: safeQ, $options: "i" } },
+        { "user.username": { $regex: safeQ, $options: "i" } },
       ];
     }
 
     // Filters
     if (level && level !== "all") query.level = level;
     if (category && category !== "all") query.category = category;
-    if (action && action.trim() !== "") {
-      query.action = { $regex: action.trim(), $options: "i" };
+    if (action && String(action).trim() !== "") {
+      const safeAction = escapeRegex(String(action).trim().slice(0, 200));
+      query.action = { $regex: safeAction, $options: "i" };
     }
-    if (userId) query["user.id"] = userId;
-    if (ip) query.ip = ip;
+    if (userId && /^[0-9a-fA-F]{24}$/.test(String(userId))) query["user.id"] = userId;
+    if (ip) query.ip = String(ip);
 
     // Date range
     if (from || to) {
@@ -104,24 +110,6 @@ exports.listLogs = async (req, res, next) => {
         ts: timeValue.toISOString(), // Keep ts for backward compatibility
       };
     });
-
-    // Debug: log sample response structure
-    if (normalizedLogs.length > 0 && process.env.NODE_ENV === "development") {
-      console.log("[AuditLog] Sample response:", {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-        sampleItem: {
-          _id: normalizedLogs[0]._id,
-          time: normalizedLogs[0].time,
-          level: normalizedLogs[0].level,
-          category: normalizedLogs[0].category,
-          action: normalizedLogs[0].action,
-          message: normalizedLogs[0].message.substring(0, 50) + "...",
-        },
-      });
-    }
 
     res.json({
       items: normalizedLogs,

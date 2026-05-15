@@ -499,64 +499,25 @@ exports.editorDeleteChapter = async (req, res, next) => {
 };
 
 exports.editorCreateChapter = async (req, res, next) => {
-  // 🔍 Debug log helper — Vercel function logs дээр харагдана
-  const log = (...args) => console.log("[editorCreateChapter]", ...args);
-  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-
   try {
     const { slug } = req.params;
     const { chapterNumber, title, pages, language, status } = req.body;
 
-    log(requestId, "START", {
-      slug,
-      chapterNumber,
-      title,
-      language,
-      status,
-      pagesLength: Array.isArray(pages) ? pages.length : "not-array",
-      userId: req.user?._id ? String(req.user._id) : "no-user",
-      userRole: req.user?.role,
-      userIdType: typeof req.user?._id,
-    });
-
-    // Манхуа олох
     const manhua = await Manhua.findOne({ slug }).lean();
     if (!manhua) {
-      log(requestId, "❌ MANHUA NOT FOUND", { slug });
       return res.status(404).json({ message: "Manhua not found" });
     }
 
-    log(requestId, "✓ Manhua found", {
-      manhuaId: String(manhua._id),
-      manhuaTitle: manhua.title,
-      createdBy: String(manhua.createdBy),
-      ownersCount: Array.isArray(manhua.owners) ? manhua.owners.length : 0,
-      team: manhua.team ? String(manhua.team) : null,
-    });
-
-    // admin бол бүгдэд, editor/translator зөвхөн өөрийнх эсвэл багийнх
     if (req.user.role !== "admin") {
       const isOwner = isManhuaOwner(manhua, req.user._id);
       const teamRole = await getTeamRole(manhua.team, req.user._id);
-      log(requestId, "Permission check", {
-        role: req.user.role,
-        isOwner,
-        teamRole,
-        hasTeamAccess: hasTeamAccess(teamRole),
-        userId: String(req.user._id),
-        manhuaCreatedBy: String(manhua.createdBy),
-        idsMatch: String(manhua.createdBy) === String(req.user._id),
-      });
       if (!isOwner && !hasTeamAccess(teamRole)) {
-        log(requestId, "❌ PERMISSION DENIED");
         return res
           .status(403)
           .json({ message: "No permission to create chapter for this manhua" });
       }
     }
 
-    // Зөвхөн идэвхтэй (устгаагүй) chapter давхцаж байгаа эсэхийг шалгана.
-    // Сагсанд буй chapter нь оршихгүй мэт авч үзнэ — шинэ chapter үүсгэхэд саад болохгүй.
     if (chapterNumber != null) {
       const exists = await Chapter.findOne({
         manhua: manhua._id,
@@ -564,16 +525,12 @@ exports.editorCreateChapter = async (req, res, next) => {
         language: language || "mn",
       });
       if (exists) {
-        log(requestId, "❌ DUPLICATE — active chapter exists", {
-          existingId: String(exists._id),
-        });
         return res
           .status(409)
           .json({ message: "Энэ дугаартай chapter аль хэдийн байна." });
       }
     }
 
-    // pages хоосон байж болохоор editor талдаа зөвшөөрөөд үлдээе
     let formattedPages = [];
     if (Array.isArray(pages)) {
       formattedPages = pages.map((p, idx) => ({
@@ -583,12 +540,6 @@ exports.editorCreateChapter = async (req, res, next) => {
       }));
     }
 
-    log(requestId, "Creating chapter…", {
-      manhuaId: String(manhua._id),
-      chapterNumber,
-      pagesCount: formattedPages.length,
-    });
-
     try {
       const chapter = await Chapter.create({
         manhua: manhua._id,
@@ -596,38 +547,20 @@ exports.editorCreateChapter = async (req, res, next) => {
         title,
         pages: formattedPages,
         language: language || "mn",
-        status: status || "draft", // editor талаас draft болгож эхлүүлбэл зүгээр
+        status: status || "draft",
         views: 0,
         uploadedBy: req.user._id,
       });
-
-      log(requestId, "✅ CREATED", { chapterId: String(chapter._id) });
       res.status(201).json(chapter);
     } catch (err) {
-      // Mongo unique index давхцал — soft-deleted chapter unique slot эзэлсэн байж болно
       if (err && err.code === 11000) {
-        log(requestId, "❌ E11000 duplicate key", {
-          keyPattern: err.keyPattern,
-          keyValue: err.keyValue,
-        });
         return res.status(409).json({
           message: "Энэ дугаартай chapter аль хэдийн байна. Өөр дугаар сонгоно уу.",
         });
       }
-      log(requestId, "❌ Chapter.create threw", {
-        name: err?.name,
-        message: err?.message,
-        code: err?.code,
-      });
       throw err;
     }
   } catch (err) {
-    log(requestId, "❌ OUTER CATCH", {
-      name: err?.name,
-      message: err?.message,
-      code: err?.code,
-      stack: err?.stack?.split("\n").slice(0, 5).join("\n"),
-    });
     next(err);
   }
 };
