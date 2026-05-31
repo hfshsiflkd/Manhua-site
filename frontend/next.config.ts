@@ -4,17 +4,15 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       // Cloudflare R2 (various patterns)
+      // Virtual-hosted style signed URL: <bucket>.<account>.r2.cloudflarestorage.com
+      // ⇒ хоёр subdomain байдаг тул `**` хэрэгтэй
       {
         protocol: "https",
-        hostname: "*.r2.cloudflarestorage.com",
+        hostname: "**.r2.cloudflarestorage.com",
       },
       {
         protocol: "https",
-        hostname: "*.r2.dev",
-      },
-      {
-        protocol: "https",
-        hostname: "pub-*.r2.dev",
+        hostname: "**.r2.dev",
       },
       // Cloudinary (for existing images)
       {

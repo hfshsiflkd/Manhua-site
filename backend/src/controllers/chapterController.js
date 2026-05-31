@@ -159,6 +159,9 @@ exports.getChapter = async (req, res, next) => {
     const prev = result.prev?.[0] || null;
     const next = result.next?.[0] || null;
 
+    // VIP-д буцаах pages-ийг R2 signed URL болгоно (private bucket)
+    const signedPages = isVIP ? await signPages(chapter.pages) : undefined;
+
     // ✅ Үндсэн payload (pages байхгүй)
     const payload = {
       _id: chapter._id,
@@ -169,7 +172,7 @@ exports.getChapter = async (req, res, next) => {
       prevChapterNumber: prev ? prev.chapterNumber : null,
       nextChapterNumber: next ? next.chapterNumber : null,
       // pages: зөвхөн VIP үед л нэмнэ
-      ...(isVIP ? { pages: chapter.pages } : {}),
+      ...(isVIP ? { pages: signedPages } : {}),
     };
 
     // 🔥 Зөвлөмж: VIP payload-ийг cache хийхгүй байвал бүр найдвартай
@@ -391,7 +394,7 @@ exports.editorGetChapterById = async (req, res, next) => {
   try {
     if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
     const chapter = await Chapter.findById(req.params.id)
-      .populate("manhua", "title slug createdBy team")
+      .populate("manhua", "title slug createdBy owners team")
       .lean();
 
     if (!chapter) {
@@ -428,7 +431,7 @@ exports.editorUpdateChapter = async (req, res, next) => {
     if (!isValidId(req.params.id)) return res.status(400).json({ message: "Invalid chapter id" });
     const chapter = await Chapter.findById(req.params.id).populate(
       "manhua",
-      "createdBy team"
+      "createdBy owners team"
     );
 
     if (!chapter) {
@@ -468,7 +471,7 @@ exports.editorDeleteChapter = async (req, res, next) => {
 
     const chapter = await Chapter.findById(req.params.id).populate(
       "manhua",
-      "createdBy team"
+      "createdBy owners team"
     );
 
     if (!chapter) {
