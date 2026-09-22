@@ -1,7 +1,9 @@
 // src/controllers/userController.js
 const User = require("../models/User");
-const { r2Client, PutObjectCommand, DeleteObjectCommand } = require("../config/r2");
-const { toWebpBuffer } = require("../utils/image");
+const { createImageUploadService } = require("../services/imageUploadService");
+const { processImage } = require("../utils/image");
+const { getPurpose, ImagePolicyError } = require("../utils/imagePolicy");
+const avatarUploadService = createImageUploadService();
 const upload = require("../middleware/upload");
 const mongoose = require("mongoose");
 
@@ -21,15 +23,19 @@ exports.uploadAvatar = [
         });
       }
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (req.file.size > maxSize) {
+      const avatarPolicy = getPurpose("avatar");
+      if (req.file.size > avatarPolicy.maxBytes) {
         return res.status(400).json({
           message: "Зургийн хэмжээ 5MB-аас их байна.",
         });
       }
+      if (req.file.size > 4 * 1024 * 1024) {
+        return res.status(413).json({
+          message:
+            "Энэ хэмжээний профайл зургийг шууд илгээх боломжгүй. 4MB-аас бага файл сонгох эсвэл хуудсаа шинэчилнэ үү.",
+        });
+      }
 
-      // Upload to R2
       if (
         !process.env.R2_ACCOUNT_ID ||
         !process.env.R2_ACCESS_KEY_ID ||
@@ -43,43 +49,18 @@ exports.uploadAvatar = [
           .json({ message: "R2 тохиргоо (env) дутуу байна." });
       }
 
-      const bucket = process.env.R2_BUCKET_NAME;
-      const folder = "avatars";
-      const key = `${folder}/user-${req.user._id}-${Date.now()}.webp`;
-      let converted;
+      let processed;
       try {
-        converted = await toWebpBuffer(req.file);
-      } catch {
-        return res.status(400).json({ message: "Зөвхөн зураг файл оруулна уу." });
+        processed = await processImage(req.file.buffer, "avatar");
+      } catch (err) {
+        const message =
+          err instanceof ImagePolicyError
+            ? err.message
+            : "Зөвхөн зураг файл оруулна уу.";
+        return res.status(err.statusCode || 400).json({ message });
       }
-
-      const command = new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: converted.buffer,
-        ContentType: converted.contentType,
-        CacheControl: "public, max-age=31536000, immutable",
-      });
-
-      await r2Client.send(command);
-
-      const publicUrl = `${process.env.R2_PUBLIC_BASE_URL}/${key}`;
-
-      // Delete old avatar from R2 if exists
-      const oldUser = await User.findById(req.user._id).select("avatar");
-      if (oldUser?.avatar) {
-        try {
-          const R2_BASE = process.env.R2_PUBLIC_BASE_URL || "";
-          const oldKey = oldUser.avatar.startsWith(R2_BASE)
-            ? oldUser.avatar.slice(R2_BASE.length + 1)
-            : null;
-          if (oldKey) {
-            await r2Client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: oldKey }));
-          }
-        } catch {
-          // Хуучин avatar устгахад алдаа гарвал үргэлжлүүлнэ — non-fatal
-        }
-      }
+      const parts = await avatarUploadService.publishProcessed(processed, "avatar");
+      const publicUrl = parts[0].url;
 
       const user = await User.findByIdAndUpdate(
         req.user._id,

@@ -1,7 +1,10 @@
 // src/controllers/chapter.admin.controller.js
 const Chapter = require("../../models/Chapter");
 const { findManhuaBySlugOrId } = require("../../services/manhua.service");
-const { chapterCache } = require("../../cache/chapterCache");
+const { formatChapterPage } = require("../../utils/chapterPage");
+const { invalidateManhuaChapterReads } = require("../../services/chapterReadCache");
+const { createChapterOnce } = require("../../services/chapterIdempotency");
+const { invalidatePublicManhuaCache } = require("../../utils/invalidatePublicManhuaCache");
 
 exports.createChapter = async (req, res, next) => {
   try {
@@ -15,26 +18,28 @@ exports.createChapter = async (req, res, next) => {
       return res.status(400).json({ message: "Pages массив хоосон байна" });
     }
 
-    const formattedPages = pages.map((p, idx) => ({
-      pageNumber: p.pageNumber ?? idx + 1,
-      imageUrl: p.imageUrl,
-      originalName: p.originalName || null,
-    }));
+    const formattedPages = pages.map((p, idx) => formatChapterPage(p, idx));
 
-    const chapter = await Chapter.create({
-      manhua: manhua._id,
-      chapterNumber,
-      title,
-      pages: formattedPages,
-      language: language || "mn",
-      status: status || "published",
-      views: 0,
+    const { chapter, replayed } = await createChapterOnce({
+      userId: String(req.user?._id || "admin"),
+      idempotencyKey: req.body?.idempotencyKey,
+      findById: (id) => Chapter.findById(id),
+      create: () =>
+        Chapter.create({
+          manhua: manhua._id,
+          chapterNumber,
+          title,
+          pages: formattedPages,
+          language: language || "mn",
+          status: status || "published",
+          views: 0,
+        }),
     });
 
-    // ✅ cache invalidate (энэ manhua-д хамаарах chapter cache-ууд)
-    chapterCache.delByPrefix(String(manhua._id));
+    await invalidateManhuaChapterReads(manhua._id);
+    await invalidatePublicManhuaCache();
 
-    res.status(201).json(chapter);
+    res.status(replayed ? 200 : 201).json(chapter);
   } catch (err) {
     next(err);
   }

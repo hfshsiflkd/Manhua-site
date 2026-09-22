@@ -1,25 +1,8 @@
 // src/middleware/accessCheck.js
 // Middleware to check if user has active access (isVIP true OR freeReadMode enabled)
 const User = require("../models/User");
-const AppSetting = require("../models/AppSetting");
 const { computeIsVIP } = require("../utils/vip");
-const redisCache = require("../cache/redisCache");
-
-const FREE_READ_CACHE_KEY = "setting:freeReadMode";
-
-async function isFreeReadActive() {
-  const cached = await redisCache.get(FREE_READ_CACHE_KEY);
-  if (cached !== null) return cached;
-
-  const doc = await AppSetting.findOne({ key: "freeReadMode" });
-  const setting = doc?.value || { enabled: false, expiresAt: null };
-  const active =
-    setting.enabled &&
-    (!setting.expiresAt || new Date(setting.expiresAt).getTime() > Date.now());
-
-  await redisCache.set(FREE_READ_CACHE_KEY, active, 30);
-  return active;
-}
+const { isFreeReadActive } = require("../utils/freeRead");
 
 exports.requireActiveAccess = async (req, res, next) => {
   if (!req.user) {

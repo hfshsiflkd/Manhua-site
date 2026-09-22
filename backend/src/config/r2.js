@@ -1,5 +1,11 @@
 // config/r2.js
-const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  DeleteObjectCommand,
+} = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 if (
@@ -11,9 +17,14 @@ if (
   console.warn("⚠️ R2 env тохиргоо дутуу байна.");
 }
 
+const r2Endpoint =
+  process.env.R2_ENDPOINT ||
+  `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+
 const r2Client = new S3Client({
   region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: r2Endpoint,
+  forcePathStyle: process.env.R2_FORCE_PATH_STYLE === "true",
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
@@ -52,6 +63,9 @@ function urlToR2Key(url) {
 module.exports = {
   r2Client,
   PutObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  DeleteObjectCommand,
   signR2Key,
   urlToR2Key,
 };

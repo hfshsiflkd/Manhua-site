@@ -2,25 +2,11 @@
 const Chapter = require("../models/Chapter");
 const { logAudit } = require("../utils/auditLogger");
 const { getManhuaIdBySlug } = require("../services/manhua.service");
-const { chapterCache } = require("../cache/chapterCache");
-const AppSetting = require("../models/AppSetting");
-const redisCache = require("../cache/redisCache");
-
-const FREE_READ_CACHE_KEY = "setting:freeReadMode";
-
-async function isFreeReadActive() {
-  const cached = await redisCache.get(FREE_READ_CACHE_KEY);
-  if (cached !== null) return cached;
-
-  const doc = await AppSetting.findOne({ key: "freeReadMode" });
-  const setting = doc?.value || { enabled: false, expiresAt: null };
-  const active =
-    setting.enabled &&
-    (!setting.expiresAt || new Date(setting.expiresAt).getTime() > Date.now());
-
-  redisCache.set(FREE_READ_CACHE_KEY, active, 30).catch(() => {});
-  return active;
-}
+const {
+  getPublicChapter,
+  setPublicChapter,
+} = require("../services/chapterReadCache");
+const { isFreeReadActive, resolveFreeRead } = require("../utils/freeRead");
 
 function computeIsVip(user) {
   if (!user?.vipExpiresAt) return false;
@@ -28,11 +14,7 @@ function computeIsVip(user) {
 }
 
 // cache key reflects actual access level (full vs restricted)
-function makePublicChapterCacheKey({ manhuaId, chapterNumber, full }) {
-  return `${manhuaId.toString()}:ch:${Number(chapterNumber)}:tier:${
-    full ? "full" : "free"
-  }`;
-}
+exports.resolveFreeRead = resolveFreeRead;
 
 exports.getChapter = async (req, res, next) => {
   try {
@@ -51,14 +33,13 @@ exports.getChapter = async (req, res, next) => {
     const freeRead = await isFreeReadActive();
     const canAccessPages = isVIP || freeRead;
 
-    const cacheKey = makePublicChapterCacheKey({
-      manhuaId,
-      chapterNumber: chNum,
-      full: canAccessPages,
-    });
-
-    const cached = chapterCache.get(cacheKey);
-    if (cached) return res.json(cached);
+    const cached = await getPublicChapter(manhuaId, chNum, canAccessPages ? "full" : "free");
+    if (cached) {
+      if (cached.status && cached.status !== "published") {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+      return res.json(cached);
+    }
 
     const [result] = await Chapter.aggregate([
       {
@@ -116,6 +97,7 @@ exports.getChapter = async (req, res, next) => {
       _id: chapter._id,
       chapterNumber: chapter.chapterNumber,
       title: chapter.title,
+      status: "published",
 
       hasPrev: !!prev,
       hasNext: !!next,
@@ -137,7 +119,7 @@ exports.getChapter = async (req, res, next) => {
     }
 
     // pub URL expire болохгүй тул cache илүү удаан байж болно
-    chapterCache.set(cacheKey, payload, 60_000);
+    await setPublicChapter(manhuaId, chNum, canAccessPages ? "full" : "free", payload, 60);
     return res.json(payload);
   } catch (err) {
     next(err);

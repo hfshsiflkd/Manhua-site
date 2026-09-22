@@ -4,6 +4,7 @@
 // энэ функц backend-аас 4 цагийн хугацаатай signed URL үүсгэнэ.
 
 const { signR2Key, urlToR2Key } = require("../config/r2");
+const { classifyImageRef } = require("./imageRef");
 
 /**
  * Pages массивын imageUrl бүрийг signed URL болгоно.
@@ -16,13 +17,16 @@ async function signPages(pages, expiresIn = 4 * 60 * 60) {
 
   return Promise.all(
     pages.map(async (page) => {
-      const key = urlToR2Key(page.imageUrl);
-      if (!key) return page; // R2 биш URL — хөндөхгүй
+      const raw = page.sourceUrl || page.imageUrl;
+      const classified = classifyImageRef(raw);
+      const sourceUrl = classified.action === "store" ? classified.imageUrl : page.imageUrl;
+      const key = classified.key || urlToR2Key(sourceUrl);
+      if (!key) return { ...page, sourceUrl, imageUrl: sourceUrl };
       try {
         const signedUrl = await signR2Key(key, expiresIn);
-        return { ...page, imageUrl: signedUrl };
+        return { ...page, sourceUrl, imageUrl: signedUrl };
       } catch {
-        return page; // sign хийж чадахгүй бол анхных нь буцаана
+        return { ...page, sourceUrl, imageUrl: sourceUrl };
       }
     })
   );

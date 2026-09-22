@@ -5,6 +5,9 @@ const Team = require("../models/Team");
 const { trackView } = require("../utils/viewCounter");
 const { invalidatePublicManhuaCache } = require("../utils/invalidatePublicManhuaCache");
 const { signPages } = require("../utils/signPages");
+const { formatChapterPage } = require("../utils/chapterPage");
+const { invalidateManhuaChapterReads } = require("../services/chapterReadCache");
+const { createChapterOnce } = require("../services/chapterIdempotency");
 
 /* =====================================================
    🔥 IN-MEMORY CACHE (60 секунд)
@@ -28,13 +31,15 @@ function cacheSet(key, data, ttlMs = 60_000) {
   });
 }
 
-function invalidateChapterCache(manhuaId) {
+async function invalidateChapterCache(manhuaId) {
   if (!manhuaId) return;
   for (const key of chapterCache.keys()) {
     if (key.startsWith(String(manhuaId))) {
       chapterCache.delete(key);
     }
   }
+  await invalidateManhuaChapterReads(manhuaId);
+  await invalidatePublicManhuaCache();
 }
 
 async function getTeamRole(teamId, userId) {
@@ -260,11 +265,7 @@ exports.createChapter = async (req, res, next) => {
       return res.status(400).json({ message: "Pages массив хоосон байна" });
     }
 
-    const formattedPages = pages.map((p, idx) => ({
-      pageNumber: p.pageNumber ?? idx + 1,
-      imageUrl: p.imageUrl,
-      originalName: p.originalName || null,
-    }));
+    const formattedPages = pages.map((p, idx) => formatChapterPage(p, idx));
 
     const chapter = await Chapter.create({
       manhua: manhua._id,
@@ -277,7 +278,7 @@ exports.createChapter = async (req, res, next) => {
     });
 
     // 🔥 cache invalidate (энэ манхуатай холбоотой)
-    invalidateChapterCache(manhua._id);
+    await invalidateChapterCache(manhua._id);
 
     res.status(201).json(chapter);
   } catch (err) {
@@ -324,9 +325,12 @@ exports.updateChapter = async (req, res, next) => {
     if (chapterNumber !== undefined) chapter.chapterNumber = chapterNumber;
     if (title !== undefined) chapter.title = title;
     if (status !== undefined) chapter.status = status;
-    if (Array.isArray(pages)) chapter.pages = pages;
+    if (Array.isArray(pages)) {
+      chapter.pages = pages.map((page, idx) => formatChapterPage(page, idx));
+    }
 
     await chapter.save();
+    await invalidateChapterCache(chapter.manhua);
     res.json(chapter);
   } catch (err) {
     next(err);
@@ -349,8 +353,7 @@ exports.adminDeleteChapter = async (req, res, next) => {
     chapter.deletedAt = new Date();
     chapter.deletedBy = req.user._id;
     await chapter.save();
-    invalidateChapterCache(manhuaId);
-    await invalidatePublicManhuaCache();
+    await invalidateChapterCache(manhuaId);
 
     res.json({ message: "Chapter moved to trash" });
   } catch (err) {
@@ -452,9 +455,13 @@ exports.editorUpdateChapter = async (req, res, next) => {
     if (chapterNumber !== undefined) chapter.chapterNumber = chapterNumber;
     if (title !== undefined) chapter.title = title;
     if (status !== undefined) chapter.status = status;
-    if (Array.isArray(pages)) chapter.pages = pages;
+    if (Array.isArray(pages)) {
+      chapter.pages = pages.map((page, idx) => formatChapterPage(page, idx));
+    }
 
     await chapter.save();
+    const manhuaId = chapter.manhua?._id || chapter.manhua;
+    await invalidateChapterCache(manhuaId);
     res.json(chapter);
   } catch (err) {
     next(err);
@@ -492,8 +499,7 @@ exports.editorDeleteChapter = async (req, res, next) => {
     chapter.deletedAt = new Date();
     chapter.deletedBy = req.user._id;
     await chapter.save();
-    invalidateChapterCache(manhuaId);
-    await invalidatePublicManhuaCache();
+    await invalidateChapterCache(manhuaId);
 
     res.json({ message: "Chapter moved to trash" });
   } catch (err) {
@@ -536,25 +542,28 @@ exports.editorCreateChapter = async (req, res, next) => {
 
     let formattedPages = [];
     if (Array.isArray(pages)) {
-      formattedPages = pages.map((p, idx) => ({
-        pageNumber: p.pageNumber ?? idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName || null,
-      }));
+      formattedPages = pages.map((p, idx) => formatChapterPage(p, idx));
     }
 
     try {
-      const chapter = await Chapter.create({
-        manhua: manhua._id,
-        chapterNumber,
-        title,
-        pages: formattedPages,
-        language: language || "mn",
-        status: status || "draft",
-        views: 0,
-        uploadedBy: req.user._id,
+      const { chapter, replayed } = await createChapterOnce({
+        userId: String(req.user._id),
+        idempotencyKey: req.body?.idempotencyKey,
+        findById: (id) => Chapter.findById(id),
+        create: () =>
+          Chapter.create({
+            manhua: manhua._id,
+            chapterNumber,
+            title,
+            pages: formattedPages,
+            language: language || "mn",
+            status: status || "draft",
+            views: 0,
+            uploadedBy: req.user._id,
+          }),
       });
-      res.status(201).json(chapter);
+      await invalidateChapterCache(manhua._id);
+      res.status(replayed ? 200 : 201).json(chapter);
     } catch (err) {
       if (err && err.code === 11000) {
         return res.status(409).json({

@@ -1,10 +1,17 @@
 const multer = require("multer");
 const Feedback = require("../models/Feedback");
-const { r2Client, PutObjectCommand } = require("../config/r2");
-const { toWebpBuffer, makeWebpKey } = require("../utils/image");
+const { processImage } = require("../utils/image");
+const { createImageUploadService } = require("../services/imageUploadService");
+const { getPurpose, ImagePolicyError } = require("../utils/imagePolicy");
 
-// Use memory storage
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const feedbackPolicy = getPurpose("feedback");
+const uploadService = createImageUploadService();
+
+// Vercel body 4MiB хүртэл хүрдэг тул шууд multipart-ыг энэ хязгаарт барина.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: feedbackPolicy.maxBytes },
+});
 
 function requireR2Config() {
   return (
@@ -16,10 +23,24 @@ function requireR2Config() {
   );
 }
 
+function uploadFeedback(req, res, next) {
+  upload.single("image")(req, res, (err) => {
+    if (err && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        message: "Зураг хэт том байна. Санал хүсэлтийн зураг 4MB хүртэл.",
+      });
+    }
+    if (err) {
+      return res.status(400).json({ message: "Зураг оруулахад алдаа гарлаа." });
+    }
+    return next();
+  });
+}
+
 // POST /api/feedback  (multipart/form-data)
 // fields: name, type (suggestion_request|complaint), description, image(optional file)
 exports.submitFeedback = [
-  upload.single("image"),
+  uploadFeedback,
   async (req, res) => {
     const name = String(req.body?.name || "").trim();
     const type = String(req.body?.type || "").trim();
@@ -38,23 +59,18 @@ exports.submitFeedback = [
       if (!requireR2Config()) {
         return res.status(500).json({ message: "R2 тохиргоо (env) дутуу байна." });
       }
-      const bucket = process.env.R2_BUCKET_NAME;
-      let converted;
+      let processed;
       try {
-        converted = await toWebpBuffer(req.file);
-      } catch {
-        return res.status(400).json({ message: "Зөвхөн зураг файл оруулна уу." });
+        processed = await processImage(req.file.buffer, "feedback");
+      } catch (err) {
+        const message =
+          err instanceof ImagePolicyError
+            ? err.message
+            : "Зөвхөн зураг файл оруулна уу.";
+        return res.status(err.statusCode || 400).json({ message });
       }
-      const key = makeWebpKey("feedback");
-      const command = new PutObjectCommand({
-        Bucket: bucket,
-        Key: key,
-        Body: converted.buffer,
-        ContentType: converted.contentType,
-        CacheControl: "public, max-age=31536000, immutable",
-      });
-      await r2Client.send(command);
-      imageUrl = `${process.env.R2_PUBLIC_BASE_URL}/${key}`;
+      const parts = await uploadService.publishProcessed(processed, "feedback");
+      imageUrl = parts[0].url;
     }
 
     const doc = await Feedback.create({

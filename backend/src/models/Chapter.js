@@ -6,6 +6,8 @@ const pageSchema = new mongoose.Schema(
     pageNumber: { type: Number, required: true },
     imageUrl: { type: String, required: true },
     originalName: { type: String, default: null },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null },
   },
   { _id: false }
 );

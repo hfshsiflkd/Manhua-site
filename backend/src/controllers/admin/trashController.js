@@ -3,6 +3,7 @@ const Manhua = require("../../models/Manhua");
 const Chapter = require("../../models/Chapter");
 const cache = require("../../utils/cache");
 const { invalidatePublicManhuaCache } = require("../../utils/invalidatePublicManhuaCache");
+const { invalidateManhuaChapterReads } = require("../../services/chapterReadCache");
 
 function isValidId(id) {
   return /^[0-9a-fA-F]{24}$/.test(String(id));
@@ -130,6 +131,7 @@ exports.restoreManhua = async (req, res, next) => {
     cache.del(`admin:manhuas:detail:${id}`);
     cache.delPrefix("admin:manhuas:list:");
     cache.delPrefix("editor:manhuas:mine:");
+    await invalidateManhuaChapterReads(id);
     await invalidatePublicManhuaCache();
 
     res.json({ success: true, message: "Manhua restored" });
@@ -166,6 +168,7 @@ exports.restoreChapter = async (req, res, next) => {
       { _id: id },
       { $set: { deletedAt: null, deletedBy: null } }
     );
+    await invalidateManhuaChapterReads(chapter.manhua);
     await invalidatePublicManhuaCache();
 
     res.json({ success: true, message: "Chapter restored" });

@@ -12,7 +12,8 @@ async function get(key) {
   if (redis) {
     try {
       const raw = await redis.get(key);
-      if (raw) return JSON.parse(raw);
+      if (!raw) return null;
+      return JSON.parse(raw);
     } catch {
       // Redis алдаа — fallback ашиглана
     }
