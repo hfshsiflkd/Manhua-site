@@ -3,6 +3,7 @@
 import axios from "axios";
 import type { Chapter } from "@/types/manhua";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
+import { validateImageFile, type ImagePurpose } from "@/lib/imageLimits";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 if (!BASE_URL) console.error("[api] NEXT_PUBLIC_API_BASE_URL тохируулаагүй байна");
@@ -496,77 +497,109 @@ export async function adminPermanentDeleteChapter(id: string) {
   return res.data;
 }
 
-// Vercel serverless body хязгаар — 4.5MB. Үүнээс ХЭТ доогуур байх ёстой.
-const HARD_LIMIT = 4 * 1024 * 1024; // 4MB — Vercel 413 болохоос сэргийлсэн safety margin
-const COMPRESS_THRESHOLD = 3.9 * 1024 * 1024; // 3.9MB — зөвхөн Vercel limit-т ойртсон файлыг шахна
+export interface UploadedImagePart {
+  url: string;
+  width: number;
+  height: number;
+}
+
+export interface UploadedImage {
+  url: string;
+  urls: string[];
+  width?: number;
+  height?: number;
+  parts?: UploadedImagePart[];
+  avatar?: string;
+}
+
+function putFile(
+  uploadUrl: string,
+  file: File,
+  headers: Record<string, string>,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal
+) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const abort = () => {
+      xhr.abort();
+      reject(new DOMException("Upload цуцлагдлаа", "AbortError"));
+    };
+    if (signal?.aborted) {
+      abort();
+      return;
+    }
+    signal?.addEventListener("abort", abort, { once: true });
+    xhr.open("PUT", uploadUrl);
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+    xhr.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable || !event.total) return;
+      onProgress(Math.min(100, Math.round((event.loaded * 100) / event.total)));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error("R2 руу хуулахад алдаа гарлаа."));
+    };
+    xhr.onerror = () =>
+      reject(new Error("R2 руу холбогдож чадсангүй. CORS тохиргоог шалгана уу."));
+    xhr.send(file);
+  });
+}
 
 export async function uploadImage(
   fileInput: File,
-  onProgress?: (percent: number) => void
-) {
-  // 🗜️ Browser дээр аль аль том файлыг шахна:
-  //   - PNG нь WebP-ээс хэд дахин том байх ёстой
-  //   - 1.5MB+ PNG/JPEG-г 2000px webp болгоход 200-800KB болдог
-  let file = fileInput;
-  const isImage = file.type.startsWith("image/");
-  const shouldCompress =
-    isImage && file.size > COMPRESS_THRESHOLD && file.type !== "image/gif";
-
-  if (shouldCompress) {
-    try {
-      const { compressImage } = await import("./compressImage");
-      file = await compressImage(fileInput, {
-        maxDimension: 2400,
-        quality: 0.95,
-        skipIfSmallerThan: 0,
-      });
-    } catch {
-      // Шахалт амжилтгүй бол анхны файлыг ашиглана
-    }
+  onProgress?: (percent: number) => void,
+  purpose: ImagePurpose = "chapter",
+  hooks?: {
+    onPhase?: (phase: "uploading" | "processing") => void;
+    signal?: AbortSignal;
+    onPresign?: (token: string) => void;
   }
+): Promise<UploadedImage> {
+  const problem = validateImageFile(fileInput, purpose);
+  if (problem) throw new Error(problem);
 
-  // Шахсаны дараа ч хэт том бол дахин агрессив шахалт оролдоно
-  if (file.size > HARD_LIMIT) {
-    try {
-      const { compressImage } = await import("./compressImage");
-      file = await compressImage(file, {
-        maxDimension: 2000,
-        quality: 0.90,
-        skipIfSmallerThan: 0,
-      });
-    } catch {
-      // skip
-    }
-  }
-
-  if (file.size > HARD_LIMIT) {
-    throw new Error(
-      `Файл хэт том байна (${(file.size / 1024 / 1024).toFixed(1)}MB). Жижиг хэмжээтэй зураг сонгоно уу.`
-    );
-  }
-
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await api.post<{ url: string }>("/upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-    onUploadProgress: (event) => {
-      if (!onProgress) return;
-      const total = event.total ?? 0;
-      if (!total) {
-        onProgress(0);
-        return;
-      }
-      const percent = Math.round((event.loaded * 100) / total);
-      const capped = Math.min(95, Math.max(0, percent));
-      onProgress(capped);
-    },
+  const contentType = fileInput.type === "image/jpg" ? "image/jpeg" : fileInput.type;
+  hooks?.onPhase?.("uploading");
+  const presign = await api.post<{
+    uploadUrl: string;
+    token: string;
+    headers?: Record<string, string>;
+  }>("/upload/presign", {
+    purpose,
+    contentType,
+    contentLength: fileInput.size,
+    fileName: fileInput.name,
   });
+  hooks?.onPresign?.(presign.data.token);
+  if (hooks?.signal?.aborted) {
+    await api.post("/upload/abort", { token: presign.data.token }).catch(() => {});
+    throw new DOMException("Upload цуцлагдлаа", "AbortError");
+  }
 
+  try {
+    await putFile(
+      presign.data.uploadUrl,
+      fileInput,
+      presign.data.headers || {},
+      onProgress,
+      hooks?.signal
+    );
+  } catch (err) {
+    if (hooks?.signal?.aborted) {
+      await api.post("/upload/abort", { token: presign.data.token }).catch(() => {});
+    }
+    throw err;
+  }
+
+  hooks?.onPhase?.("processing");
+  const finalized = await api.post<UploadedImage>("/upload/finalize", {
+    token: presign.data.token,
+  });
   if (onProgress) onProgress(100);
-  return res.data; // { url }
+  return finalized.data;
 }
 
 
@@ -794,19 +827,8 @@ export async function getManhuaStatus(manhuaId: string) {
 
 // Avatar upload
 export async function uploadAvatar(file: File) {
-  const formData = new FormData();
-  formData.append("avatar", file);
-
-  const res = await api.post<{ success: boolean; avatar: string }>(
-    "/user/avatar",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
-  return res.data;
+  const result = await uploadImage(file, undefined, "avatar");
+  return { success: true, avatar: result.avatar || result.url };
 }
 
 // Profile updates

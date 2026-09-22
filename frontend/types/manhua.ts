@@ -27,6 +27,9 @@ export interface Manhua {
 export interface ChapterPage {
   pageNumber: number;
   imageUrl: string;
+  originalName?: string | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface Chapter {

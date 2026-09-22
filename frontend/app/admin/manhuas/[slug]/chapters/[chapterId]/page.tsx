@@ -2,9 +2,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import { useEffect, useRef, useState, ChangeEvent, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { api, uploadImage } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ensureChapterUpload, uploadPhaseLabel } from "@/lib/chapterImages";
+import { savePages } from "@/lib/uploadSession";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -22,7 +26,14 @@ const blurBorder = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) =
   e.currentTarget.style.borderColor = "var(--arc-border)";
 };
 
-interface ChapterPage { pageNumber: number; imageUrl: string; originalName?: string; }
+interface ChapterPage {
+  pageNumber: number;
+  imageUrl: string;
+  originalName?: string;
+  width?: number;
+  height?: number;
+  sourceUrl?: string;
+}
 interface Chapter {
   _id: string; chapterNumber: number; title?: string;
   pages: ChapterPage[]; language?: string; status?: "published" | "draft";
@@ -44,13 +55,14 @@ export default function AdminEditChapterPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
   const [uploadTotal, setUploadTotal] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "saving">("idle");
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "processing" | "saving">("idle");
   const [chapterNumber, setChapterNumber] = useState<number>(1);
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<"published" | "draft">("published");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const confirm = useConfirm();
   const toast = useToast();
+  const keptUploads = useRef(new Map<string, { imageUrl: string; originalName?: string; width?: number; height?: number }[]>());
 
   useEffect(() => {
     if (!chapterId) return;
@@ -82,6 +94,16 @@ export default function AdminEditChapterPage() {
     } finally { setSavingMeta(false); }
   };
 
+  function pagePayload(p: ChapterPage, idx: number): ChapterPage {
+    return {
+      pageNumber: idx + 1,
+      imageUrl: p.sourceUrl || p.imageUrl,
+      originalName: p.originalName,
+      width: p.width,
+      height: p.height,
+    };
+  }
+
   const saveChapterPages = async (updatedPages: ChapterPage[]) => {
     if (!chapter) return;
     setSavingPages(true);
@@ -89,8 +111,6 @@ export default function AdminEditChapterPage() {
       await api.put(`/admin/chapters/${chapterId}`, { chapterNumber, title, status, pages: updatedPages });
       setChapter({ ...chapter, pages: updatedPages });
       setPages(updatedPages);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа");
     } finally { setSavingPages(false); }
   };
 
@@ -102,26 +122,40 @@ export default function AdminEditChapterPage() {
       setUploadProgress(0);
       setUploadTotal(fileArr.length);
       setUploadPhase("uploading");
-      const uploaded: string[] = [];
+      for (const file of fileArr) {
+        const problem = validateImageFile(file, "chapter");
+        if (problem) throw new Error(problem);
+      }
+      const uploaded: { imageUrl: string; originalName?: string; width?: number; height?: number }[] = [];
       for (const [index, file] of fileArr.entries()) {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
         setUploadingIndex(index + 1);
-        const r = await uploadImage(file, (percent) => {
-          setUploadProgress(Math.min(100, Math.max(0, Math.round(((index + percent / 100) / fileArr.length) * 100))));
+        const parts = await ensureChapterUpload(file, keptUploads.current.get(key), {
+          onPhase: (phase) => setUploadPhase(phase),
+          onProgress: (percent) =>
+            setUploadProgress(Math.min(100, Math.round(((index + percent / 100) / fileArr.length) * 100))),
         });
-        uploaded.push((r as any).url || (r as any).secure_url || r.url);
+        keptUploads.current.set(key, parts);
+        uploaded.push(...parts);
       }
       setUploadProgress(100);
       setUploadPhase("saving");
 
-      const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
-        pageNumber: pages.length + idx + 1, imageUrl: url, originalName: fileArr[idx]?.name,
+      const newPages: ChapterPage[] = uploaded.map((page, idx) => ({
+        pageNumber: pages.length + idx + 1,
+        imageUrl: page.imageUrl,
+        originalName: page.originalName,
+        width: page.width,
+        height: page.height,
       }));
-      const merged = [...pages, ...newPages].map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
-      await saveChapterPages(merged);
+      const merged = [...pages, ...newPages].map((p, idx) => pagePayload(p, idx));
+      const saved = await savePages(() => saveChapterPages(merged));
+      if (!saved.ok) throw new Error(saved.message);
+      fileArr.forEach((file) => keptUploads.current.delete(`${file.name}:${file.size}:${file.lastModified}`));
       setFiles(null);
       toast.success("Шинэ page-үүд нэмэгдлээ");
     } catch (e: any) {
-      toast.error(e.response?.data?.message || "Page нэмэхэд алдаа гарлаа");
+      toast.error(e.response?.data?.message || e?.message || "Page нэмэхэд алдаа гарлаа");
     } finally {
       setAddingImages(false);
       setUploadProgress(null);
@@ -135,8 +169,12 @@ export default function AdminEditChapterPage() {
     if (!chapter) return;
     const ok = await confirm({ title: "Page устгах уу?", description: "Энэ page-ийг устгавал буцаах боломжгүй.", confirmText: "Устгах", cancelText: "Болих" });
     if (!ok) return;
-    const remaining = pages.filter((_, i) => i !== index).map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName }));
-    await saveChapterPages(remaining);
+    const remaining = pages.filter((_, i) => i !== index).map((p, idx) => pagePayload(p, idx));
+    try {
+      await saveChapterPages(remaining);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e?.message || "Хадгалах явцад алдаа гарлаа");
+    }
   };
 
   const handleDrop = async (targetIndex: number) => {
@@ -145,7 +183,11 @@ export default function AdminEditChapterPage() {
     const [moved] = updated.splice(dragIndex, 1);
     updated.splice(targetIndex, 0, moved);
     setDragIndex(null);
-    await saveChapterPages(updated.map((p, idx) => ({ pageNumber: idx + 1, imageUrl: p.imageUrl, originalName: p.originalName })));
+    try {
+      await saveChapterPages(updated.map((p, idx) => pagePayload(p, idx)));
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e?.message || "Хадгалах явцад алдаа гарлаа");
+    }
   };
 
   if (loading) return (
@@ -174,7 +216,7 @@ export default function AdminEditChapterPage() {
           <div className="w-full max-w-sm rounded-[16px] p-5 space-y-3" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
             <div className="flex items-center justify-between text-[12px]">
               <span style={{ color: "var(--arc-text)", fontWeight: 600 }}>
-                {uploadPhase === "saving" ? "Page-үүд хадгалж байна..." : `Upload (${uploadingIndex}/${uploadTotal})`}
+                {uploadPhaseLabel(uploadPhase, uploadingIndex, uploadTotal)}
               </span>
               <span style={{ color: "var(--arc-cyan)" }}>{uploadPhase === "saving" ? "100%" : `${uploadProgress ?? 0}%`}</span>
             </div>
@@ -249,11 +291,26 @@ export default function AdminEditChapterPage() {
         style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}
       >
         <div className="text-[12px] font-semibold" style={{ color: "var(--arc-text)" }}>Шинэ page-үүд нэмэх</div>
+        <UploadPolicyNote purpose="chapter" />
         <input
           type="file"
           multiple
-          accept="image/*"
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setFiles(e.target.files)}
+          accept={IMAGE_FILE_ACCEPT}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+            const list = e.target.files;
+            if (list) {
+              for (const file of Array.from(list)) {
+                const problem = validateImageFile(file, "chapter");
+                if (problem) {
+                  toast.error(problem);
+                  e.target.value = "";
+                  setFiles(null);
+                  return;
+                }
+              }
+            }
+            setFiles(list);
+          }}
           className="w-full text-[11px] file:mr-3 file:rounded-[7px] file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:cursor-pointer"
           style={{ color: "var(--arc-dim)" }}
         />

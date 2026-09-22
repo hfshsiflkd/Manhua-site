@@ -11,19 +11,28 @@ import {
   DragEvent,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { api, uploadImage } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ensureChapterUpload, uploadPhaseLabel } from "@/lib/chapterImages";
+import { createIdempotencyKey, savePages } from "@/lib/uploadSession";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 import { useToast } from "@/app/components/ToastProvider";
 
 interface ChapterPageInput {
   pageNumber: number;
   imageUrl: string;
   originalName?: string;
+  width?: number;
+  height?: number;
 }
 
 interface PageItem {
   id: string;
   file: File;
   previewUrl: string;
+  status: "pending" | "uploading" | "processing" | "uploaded" | "failed" | "cancelled";
+  error?: string;
+  uploaded?: { imageUrl: string; originalName?: string; width?: number; height?: number }[];
 }
 
 function uid() {
@@ -90,6 +99,8 @@ export default function EditorNewChapterPage() {
   const router = useRouter();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef(new Map<string, AbortController>());
+  const idempotencyKeyRef = useRef(createIdempotencyKey());
 
   const [chapterNumber, setChapterNumber] = useState<number>(1);
   const [title, setTitle] = useState("");
@@ -99,7 +110,7 @@ export default function EditorNewChapterPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "creating">("idle");
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "processing" | "creating">("idle");
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
@@ -111,14 +122,20 @@ export default function EditorNewChapterPage() {
   /* ─── File handling ─── */
   function addFiles(fileList: FileList | File[]) {
     const arr = Array.from(fileList);
-    const validImages = arr.filter((f) => f.type.startsWith("image/"));
-    if (validImages.length !== arr.length) {
-      toast.error("Зөвхөн зураг файлууд оруулна уу");
+    const accepted: File[] = [];
+    for (const file of arr) {
+      const problem = validateImageFile(file, "chapter");
+      if (problem) {
+        toast.error(problem);
+        continue;
+      }
+      accepted.push(file);
     }
-    const newItems: PageItem[] = validImages.map((file) => ({
+    const newItems: PageItem[] = accepted.map((file) => ({
       id: uid(),
       file,
       previewUrl: URL.createObjectURL(file),
+      status: "pending",
     }));
     setPages((prev) => [...prev, ...newItems]);
   }
@@ -206,31 +223,58 @@ export default function EditorNewChapterPage() {
       setUploadPhase("uploading");
       setUploadingIndex(0);
 
-      const uploadedUrls: string[] = [];
-      for (const [index, item] of pages.entries()) {
+      const active = pages.filter((item) => item.status !== "cancelled");
+      const uploadedPages: ChapterPageInput[] = [];
+      for (const [index, item] of active.entries()) {
         setUploadingIndex(index + 1);
-        const result = await uploadImage(item.file, (p) =>
-          setUploadProgress(
-            Math.min(100, Math.max(0, Math.round(((index + p / 100) / pages.length) * 100)))
-          )
-        );
-        uploadedUrls.push((result as any).url);
+        const controller = new AbortController();
+        abortRef.current.set(item.id, controller);
+        setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: "uploading" } : page));
+        try {
+          const parts = await ensureChapterUpload(item.file, item.uploaded, {
+            signal: controller.signal,
+            onPhase: (phase) => {
+              setUploadPhase(phase);
+              setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: phase } : page));
+            },
+            onProgress: (percent) =>
+              setUploadProgress(Math.min(100, Math.round(((index + percent / 100) / active.length) * 100))),
+          });
+          setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: "uploaded", uploaded: parts, error: undefined } : page));
+          parts.forEach((part) => uploadedPages.push({
+            pageNumber: uploadedPages.length + 1,
+            imageUrl: part.imageUrl,
+            originalName: part.originalName,
+            width: part.width,
+            height: part.height,
+          }));
+        } catch (err) {
+          if (controller.signal.aborted) {
+            setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: "cancelled" } : page));
+            return;
+          }
+          const message = (err as { message?: string })?.message || "Upload амжилтгүй";
+          setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: "failed", error: message } : page));
+          throw err;
+        } finally {
+          abortRef.current.delete(item.id);
+        }
       }
       setUploadProgress(100);
       setUploadPhase("creating");
 
-      const payload: ChapterPageInput[] = uploadedUrls.map((url, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: url,
-        originalName: pages[idx]?.file.name,
-      }));
-      await api.post(`/editor/manhuas/${slug}/chapters`, {
-        chapterNumber,
-        title,
-        pages: payload,
-        language: "mn",
-        status,
-      });
+      const payload = uploadedPages.map((page, idx) => ({ ...page, pageNumber: idx + 1 }));
+      const saved = await savePages(() =>
+        api.post(`/editor/manhuas/${slug}/chapters`, {
+          chapterNumber,
+          title,
+          pages: payload,
+          language: "mn",
+          status,
+          idempotencyKey: idempotencyKeyRef.current,
+        }).then(() => undefined)
+      );
+      if (!saved.ok) throw new Error(saved.message);
       toast.success("Chapter амжилттай үүслээ");
       router.push(`/editor/manhuas/${slug}/chapters`);
     } catch (err: any) {
@@ -256,12 +300,14 @@ export default function EditorNewChapterPage() {
               </div>
               <div>
                 <div className="text-[13px] font-semibold" style={{ color: "var(--arc-text)" }}>
-                  {uploadPhase === "creating" ? "Chapter үүсгэж байна…" : "Зураг upload хийж байна"}
+                  {uploadPhaseLabel(uploadPhase, uploadingIndex, pages.length)}
                 </div>
                 <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
                   {uploadPhase === "creating"
                     ? "Сүүлийн алхам — өгөгдөл хадгалж байна"
-                    : `${uploadingIndex} / ${pages.length} зураг`}
+                    : uploadPhase === "processing"
+                      ? "Сервер зургийг шалгаж байна"
+                      : `${uploadingIndex} / ${pages.length} зураг`}
                 </div>
               </div>
             </div>
@@ -450,7 +496,7 @@ export default function EditorNewChapterPage() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*"
+              accept={IMAGE_FILE_ACCEPT}
               onChange={handleFilePick}
               className="hidden"
             />
@@ -475,8 +521,9 @@ export default function EditorNewChapterPage() {
               {isDragging ? "Энд тавь" : "Зураг сонгох эсвэл чирж тавих"}
             </p>
             <p className="text-[11px] mt-1" style={{ color: "var(--arc-muted)" }}>
-              PNG, JPG, WebP — олон сонгож болно. Сонгосон дарааллаар хуудас 1..N болж орно.
+              Олон сонгож болно. Сонгосон дарааллаар хуудас 1..N болж орно.
             </p>
+            <UploadPolicyNote purpose="chapter" />
           </div>
 
           {/* Thumbnails grid */}
@@ -540,8 +587,34 @@ export default function EditorNewChapterPage() {
                       style={{ color: "var(--arc-muted)" }}
                       title={p.file.name}
                     >
-                      {formatBytes(p.file.size)}
+                      {p.status === "uploaded" ? "Орсон" : p.status === "failed" ? "Амжилтгүй" : p.status === "uploading" || p.status === "processing" ? "Явж байна" : formatBytes(p.file.size)}
                     </span>
+                    {(p.status === "uploading" || p.status === "processing") && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abortRef.current.get(p.id)?.abort();
+                        }}
+                        className="rounded-md px-1 text-[9px]"
+                        style={{ color: "var(--arc-text)" }}
+                      >
+                        Болих
+                      </button>
+                    )}
+                    {p.status === "failed" && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleSubmit({ preventDefault() {} } as FormEvent);
+                        }}
+                        className="rounded-md px-1 text-[9px]"
+                        style={{ color: cyan }}
+                      >
+                        Дахин
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {

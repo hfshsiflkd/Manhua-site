@@ -5,6 +5,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { editorGetMyManhuas, editorUpdateManhua, editorDeleteManhua, uploadImage, Manhua, editorGetTeams, Team } from "@/lib/api";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -110,14 +112,16 @@ export default function EditorManhuaDetailPage() {
   const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const problem = validateImageFile(file, "cover");
+    if (problem) { toast.error(problem); return; }
     try {
       setUploadingCover(true); setError(null); setCoverProgress(0);
-      const result = await uploadImage(file, (p) => setCoverProgress(p));
+      const result = await uploadImage(file, (p) => setCoverProgress(p), "cover");
       setForm((f) => ({ ...f, coverImage: (result as any).url }));
       setCoverProgress(100);
-      toast.success("Cover зураг шинэчлэгдлээ");
+      toast.success("Хавтас бэлэн. Манхуаг хадгалахад орно.");
     } catch (e: any) {
-      const msg = e?.response?.data?.message || "Cover upload алдаа"; setError(msg); toast.error(msg);
+      const msg = e?.response?.data?.message || e?.message || "Cover upload алдаа"; setError(msg); toast.error(msg);
     } finally { setUploadingCover(false); }
   };
 
@@ -304,11 +308,14 @@ export default function EditorManhuaDetailPage() {
 
             <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Cover зураг</h2>
+                <div>
+                  <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Cover зураг</h2>
+                  <UploadPolicyNote purpose="cover" />
+                </div>
                 <label className="inline-flex cursor-pointer items-center justify-center rounded-[9px] px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80 w-full sm:w-auto"
                   style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleCoverFileChange} />
-                  {uploadingCover ? "Uploading..." : "Change cover"}
+                  <input type="file" accept={IMAGE_FILE_ACCEPT} className="hidden" onChange={handleCoverFileChange} />
+                  {uploadingCover ? "Хуулж, шалгаж байна..." : "Change cover"}
                 </label>
               </div>
               {coverProgress !== null && (

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { submitFeedback, type FeedbackType } from "@/lib/feedback";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 
 const typeOptions: Array<{ value: FeedbackType; label: string; hint: string }> = [
   { value: "suggestion_request", label: "Санал / Хүсэлт", hint: "Шинэ боломж, сайжруулалт, контентын хүсэлт гэх мэт." },
@@ -102,12 +104,26 @@ export default function FeedbackPage() {
               <div className="mt-4 space-y-1">
                 <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Зураг хавсаргах (сонголтоор)</label>
                 <input
-                  type="file" accept="image/*"
-                  onChange={(e) => setImage(e.target.files?.[0] || null)}
+                  type="file" accept={IMAGE_FILE_ACCEPT}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      const problem = validateImageFile(file, "feedback");
+                      if (problem) {
+                        setErr(problem);
+                        e.target.value = "";
+                        setImage(null);
+                        return;
+                      }
+                    }
+                    setErr(null);
+                    setImage(file);
+                  }}
                   className="block w-full text-[12px] file:mr-3 file:rounded-full file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold"
                   style={{ color: "var(--arc-dim)" }}
                 />
                 <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Screenshot эсвэл алдааны зургийг оруулбал хурдан шийдэхэд тус болно.</div>
+                <UploadPolicyNote purpose="feedback" />
               </div>
 
               {err && (
@@ -138,7 +154,7 @@ export default function FeedbackPage() {
                 Илгээсэн мэдээлэл админ хэсэгт очиж, тус бүрээр нь шалгагдана.
               </p>
               <p className="mt-2 text-[11px]" style={{ color: "var(--arc-muted)" }}>
-                Зураг хавсаргасан бол 10MB хүртэл зөвшөөрнө.
+                Зураг хавсаргасан бол 4MB хүртэл зөвшөөрнө.
               </p>
             </div>
           </div>

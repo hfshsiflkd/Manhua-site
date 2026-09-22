@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { uploadAvatar, api } from "@/lib/api";
+import { uploadImage, api } from "@/lib/api";
+import { validateImageFile } from "@/lib/imageLimits";
 import { useAuth } from "@/context/AuthContext";
 
 export function useAvatarUpload() {
@@ -11,17 +12,9 @@ export function useAvatarUpload() {
 
   const upload = useCallback(
     async (file: File) => {
-      // Validate file type
-      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-      if (!allowedTypes.includes(file.type)) {
-        setError("Зөвхөн JPG, PNG, WebP зураг ашиглана уу.");
-        return null;
-      }
-
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
-        setError("Зургийн хэмжээ 5MB-аас их байна.");
+      const problem = validateImageFile(file, "avatar");
+      if (problem) {
+        setError(problem);
         return null;
       }
 
@@ -29,7 +22,9 @@ export function useAvatarUpload() {
       setError(null);
 
       try {
-        const result = await uploadAvatar(file);
+        const result = await uploadImage(file, undefined, "avatar", {
+          onPhase: () => {},
+        });
         // Update user in context
         if (user && result.avatar) {
           setUser({ ...user, avatar: result.avatar });
@@ -44,7 +39,7 @@ export function useAvatarUpload() {
         } catch {
           // Ignore errors fetching updated user
         }
-        return result.avatar;
+        return result.avatar || result.url || null;
       } catch (err: any) {
         const errorMessage =
           err?.response?.data?.message || "Зураг ачаалах үед алдаа гарлаа.";

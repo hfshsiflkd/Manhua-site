@@ -7,12 +7,15 @@ import {
   useState,
   ChangeEvent,
   FormEvent,
-  useMemo,
   useRef,
   DragEvent,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { api, uploadImage } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ensureChapterUpload, uploadPhaseLabel } from "@/lib/chapterImages";
+import { savePages } from "@/lib/uploadSession";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -20,6 +23,9 @@ interface ChapterPage {
   pageNumber: number;
   imageUrl: string;
   originalName?: string;
+  width?: number;
+  height?: number;
+  sourceUrl?: string;
 }
 interface Chapter {
   _id: string;
@@ -116,6 +122,8 @@ export default function EditorEditChapterPage() {
   const confirm = useConfirm();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const keptUploads = useRef(new Map<string, { imageUrl: string; originalName?: string; width?: number; height?: number }[]>());
+  const addAbortRef = useRef<AbortController | null>(null);
 
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [pages, setPages] = useState<ChapterPage[]>([]);
@@ -126,7 +134,7 @@ export default function EditorEditChapterPage() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
   const [uploadTotal, setUploadTotal] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "saving">("idle");
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "processing" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -203,11 +211,23 @@ export default function EditorEditChapterPage() {
       setChapter({ ...chapter, pages: updatedPages });
       setPages(updatedPages);
     } catch (e: any) {
-      setError(e.response?.data?.message || "Хадгалах явцад алдаа гарлаа");
+      const message = e.response?.data?.message || e.message || "Хадгалах явцад алдаа гарлаа";
+      setError(message);
+      throw e;
     } finally {
       setSavingPages(false);
     }
   };
+
+  function pagePayload(p: ChapterPage, idx: number): ChapterPage {
+    return {
+      pageNumber: idx + 1,
+      imageUrl: p.sourceUrl || p.imageUrl,
+      originalName: p.originalName,
+      width: p.width,
+      height: p.height,
+    };
+  }
 
   /* ─── Add images via input + drop ─── */
   async function processNewFiles(fileArr: File[]) {
@@ -220,30 +240,35 @@ export default function EditorEditChapterPage() {
       setUploadTotal(fileArr.length);
       setUploadPhase("uploading");
 
-      const uploaded: string[] = [];
+      const controller = new AbortController();
+      addAbortRef.current = controller;
+      const uploaded: { imageUrl: string; originalName?: string; width?: number; height?: number }[] = [];
       for (const [index, file] of fileArr.entries()) {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
         setUploadingIndex(index + 1);
-        const r = await uploadImage(file, (p) =>
-          setUploadProgress(
-            Math.min(100, Math.max(0, Math.round(((index + p / 100) / fileArr.length) * 100)))
-          )
-        );
-        uploaded.push((r as any).url);
+        const parts = await ensureChapterUpload(file, keptUploads.current.get(key), {
+          signal: controller.signal,
+          onPhase: (phase) => setUploadPhase(phase),
+          onProgress: (percent) =>
+            setUploadProgress(Math.min(100, Math.round(((index + percent / 100) / fileArr.length) * 100))),
+        });
+        keptUploads.current.set(key, parts);
+        uploaded.push(...parts);
       }
       setUploadProgress(100);
       setUploadPhase("saving");
 
-      const newPages: ChapterPage[] = uploaded.map((url, idx) => ({
+      const newPages: ChapterPage[] = uploaded.map((page, idx) => ({
         pageNumber: pages.length + idx + 1,
-        imageUrl: url,
-        originalName: fileArr[idx]?.name,
+        imageUrl: page.imageUrl,
+        originalName: page.originalName,
+        width: page.width,
+        height: page.height,
       }));
-      const merged = [...pages, ...newPages].map((p, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName,
-      }));
-      await saveChapterPages(merged);
+      const merged = [...pages, ...newPages].map((p, idx) => pagePayload(p, idx));
+      const saved = await savePages(() => saveChapterPages(merged));
+      if (!saved.ok) throw new Error(saved.message);
+      fileArr.forEach((file) => keptUploads.current.delete(`${file.name}:${file.size}:${file.lastModified}`));
       toast.success(`${newPages.length} хуудас нэмэгдлээ`);
     } catch (e: any) {
       const m = e?.response?.data?.message || e?.message || "Page нэмэхэд алдаа гарлаа";
@@ -259,7 +284,14 @@ export default function EditorEditChapterPage() {
 
   function handleFilePick(e: ChangeEvent<HTMLInputElement>) {
     if (!e.target.files?.length) return;
-    const arr = Array.from(e.target.files).filter((f) => f.type.startsWith("image/"));
+    const arr = Array.from(e.target.files).filter((file) => {
+      const problem = validateImageFile(file, "chapter");
+      if (problem) {
+        toast.error(problem);
+        return false;
+      }
+      return true;
+    });
     e.target.value = "";
     processNewFiles(arr);
   }
@@ -268,7 +300,14 @@ export default function EditorEditChapterPage() {
     e.preventDefault();
     setIsDragging(false);
     if (!e.dataTransfer.files?.length) return;
-    const arr = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    const arr = Array.from(e.dataTransfer.files).filter((file) => {
+      const problem = validateImageFile(file, "chapter");
+      if (problem) {
+        toast.error(problem);
+        return false;
+      }
+      return true;
+    });
     processNewFiles(arr);
   }
   function handleDragOver(e: DragEvent<HTMLDivElement>) {
@@ -312,14 +351,14 @@ export default function EditorEditChapterPage() {
     if (!ok) return;
     const remaining = pages
       .filter((_, i) => !selected.has(i))
-      .map((p, idx) => ({
-        pageNumber: idx + 1,
-        imageUrl: p.imageUrl,
-        originalName: p.originalName,
-      }));
+      .map((p, idx) => pagePayload(p, idx));
     setSelected(new Set());
-    await saveChapterPages(remaining);
-    toast.success(`${totalSelected} хуудас устгагдлаа`);
+    try {
+      await saveChapterPages(remaining);
+      toast.success(`${totalSelected} хуудас устгагдлаа`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e?.message || "Хадгалах явцад алдаа гарлаа");
+    }
   }
 
   /* ─── Reorder ─── */
@@ -343,12 +382,12 @@ export default function EditorEditChapterPage() {
   async function handleThumbDragEnd() {
     setDragIndex(null);
     // Save the new order
-    const reIndexed = pages.map((p, idx) => ({
-      pageNumber: idx + 1,
-      imageUrl: p.imageUrl,
-      originalName: p.originalName,
-    }));
-    await saveChapterPages(reIndexed);
+    const reIndexed = pages.map((p, idx) => pagePayload(p, idx));
+    try {
+      await saveChapterPages(reIndexed);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e?.message || "Хадгалах явцад алдаа гарлаа");
+    }
   }
 
   /* ─── Loading / Error states ─── */
@@ -406,12 +445,14 @@ export default function EditorEditChapterPage() {
               </div>
               <div>
                 <div className="text-[13px] font-semibold" style={{ color: "var(--arc-text)" }}>
-                  {uploadPhase === "saving" ? "Хадгалж байна…" : "Зураг upload хийж байна"}
+                  {uploadPhaseLabel(uploadPhase, uploadingIndex, uploadTotal)}
                 </div>
                 <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
                   {uploadPhase === "saving"
-                    ? "Сүүлийн алхам"
-                    : `${uploadingIndex} / ${uploadTotal} зураг`}
+                    ? "Сүүлийн алхам — хадгалалт дуусаагүй"
+                    : uploadPhase === "processing"
+                      ? "Сервер зургийг шалгаж байна"
+                      : `${uploadingIndex} / ${uploadTotal} зураг`}
                 </div>
               </div>
             </div>
@@ -662,7 +703,7 @@ export default function EditorEditChapterPage() {
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*"
+            accept={IMAGE_FILE_ACCEPT}
             onChange={handleFilePick}
             className="hidden"
           />
@@ -690,6 +731,7 @@ export default function EditorEditChapterPage() {
               <p className="text-[10px] mt-0.5" style={{ color: "var(--arc-muted)" }}>
                 Click эсвэл drag&drop — олон файл сонгож болно
               </p>
+              <UploadPolicyNote purpose="chapter" />
             </div>
           </div>
         </div>
@@ -828,12 +870,12 @@ export default function EditorEditChapterPage() {
                       if (!ok) return;
                       const remaining = pages
                         .filter((_, i) => i !== idx)
-                        .map((px, i) => ({
-                          pageNumber: i + 1,
-                          imageUrl: px.imageUrl,
-                          originalName: px.originalName,
-                        }));
-                      await saveChapterPages(remaining);
+                        .map((px, i) => pagePayload(px, i));
+                      try {
+                        await saveChapterPages(remaining);
+                      } catch (err: any) {
+                        toast.error(err?.response?.data?.message || err?.message || "Хадгалах явцад алдаа гарлаа");
+                      }
                     }}
                     className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-[6px] p-1.5"
                     style={{

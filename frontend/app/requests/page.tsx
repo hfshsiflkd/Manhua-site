@@ -5,8 +5,8 @@ import { uploadImage } from "@/lib/api";
 import { useToast } from "@/app/components/ToastProvider";
 import { useAuth } from "@/context/AuthContext";
 import { createRequest, getRequests, voteRequest, type RequestItem } from "@/lib/requests";
-
-const MAX_IMAGE_SIZE_MB = 10;
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -103,11 +103,15 @@ export default function ReaderRequestsPage() {
       setSubmitting(true);
       let imageUrl = "";
       if (image) {
-        const sizeMb = image.size / 1024 / 1024;
-        if (sizeMb > MAX_IMAGE_SIZE_MB) { toast.error("Зураг 10MB-с их байна"); return; }
+        const problem = validateImageFile(image, "request");
+        if (problem) { toast.error(problem); return; }
         setUploading(true); setUploadProgress(0);
-        const uploadResult = await uploadImage(image, (percent) => setUploadProgress(percent));
-        imageUrl = (uploadResult as any).url || "";
+        const uploadResult = await uploadImage(
+          image,
+          (percent) => setUploadProgress(percent),
+          "request"
+        );
+        imageUrl = uploadResult.url || "";
         setUploadProgress(100);
       }
       const created = await createRequest({ title: trimmed, imageUrl });
@@ -263,12 +267,25 @@ export default function ReaderRequestsPage() {
                 <label className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Зураг (сонголтоор)</label>
                 <input
                   type="file"
-                  accept="image/*"
-                  onChange={(e) => setImage(e.target.files?.[0] || null)}
+                  accept={IMAGE_FILE_ACCEPT}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      const problem = validateImageFile(file, "request");
+                      if (problem) {
+                        toast.error(problem);
+                        e.target.value = "";
+                        setImage(null);
+                        return;
+                      }
+                    }
+                    setImage(file);
+                  }}
                   className="block w-full text-[12px] file:mr-3 file:rounded-full file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold"
                   style={{ color: "var(--arc-dim)" }}
                   disabled={!isLoggedIn}
                 />
+                <UploadPolicyNote purpose="request" />
                 {uploadProgress !== null && (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[11px]" style={{ color: "var(--arc-muted)" }}>

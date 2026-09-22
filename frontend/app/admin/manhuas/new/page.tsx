@@ -6,6 +6,8 @@ import { useState, FormEvent, ChangeEvent, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import AdminShell from "../../components/AdminShell";
 import { uploadImage, editorCreateManhua } from "@/lib/api";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 
 const GENRE_OPTIONS = [
   "Romance", "Comedy", "Drama", "Action", "Fantasy",
@@ -44,6 +46,14 @@ export default function NewManhuaPage() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file) {
+      const problem = validateImageFile(file, "cover");
+      if (problem) {
+        setError(problem);
+        e.target.value = "";
+        return;
+      }
+    }
     setCoverFile(file);
     if (file) { setCoverPreview(URL.createObjectURL(file)); setCoverProgress(null); }
     else { setCoverPreview(null); setCoverProgress(null); }
@@ -66,7 +76,7 @@ export default function NewManhuaPage() {
         setUploadingCover(true);
         setCoverProgress(0);
         try {
-          const result = await uploadImage(coverFile, (percent) => setCoverProgress(percent));
+          const result = await uploadImage(coverFile, (percent) => setCoverProgress(percent), "cover");
           coverImageUrl = (result as any).url;
           setCoverProgress(100);
         } finally {
@@ -225,7 +235,8 @@ export default function NewManhuaPage() {
               className="inline-flex cursor-pointer items-center justify-center rounded-[9px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
               style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)", cursor: "pointer" }}
             >
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              <input type="file" accept={IMAGE_FILE_ACCEPT} className="hidden" onChange={handleFileChange} />
+              <UploadPolicyNote purpose="cover" />
               {coverFile ? "Файл солих" : "Файл сонгох"}
             </label>
 

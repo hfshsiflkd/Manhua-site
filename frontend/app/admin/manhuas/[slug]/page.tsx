@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
+import { validateImageFile } from "@/lib/imageLimits";
 
 import { ManhuaTopBar } from "./components/ManhuaTopBar";
 import { CoverImagePanel } from "./components/CoverImagePanel";
@@ -133,6 +134,8 @@ export default function AdminManhuaDetailPage() {
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const problem = validateImageFile(file, "cover");
+    if (problem) { toast.error(problem); return; }
 
     try {
       setUploadingCover(true);
@@ -141,15 +144,15 @@ export default function AdminManhuaDetailPage() {
       setCoverProgress(0);
       const result = await uploadImage(file, (percent) => {
         setCoverProgress(percent);
-      });
+      }, "cover");
       const url = (result as any).url;
       setForm((f) => ({ ...f, coverImage: url }));
       setCoverProgress(100);
-      toast.success("Cover зураг шинэчлэгдлээ");
+      toast.success("Хавтас бэлэн. Манхуаг хадгалахад орно.");
     } catch (e: any) {
       console.error("[AdminManhuaDetail] upload error:", e);
       const message =
-        e?.response?.data?.message || "Cover зураг upload хийх үед алдаа гарлаа"
+        e?.response?.data?.message || e?.message || "Cover зураг upload хийх үед алдаа гарлаа"
       setError(message);
       toast.error(message);
     } finally {

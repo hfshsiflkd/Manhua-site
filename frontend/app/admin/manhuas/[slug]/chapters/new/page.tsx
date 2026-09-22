@@ -1,9 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, ChangeEvent, FormEvent } from "react";
+import { useRef, useState, ChangeEvent, FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { api, uploadImage } from "@/lib/api";
+import { api } from "@/lib/api";
+import { ensureChapterUpload, uploadPhaseLabel } from "@/lib/chapterImages";
+import { createIdempotencyKey, savePages } from "@/lib/uploadSession";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 import { useToast } from "@/app/components/ToastProvider";
 
 const inputStyle: React.CSSProperties = {
@@ -13,7 +17,13 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "var(--font-body,'DM Sans',sans-serif)",
 };
 
-interface ChapterPageInput { pageNumber: number; imageUrl: string; originalName?: string; }
+interface ChapterPageInput {
+  pageNumber: number;
+  imageUrl: string;
+  originalName?: string;
+  width?: number;
+  height?: number;
+}
 
 export default function AdminNewChapterPage() {
   const params = useParams();
@@ -29,8 +39,10 @@ export default function AdminNewChapterPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadingIndex, setUploadingIndex] = useState<number>(0);
   const [uploadTotal, setUploadTotal] = useState<number>(0);
-  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "creating">("idle");
+  const [uploadPhase, setUploadPhase] = useState<"idle" | "uploading" | "processing" | "creating">("idle");
   const toast = useToast();
+  const keptUploads = useRef(new Map<string, { imageUrl: string; originalName?: string; width?: number; height?: number }[]>());
+  const idempotencyKeyRef = useRef(createIdempotencyKey());
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -43,31 +55,51 @@ export default function AdminNewChapterPage() {
       setUploadPhase("uploading");
 
       const fileArr = Array.from(files);
+      for (const file of fileArr) {
+        const problem = validateImageFile(file, "chapter");
+        if (problem) throw new Error(problem);
+      }
       setUploadTotal(fileArr.length);
-      const uploadedUrls: string[] = [];
-
+      const uploaded: ChapterPageInput[] = [];
       for (const [index, file] of fileArr.entries()) {
+        const key = `${file.name}:${file.size}:${file.lastModified}`;
         setUploadingIndex(index + 1);
-        const result = await uploadImage(file, (percent) => {
-          setUploadProgress(Math.min(100, Math.max(0, Math.round(((index + percent / 100) / fileArr.length) * 100))));
+        const parts = await ensureChapterUpload(file, keptUploads.current.get(key), {
+          onPhase: (phase) => setUploadPhase(phase),
+          onProgress: (percent) =>
+            setUploadProgress(Math.min(100, Math.round(((index + percent / 100) / fileArr.length) * 100))),
         });
-        uploadedUrls.push((result as any).url);
+        keptUploads.current.set(key, parts);
+        parts.forEach((part) => uploaded.push({
+          pageNumber: uploaded.length + 1,
+          imageUrl: part.imageUrl,
+          originalName: part.originalName,
+          width: part.width,
+          height: part.height,
+        }));
       }
 
       setUploadProgress(100);
       setUploadPhase("creating");
 
-      if (!uploadedUrls.length) { toast.error("Зураг upload болоогүй байна"); return; }
+      if (!uploaded.length) { toast.error("Зураг upload болоогүй байна"); return; }
 
-      const pages: ChapterPageInput[] = uploadedUrls.map((url, idx) => ({
-        pageNumber: idx + 1, imageUrl: url, originalName: fileArr[idx]?.name,
-      }));
-
-      await api.post(`/admin/manhuas/${slug}/chapters`, { chapterNumber, title, pages, language: "mn", status });
+      const pages = uploaded.map((page, idx) => ({ ...page, pageNumber: idx + 1 }));
+      const saved = await savePages(() =>
+        api.post(`/admin/manhuas/${slug}/chapters`, {
+          chapterNumber,
+          title,
+          pages,
+          language: "mn",
+          status,
+          idempotencyKey: idempotencyKeyRef.current,
+        }).then(() => undefined)
+      );
+      if (!saved.ok) throw new Error(saved.message);
       toast.success("Chapter амжилттай үүслээ");
       router.push(`/admin/manhuas/${slug}/chapters`);
     } catch (e: any) {
-      toast.error(e?.response?.data?.message || "Шинэ chapter үүсгэхэд алдаа гарлаа");
+      toast.error(e?.response?.data?.message || e?.message || "Шинэ chapter үүсгэхэд алдаа гарлаа");
     } finally {
       setSubmitting(false);
       setUploadingIndex(0);
@@ -84,10 +116,10 @@ export default function AdminNewChapterPage() {
           <div className="w-full max-w-sm rounded-[16px] p-5 space-y-3" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
             <div className="flex items-center justify-between text-[12px]">
               <span style={{ color: "var(--arc-text)", fontWeight: 600 }}>
-                {uploadPhase === "creating" ? "Chapter үүсгэж байна..." : `Upload (${uploadingIndex}/${uploadTotal})`}
+                {uploadPhaseLabel(uploadPhase, uploadingIndex, uploadTotal)}
               </span>
               <span style={{ color: "var(--arc-cyan)", fontVariantNumeric: "tabular-nums" }}>
-                {uploadPhase === "creating" ? "100%" : `${uploadProgress ?? 0}%`}
+                {uploadPhase === "creating" || uploadPhase === "processing" ? (uploadPhase === "creating" ? "100%" : "…") : `${uploadProgress ?? 0}%`}
               </span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--arc-elevated)" }}>
@@ -177,13 +209,28 @@ export default function AdminNewChapterPage() {
           <input
             type="file"
             multiple
-            accept="image/*"
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setFiles(e.target.files)}
+            accept={IMAGE_FILE_ACCEPT}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              const list = e.target.files;
+              if (list) {
+                for (const file of Array.from(list)) {
+                  const problem = validateImageFile(file, "chapter");
+                  if (problem) {
+                    toast.error(problem);
+                    e.target.value = "";
+                    setFiles(null);
+                    return;
+                  }
+                }
+              }
+              setFiles(list);
+            }}
             className="w-full text-[11px] file:mr-3 file:rounded-[7px] file:border-0 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:cursor-pointer"
             style={{
               color: "var(--arc-dim)",
             }}
           />
+          <UploadPolicyNote purpose="chapter" />
           {files && files.length > 0 && (
             <p className="mt-1 text-[10px]" style={{ color: "var(--arc-muted)" }}>
               {files.length} зураг сонгогдлоо — page 1..{files.length} болж орно.

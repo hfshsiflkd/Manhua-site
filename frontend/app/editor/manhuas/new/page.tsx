@@ -4,6 +4,8 @@
 import { useState, FormEvent, ChangeEvent, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { uploadImage, editorCreateManhua, editorGetTeams, Team } from "@/lib/api";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 
 const GENRE_OPTIONS = ["Romance", "Comedy", "Drama", "Action", "Fantasy", "Slice of Life", "School", "Isekai", "Adventure"];
 
@@ -42,6 +44,14 @@ export default function EditorNewManhuaPage() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
+    if (file) {
+      const problem = validateImageFile(file, "cover");
+      if (problem) {
+        setError(problem);
+        e.target.value = "";
+        return;
+      }
+    }
     setCoverFile(file);
     if (file) { setCoverPreview(URL.createObjectURL(file)); setCoverProgress(null); }
     else { setCoverPreview(null); setCoverProgress(null); }
@@ -61,7 +71,7 @@ export default function EditorNewManhuaPage() {
       if (coverFile) {
         setUploadingCover(true); setCoverProgress(0);
         try {
-          const result = await uploadImage(coverFile, (p) => setCoverProgress(p));
+          const result = await uploadImage(coverFile, (p) => setCoverProgress(p), "cover");
           coverImageUrl = (result as any).url; setCoverProgress(100);
         } finally { setUploadingCover(false); }
       }
@@ -202,7 +212,8 @@ export default function EditorNewManhuaPage() {
             </div>
             <label className="inline-flex cursor-pointer items-center justify-center rounded-[9px] px-4 py-2.5 text-sm font-medium transition-opacity hover:opacity-80"
               style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              <input type="file" accept={IMAGE_FILE_ACCEPT} className="hidden" onChange={handleFileChange} />
+              <UploadPolicyNote purpose="cover" />
               {coverFile ? "Файл солих" : "Файл сонгох"}
             </label>
             <div className="flex justify-center">

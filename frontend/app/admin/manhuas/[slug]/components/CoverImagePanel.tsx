@@ -3,6 +3,8 @@
 
 import React from "react";
 import { PanelShell } from "./PanelShell";
+import { UploadPolicyNote } from "@/components/UploadPolicyNote";
+import { IMAGE_FILE_ACCEPT } from "@/lib/imageLimits";
 
 interface CoverImagePanelProps {
   coverPreview: string;
@@ -21,7 +23,7 @@ export function CoverImagePanel({ coverPreview, title, uploadingCover, coverProg
           className="inline-flex cursor-pointer items-center justify-center rounded-[8px] px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
           style={{ background: "var(--arc-elevated)", border: "1px solid var(--arc-border)", color: "var(--arc-dim)", cursor: "pointer" }}
         >
-          <input type="file" accept="image/*" className="hidden" onChange={onChangeCover} />
+          <input type="file" accept={IMAGE_FILE_ACCEPT} className="hidden" onChange={onChangeCover} />
           {uploadingCover ? "Upload хийж байна..." : "Cover солих"}
         </label>
       }
@@ -47,12 +49,13 @@ export function CoverImagePanel({ coverPreview, title, uploadingCover, coverProg
         >
           <img src={coverPreview} alt={title} className="h-full w-full object-cover" />
         </div>
-        <p className="text-[11px] leading-relaxed" style={{ color: "var(--arc-muted)" }}>
-          Энэ зургийг манхуагийн нүүр зураг болгон ашиглана.{" "}
-          <span style={{ color: "var(--arc-dim)" }}>Cover солих</span> дарж шинэ файл сонгож upload хийнэ.
-          <br /><br />
-          Дэмжигдэх форматууд: JPG, PNG, WebP
-        </p>
+        <div>
+          <p className="text-[11px] leading-relaxed" style={{ color: "var(--arc-muted)" }}>
+            Энэ зургийг манхуагийн нүүр зураг болгон ашиглана.{" "}
+            <span style={{ color: "var(--arc-dim)" }}>Cover солих</span> дарж шинэ файл сонгож upload хийнэ.
+          </p>
+          <UploadPolicyNote purpose="cover" />
+        </div>
       </div>
     </PanelShell>
   );

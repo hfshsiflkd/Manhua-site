@@ -1,6 +1,7 @@
 // frontend/lib/compressImage.ts
-// Browser-side зураг шахах (Vercel-ийн 4.5MB body limit-аас давахгүй).
-// Том PNG → жижигрүүлээд JPEG/WebP болгож үр дүнг буцаана.
+// Chapter upload энэ функцийг ашиглахгүй.
+// longest-side scale нь 1200×20000 зургийг 144×2400 болгож текстийг устгадаг.
+// Том файлыг R2 presigned PUT-оор, боловсруулалтыг сервер дээр хийнэ.
 
 export interface CompressOptions {
   /** Хамгийн их өргөн/өндөр (px). Default 2400. */
