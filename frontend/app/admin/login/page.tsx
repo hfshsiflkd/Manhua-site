@@ -5,6 +5,7 @@ import { useState, FormEvent } from "react";
 import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
+import { useAuth } from "@/context/AuthContext";
 
 const fieldStyle: React.CSSProperties = {
   width: "100%", borderRadius: 9, border: "1px solid var(--arc-border)",
@@ -18,6 +19,7 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
+  const { applySession } = useAuth();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,7 +40,13 @@ export default function AdminLoginPage() {
         return;
       }
 
-      localStorage.setItem("token", res.data.token);
+      const token = res.data.token;
+      if (!token) {
+        setErrorMsg("Token олдсонгүй.");
+        setLoading(false);
+        return;
+      }
+      await applySession(token);
       router.push("/admin");
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message ||

@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import { api, adminGetManhuas, Manhua } from "@/lib/api";
-import { useRouter } from "next/navigation";
 import AdminShell from "./components/AdminShell";
 import AdminStatsCards from "./components/AdminStatsCards";
 import AdminQuickLinks from "./components/AdminQuickLinks";
@@ -22,7 +21,6 @@ export default function AdminDashboardPage() {
   const [manhuas, setManhuas] = useState<Manhua[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingManhuas, setLoadingManhuas] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     async function load() {
@@ -35,18 +33,17 @@ export default function AdminDashboardPage() {
         setManhuas(Array.isArray(manhuasData) ? manhuasData : []);
       } catch (err: any) {
         const status = err?.response?.status;
-        if (status === 401 || status === 403) {
-          router.push("/admin/login");
-        } else {
-          console.error(err);
+        if (status === 401 || status === 403 || status === 423) {
+          return;
         }
+        console.error(err);
       } finally {
         setLoadingStats(false);
         setLoadingManhuas(false);
       }
     }
     load();
-  }, [router]);
+  }, []);
 
   return (
     <AdminShell

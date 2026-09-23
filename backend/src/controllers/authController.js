@@ -11,6 +11,7 @@ const { genSessionToken } = require("../utils/token");
 const { normalizeEmail } = require("../utils/normalize");
 const { logAudit } = require("../utils/auditLogger");
 const { invalidateUserCache } = require("../middleware/authMiddleware");
+const { buildPageAccess } = require("../services/pageAccessService");
 
 // ✅ no-store helper
 function noStore(res) {
@@ -291,6 +292,16 @@ exports.logout = async (req, res) => {
   } catch (err) {
     console.error("Logout error:", err);
     return sendSuccess(res, {}, "Logged out");
+  }
+};
+
+exports.pageAccess = async (req, res, next) => {
+  noStore(res);
+  try {
+    const access = await buildPageAccess(req.user);
+    return res.json(access);
+  } catch (err) {
+    return next(err);
   }
 };
 

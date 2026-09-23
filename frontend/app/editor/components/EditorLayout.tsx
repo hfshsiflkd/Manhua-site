@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import EditorSidebar from "./EditorSidebar";
 import EditorTopbar from "./EditorTopbar";
@@ -13,46 +12,8 @@ interface EditorLayoutProps {
 
 export default function EditorLayout({ children }: EditorLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, ready } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
-
-  const roleRaw = user?.role;
-  const roleNorm = (roleRaw || "").toLowerCase().trim();
-  const isAdmin = roleNorm === "admin";
-  const isEditor = roleNorm === "editor" || roleNorm === "translator";
-  const canEnter = isAdmin || isEditor || Boolean(user?.teamMember);
-
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--arc-bg)" }}>
-        <p className="text-sm" style={{ color: "var(--arc-muted)" }}>
-          Ачааллаж байна...
-        </p>
-      </div>
-    );
-  }
-
-  if (!user || !canEnter) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--arc-bg)" }}>
-        <div className="text-center">
-          <p className="text-lg font-semibold mb-2" style={{ color: "var(--arc-text)" }}>
-            Зөвшөөрөл шаардлагатай
-          </p>
-          <p className="text-sm mb-4" style={{ color: "var(--arc-muted)" }}>
-            Энэ хэсэгт нэвтрэхийн тулд editor эсвэл admin эрхтэй байх шаардлагатай.
-          </p>
-          <Link
-            href="/"
-            className="inline-block rounded-full px-4 py-2 text-sm font-medium transition-opacity hover:opacity-80"
-            style={{ background: "var(--arc-cyan)", color: "#07070e" }}
-          >
-            Нүүр хуудас руу буцах
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--arc-bg)" }}>
@@ -62,7 +23,7 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
         pathname={pathname}
       />
 
-      <div className="flex flex-1 flex-col lg:pl-64">
+      <div className="flex-1 flex flex-col lg:pl-64">
         <EditorTopbar
           onMenuClick={() => setSidebarOpen(true)}
           user={user}

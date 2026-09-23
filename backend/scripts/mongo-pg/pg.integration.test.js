@@ -2620,6 +2620,126 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     else process.env.SELF_SERVE_TEAM_CREATION_ENABLED = prevCreateFlag;
   });
 
+  test("page-access uses current DB role and membership, not JWT payload", async () => {
+    const jwt = require("jsonwebtoken");
+    const pStamp = `pa${stamp}`;
+    const anonymous = await request("GET", "/api/auth/page-access");
+    assert.equal(anonymous.status, 401);
+
+    const bogus = await request("GET", "/api/auth/page-access", {
+      headers: { authorization: "Bearer not-a-jwt", "x-device-id": `pgitest-dev-${pStamp}` },
+    });
+    assert.equal(bogus.status, 401);
+
+    const ordinary = await makeStaff("user", `pgitpa_u_${pStamp}`);
+    const ordinaryAccess = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(ordinary.token, ordinary.deviceId),
+    });
+    assert.equal(ordinaryAccess.status, 200, ordinaryAccess.raw);
+    assert.equal(ordinaryAccess.json.pages.admin, false);
+    assert.equal(ordinaryAccess.json.pages.editor, false);
+    assert.equal(ordinaryAccess.json.pages.editorCreateManhua, false);
+
+    const editor = await makeStaff("editor", `pgitpa_e_${pStamp}`);
+    const editorAccess = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(editor.token, editor.deviceId),
+    });
+    assert.equal(editorAccess.json.pages.admin, false);
+    assert.equal(editorAccess.json.pages.editor, true);
+    assert.equal(editorAccess.json.pages.editorCreateManhua, true);
+    assert.equal(editorAccess.json.pages.editorCreateTeam, true);
+    assert.equal(editorAccess.json.pages.editorLeaderboard, true);
+
+    const translator = await makeStaff("translator", `pgitpa_t_${pStamp}`);
+    const translatorAccess = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(translator.token, translator.deviceId),
+    });
+    assert.equal(translatorAccess.json.pages.editor, true);
+    assert.equal(translatorAccess.json.pages.editorCreateTeam, false);
+    assert.equal(translatorAccess.json.pages.editorLeaderboard, false);
+
+    const admin = await makeStaff("admin", `pgitpa_a_${pStamp}`);
+    const adminAccess = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(admin.token, admin.deviceId),
+    });
+    assert.equal(adminAccess.json.pages.admin, true);
+    assert.equal(adminAccess.json.pages.editor, true);
+
+    const team = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-pa-${pStamp}` },
+    });
+    assert.equal(team.status, 201, team.raw);
+    ids.teams.push(String(team.json._id));
+    await markPgitest("teams", team.json._id);
+    const teamOnly = await makeStaff("user", `pgitpa_m_${pStamp}`);
+    await query(
+      `INSERT INTO arc.team_members (team_id, user_id, role, added_by, added_at)
+       VALUES ($1,$2,'editor',$3,now())`,
+      [String(team.json._id), String(teamOnly.user._id), String(admin.user._id)]
+    );
+    const memberAccess = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(teamOnly.token, teamOnly.deviceId),
+    });
+    assert.equal(memberAccess.json.pages.editor, true);
+    assert.equal(memberAccess.json.pages.editorCreateManhua, false);
+    assert.equal(memberAccess.json.pages.editorCreateTeam, false);
+
+    await query(`DELETE FROM arc.team_members WHERE team_id=$1 AND user_id=$2`, [
+      String(team.json._id),
+      String(teamOnly.user._id),
+    ]);
+    const afterLeave = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(teamOnly.token, teamOnly.deviceId),
+    });
+    assert.equal(afterLeave.json.pages.editor, false);
+
+    await query(`UPDATE arc.users SET role='user' WHERE id=$1`, [String(admin.user._id)]);
+    const { invalidateUserCache } = require("../../src/middleware/authMiddleware");
+    await invalidateUserCache(String(admin.user._id));
+    const demoted = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(admin.token, admin.deviceId),
+    });
+    assert.equal(demoted.status, 200, demoted.raw);
+    assert.equal(demoted.json.role, "user");
+    assert.equal(demoted.json.pages.admin, false);
+
+    const forgedAdmin = jwt.sign(
+      {
+        id: String(ordinary.user._id),
+        sessionToken: ordinary.user.sessionToken,
+        tokenVersion: ordinary.user.tokenVersion || 0,
+        role: "admin",
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+    const forged = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(forgedAdmin, ordinary.deviceId),
+    });
+    assert.equal(forged.status, 200, forged.raw);
+    assert.equal(forged.json.pages.admin, false);
+    assert.equal(forged.json.role, "user");
+
+    await query(`UPDATE arc.users SET lock_until=now() + interval '15 minutes', lock_reason='LOCKED' WHERE id=$1`, [
+      String(editor.user._id),
+    ]);
+    await invalidateUserCache(String(editor.user._id));
+    const locked = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(editor.token, editor.deviceId),
+    });
+    assert.equal(locked.status, 423, locked.raw);
+    await query(`UPDATE arc.users SET lock_until=NULL, lock_reason='' WHERE id=$1`, [String(editor.user._id)]);
+
+    await query(`UPDATE arc.users SET blocked=true, is_active=false WHERE id=$1`, [String(editor.user._id)]);
+    await invalidateUserCache(String(editor.user._id));
+    const banned = await request("GET", "/api/auth/page-access", {
+      headers: authHeaders(editor.token, editor.deviceId),
+    });
+    assert.equal(banned.status, 401, banned.raw);
+    await query(`UPDATE arc.users SET blocked=false, is_active=true WHERE id=$1`, [String(editor.user._id)]);
+  });
+
   test("quota policy: team-only, self-serve, self-serve-on-team, staff exemption", async () => {
     const { newId } = require("../../src/store/pg/helpers");
     const quota = require("../../src/services/editorQuotaService");

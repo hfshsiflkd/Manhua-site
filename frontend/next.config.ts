@@ -11,6 +11,24 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: frontendRoot,
   },
+  headers: async () => [
+    {
+      source: "/admin/:path*",
+      headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" }],
+    },
+    {
+      source: "/admin",
+      headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" }],
+    },
+    {
+      source: "/editor/:path*",
+      headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" }],
+    },
+    {
+      source: "/editor",
+      headers: [{ key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" }],
+    },
+  ],
   images: {
     remotePatterns: [
       // Cloudflare R2 (various patterns)

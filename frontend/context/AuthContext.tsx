@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
+import { isProtectedAppPath, pathAllowed, type PageFlags } from "@/lib/pageAccess";
 
 interface User {
   _id: string;
@@ -34,79 +36,97 @@ const AuthContext = createContext<AuthContextType>({
   setUser: () => {},
 });
 
-function userFromToken(token: string): User | null {
+async function establishSessionCookie(token: string): Promise<{ ok: boolean; pages?: PageFlags; unavailable?: boolean }> {
   try {
-    const segment = token.split(".")[1];
-    if (!segment) return null;
-    const json = atob(segment.replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(json) as {
-      id?: string;
-      username?: string | null;
-      email?: string | null;
-      isVIP?: boolean;
-      vipExpiresAt?: string | null;
-      avatar?: string | null;
-      role?: string;
-    };
-    if (!payload.id) return null;
-    return {
-      _id: payload.id,
-      username: payload.username || "",
-      email: payload.email || "",
-      isVIP: Boolean(payload.isVIP),
-      vipExpiresAt: payload.vipExpiresAt || null,
-      avatar: payload.avatar || null,
-      role: payload.role || "user",
-    };
+    const res = await fetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ token, deviceId: getOrCreateDeviceId() }),
+    });
+    if (res.status === 503) return { ok: false, unavailable: true };
+    if (!res.ok) return { ok: false };
+    const data = (await res.json()) as { pages?: PageFlags };
+    return { ok: true, pages: data.pages };
   } catch {
-    return null;
+    return { ok: false, unavailable: true };
   }
+}
+
+async function clearSessionCookie() {
+  try {
+    await fetch("/api/session", { method: "DELETE", credentials: "same-origin" });
+  } catch {
+    // local cleanup continues
+  }
+}
+
+function mergeWorkspace(userData: User, ws?: { role?: string; teamMember?: boolean; canPublishManhua?: boolean; canCreateTeam?: boolean } | null): User {
+  return {
+    ...userData,
+    role: ws?.role || userData.role,
+    teamMember: Boolean(ws?.teamMember),
+    canPublishManhua: Boolean(ws?.canPublishManhua),
+    canCreateTeam: Boolean(ws?.canCreateTeam),
+  };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
-  const login = async (token: string) => {
-    localStorage.setItem("token", token);
-    const preview = userFromToken(token);
-    if (preview) setUser(preview);
+  const hydrate = async (token: string) => {
+    const bridged = await establishSessionCookie(token);
+    if (!bridged.ok && !bridged.unavailable) {
+      localStorage.removeItem("token");
+      await clearSessionCookie();
+      setUser(null);
+      return;
+    }
 
     try {
       const res = await api.get("/auth/me");
-      const userData = res.data?.user || res.data;
+      const userData = (res.data?.user || res.data) as User;
       try {
         const ws = await api.get("/user/workspace");
-        setUser({
-          ...userData,
-          teamMember: Boolean(ws.data?.teamMember),
-          canPublishManhua: Boolean(ws.data?.canPublishManhua),
-          canCreateTeam: Boolean(ws.data?.canCreateTeam),
-        });
+        setUser(mergeWorkspace(userData, ws.data));
       } catch {
-        setUser(userData);
+        setUser(mergeWorkspace(userData, null));
       }
-    } catch (err: any) {
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401 || status === 403 || status === 423) {
         localStorage.removeItem("token");
+        await clearSessionCookie();
         setUser(null);
+        return;
       }
+    }
+
+    if (typeof window !== "undefined" && bridged.ok && bridged.pages) {
+      const path = window.location.pathname;
+      if (isProtectedAppPath(path) && pathAllowed(path, bridged.pages) && !sessionStorage.getItem("arc_session_reload")) {
+        sessionStorage.setItem("arc_session_reload", "1");
+        window.location.replace(path + window.location.search);
+        return;
+      }
+      sessionStorage.removeItem("arc_session_reload");
+    }
+  };
+
+  const login = async (token: string) => {
+    localStorage.setItem("token", token);
+    try {
+      await hydrate(token);
     } finally {
       setReady(true);
     }
   };
 
-  const applySession = async (token: string, nextUser?: User | null) => {
-    localStorage.setItem("token", token);
-    if (nextUser) {
-      setUser(nextUser);
-      setReady(true);
-      return;
-    }
+  const applySession = async (token: string, _nextUser?: User | null) => {
     await login(token);
   };
 
-  // server-side token-ыг invalidate хийгээд дараа нь local-аас цэвэрлэнэ.
   const logout = async () => {
     try {
       await api.post("/auth/logout");
@@ -114,8 +134,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Network/401 алдаа гарсан ч local cleanup үргэлжилнэ.
     } finally {
       localStorage.removeItem("token");
+      await clearSessionCookie();
       setUser(null);
       setReady(true);
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("arc_session_reload");
+        if (isProtectedAppPath(window.location.pathname)) {
+          window.location.replace("/");
+        }
+      }
     }
   };
 
@@ -125,31 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setReady(true);
       return;
     }
-    const preview = userFromToken(token);
-    if (preview) setUser(preview);
-    api
-      .get("/auth/me")
-      .then(async (res) => {
-        const userData = res.data?.user || res.data;
-        try {
-          const ws = await api.get("/user/workspace");
-          setUser({
-            ...userData,
-            teamMember: Boolean(ws.data?.teamMember),
-            canPublishManhua: Boolean(ws.data?.canPublishManhua),
-          canCreateTeam: Boolean(ws.data?.canCreateTeam),
-          });
-        } catch {
-          setUser(userData);
-        }
-      })
-      .catch((err: any) => {
-        if (err?.response?.status === 401 || err?.response?.status === 403) {
-          localStorage.removeItem("token");
-          setUser(null);
-        }
-      })
-      .finally(() => setReady(true));
+    hydrate(token).finally(() => setReady(true));
   }, []);
 
   return (

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { register, login, me, logout } = require("../controllers/authController");
+const { register, login, me, logout, pageAccess } = require("../controllers/authController");
 const authController = require("../controllers/authController");
 const { protect, protectLight } = require("../middleware/authMiddleware");
 const {
@@ -16,6 +16,9 @@ router.post("/register", registerLimiter, register);
 
 // Нэвтрэх (email эсвэл username ашиглаж болно)
 router.post("/login", loginLimiter, login);
+
+// Current DB role/membership for page guards. Do not use protectLight (JWT role is stale).
+router.get("/page-access", protect, pageAccess);
 
 // Өөрийгөө авах — DB дуудахгүй, JWT-аас шууд (protectLight)
 router.get("/me", protectLight, me);
