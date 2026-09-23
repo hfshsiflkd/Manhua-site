@@ -147,7 +147,9 @@ exports.createManhua = async (req, res, next) => {
 
     const coverUrl = coverImage || coverImageUrl;
     if (coverUrl) {
-      await quota.assertSelfServeAssetUrls(req.user, [coverUrl]);
+      await quota.assertSelfServeAssetUrls(req.user, [coverUrl], {
+        ownerIds: teamId ? await quota.collectTeamAssetOwnerIds(teamId) : [],
+      });
     }
 
     const reservation = await quota.reserveManhua({ user: req.user, idempotencyKey });
@@ -289,7 +291,10 @@ exports.updateManhua = async (req, res, next) => {
     if (coverImageUrl !== undefined) updates.coverImageUrl = coverImageUrl;
     const nextCover = updates.coverImage || updates.coverImageUrl;
     if (nextCover) {
-      await quota.assertSelfServeAssetUrls(req.user, [nextCover]);
+      await quota.assertSelfServeAssetUrls(req.user, [nextCover], {
+        existingUrls: [manhua.coverImage, manhua.coverImageUrl],
+        ownerIds: await quota.collectAssetOwnerIds(manhua),
+      });
     }
     if (genres !== undefined) updates.genres = Array.isArray(genres) ? genres : [];
 

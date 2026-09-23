@@ -18,6 +18,13 @@ function quotaWindowMs() {
   return QUOTA_WINDOW_HOURS * 60 * 60 * 1000;
 }
 
+/** Server-side signup switch. Default on. Existing editors keep role, publish rights, and quotas. */
+function isSelfServeSignupEnabled() {
+  const raw = process.env.SELF_SERVE_EDITOR_SIGNUP;
+  if (raw == null || String(raw).trim() === "") return true;
+  return !["0", "false", "off", "no"].includes(String(raw).trim().toLowerCase());
+}
+
 module.exports = {
   MiB,
   TERMS_VERSION,
@@ -28,4 +35,5 @@ module.exports = {
   EXPERIENCE,
   LANGUAGES,
   quotaWindowMs,
+  isSelfServeSignupEnabled,
 };

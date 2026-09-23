@@ -54,6 +54,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS editor_quota_ledger_idem_idx
 CREATE INDEX IF NOT EXISTS editor_quota_ledger_user_window_idx
   ON arc.editor_quota_ledger (user_id, kind, status, created_at);
 
+REVOKE ALL ON TABLE arc.editor_profiles FROM PUBLIC;
+REVOKE ALL ON TABLE arc.published_uploads FROM PUBLIC;
+REVOKE ALL ON TABLE arc.editor_quota_ledger FROM PUBLIC;
+
 INSERT INTO arc.migration_checkpoints (id, phase, status, detail, updated_at)
 VALUES (
   '20260923120000_self_serve_editor',

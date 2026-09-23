@@ -463,11 +463,17 @@ exports.editorUpdateChapter = async (req, res, next) => {
     if (title !== undefined) chapter.title = title;
     if (status !== undefined) chapter.status = status;
     if (Array.isArray(pages)) {
-      chapter.pages = pages.map((page, idx) => formatChapterPage(page, idx));
+      const previousUrls = (chapter.pages || []).map((page) => page.imageUrl).filter(Boolean);
+      const formattedPages = pages.map((page, idx) => formatChapterPage(page, idx));
       await quota.assertSelfServeAssetUrls(
         req.user,
-        chapter.pages.map((page) => page.imageUrl).filter(Boolean)
+        formattedPages.map((page) => page.imageUrl).filter(Boolean),
+        {
+          existingUrls: previousUrls,
+          ownerIds: await quota.collectAssetOwnerIds(chapter.manhua),
+        }
       );
+      chapter.pages = formattedPages;
     }
 
     await chapter.save();
@@ -557,7 +563,8 @@ exports.editorCreateChapter = async (req, res, next) => {
     }
     await quota.assertSelfServeAssetUrls(
       req.user,
-      formattedPages.map((p) => p.imageUrl).filter(Boolean)
+      formattedPages.map((p) => p.imageUrl).filter(Boolean),
+      { ownerIds: await quota.collectAssetOwnerIds(manhua) }
     );
 
     try {

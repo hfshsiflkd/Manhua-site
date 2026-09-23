@@ -3,20 +3,9 @@
 const fs = require("fs");
 
 async function applySqlFile(query, filePath) {
-  const sql = fs.readFileSync(filePath, "utf8");
-  const statements = sql
-    .split(";")
-    .map((part) =>
-      part
-        .split("\n")
-        .filter((line) => !line.trim().startsWith("--"))
-        .join("\n")
-        .trim()
-    )
-    .filter(Boolean);
-  for (const statement of statements) {
-    await query(statement);
-  }
+  const sql = fs.readFileSync(filePath, "utf8").trim();
+  if (!sql) return;
+  await query(sql);
 }
 
 /**
@@ -24,6 +13,24 @@ async function applySqlFile(query, filePath) {
  * or migrated source rows (those are not @pgitest.local / pgitest-* slugs).
  */
 async function cleanupPgitest(query, { since } = {}) {
+  // Browser E2E registers as a real user (@pgitest.local) so created manhuas
+  // are not extra.pgitest / pgitest-* unless we tag them first.
+  await query(`
+    UPDATE arc.manhuas
+    SET extra = coalesce(extra, '{}'::jsonb) || '{"pgitest": true}'::jsonb
+    WHERE created_by IN (
+      SELECT id FROM arc.users
+      WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local'
+    )
+       OR id IN (
+      SELECT manhua_id FROM arc.manhua_owners
+      WHERE user_id IN (
+        SELECT id FROM arc.users
+        WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local'
+      )
+    )
+  `);
+
   await query(`
     WITH test_users AS (
       SELECT id FROM arc.users

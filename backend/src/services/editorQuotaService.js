@@ -225,30 +225,106 @@ async function recordPublishedUpload({ user, purpose, url, bytes }) {
   if (!isPostgres() || !url) return;
   const userId = userIdOf(user);
   if (!userId) return;
+  const canonical = normalizeAssetUrl(url);
+  if (!canonical) return;
   await query(
     `INSERT INTO arc.published_uploads (id, user_id, purpose, url, bytes, extra, created_at)
      VALUES ($1,$2,$3,$4,$5,'{}'::jsonb, now())
      ON CONFLICT (user_id, url) DO NOTHING`,
-    [newId(), userId, purpose, String(url), Number(bytes) || 0]
+    [newId(), userId, purpose, canonical, Number(bytes) || 0]
   );
+}
+
+const TEAM_ASSET_ROLES = new Set(["owner", "admin", "editor"]);
+
+function asActorId(value) {
+  if (!value) return "";
+  if (typeof value === "object") {
+    return String(value._id || value.id || value.user || "").trim();
+  }
+  return String(value).trim();
+}
+
+function normalizeAssetUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  try {
+    const { classifyImageRef } = require("../utils/imageRef");
+    const found = classifyImageRef(raw);
+    if (found.action === "store" && found.imageUrl) return found.imageUrl;
+  } catch {
+    /* fall through */
+  }
+  try {
+    const parsed = new URL(raw);
+    parsed.hash = "";
+    parsed.search = "";
+    return parsed.toString();
+  } catch {
+    return raw.split("?")[0].split("#")[0];
+  }
+}
+
+function partitionAssetUrls(urls, { existingUrls = [] } = {}) {
+  const existing = new Set((existingUrls || []).map(normalizeAssetUrl).filter(Boolean));
+  const incoming = [...new Set((urls || []).map(normalizeAssetUrl).filter(Boolean))];
+  const alreadyAttached = [];
+  const needsProvenance = [];
+  for (const url of incoming) {
+    if (existing.has(url)) alreadyAttached.push(url);
+    else needsProvenance.push(url);
+  }
+  return { alreadyAttached, needsProvenance, existing };
+}
+
+async function collectTeamAssetOwnerIds(teamId) {
+  const id = asActorId(teamId);
+  if (!id) return [];
+  const Team = require("../models/Team");
+  const team = await Team.findById(id).select("members").lean();
+  return (team?.members || [])
+    .filter((member) => TEAM_ASSET_ROLES.has(String(member.role || "")))
+    .map((member) => asActorId(member.user))
+    .filter(Boolean);
+}
+
+async function collectAssetOwnerIds(manhua) {
+  const ids = new Set();
+  const createdBy = asActorId(manhua?.createdBy);
+  if (createdBy) ids.add(createdBy);
+  for (const owner of manhua?.owners || []) {
+    const id = asActorId(owner);
+    if (id) ids.add(id);
+  }
+  for (const id of await collectTeamAssetOwnerIds(manhua?.team)) ids.add(id);
+  return [...ids];
 }
 
 async function userOwnsPublishedUrl(userId, url) {
   if (!url || !userId) return false;
+  const canonical = normalizeAssetUrl(url);
   const r = await query(
     `SELECT 1 FROM arc.published_uploads WHERE user_id=$1 AND url=$2 LIMIT 1`,
-    [String(userId), String(url)]
+    [String(userId), canonical]
   );
   return r.rowCount > 0;
 }
 
-async function assertSelfServeAssetUrls(user, urls) {
+async function assertSelfServeAssetUrls(user, urls, opts = {}) {
   const userId = userIdOf(user);
   if (!(await isSelfServeEditor(userId))) return;
-  const list = (urls || []).map(String).filter(Boolean);
-  for (const url of list) {
-    if (!(await userOwnsPublishedUrl(userId, url))) {
-      const err = new Error("Энэ зургийг энэ бүртгэлээр оруулаагүй тул холбох боломжгүй.");
+  const { needsProvenance } = partitionAssetUrls(urls, opts);
+  if (!needsProvenance.length) return;
+  const ownerIds = [...new Set([userId, ...(opts.ownerIds || [])].map(String).filter(Boolean))];
+  const r = await query(
+    `SELECT DISTINCT url FROM arc.published_uploads
+     WHERE user_id = ANY($1::text[]) AND url = ANY($2::text[])`,
+    [ownerIds, needsProvenance]
+  );
+  const owned = new Set(r.rows.map((row) => row.url));
+  for (const url of needsProvenance) {
+    if (!owned.has(url)) {
+      const err = new Error("Энэ зургийг энэ бүртгэл эсвэл багийн гишүүн оруулаагүй тул холбох боломжгүй.");
       err.statusCode = 403;
       err.code = "UPLOAD_OWNERSHIP";
       throw err;
@@ -266,6 +342,10 @@ module.exports = {
   recordPublishedUpload,
   userOwnsPublishedUrl,
   assertSelfServeAssetUrls,
+  collectAssetOwnerIds,
+  collectTeamAssetOwnerIds,
+  normalizeAssetUrl,
+  partitionAssetUrls,
   formatBytesMn,
   quotaPayload,
 };

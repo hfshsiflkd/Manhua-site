@@ -206,6 +206,10 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
       query,
       path.join(__dirname, "../../../supabase/migrations/20260923120000_self_serve_editor.sql")
     );
+    await applySqlFile(
+      query,
+      path.join(__dirname, "../../../supabase/migrations/20260923131500_self_serve_editor_grants.sql")
+    );
     await cleanupPgitest(query);
     snapshot = await migrationSnapshot(query);
     testStartedAt = new Date();
@@ -999,6 +1003,181 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     });
     assert.ok([403, 404].includes(stealPage.status), stealPage.raw);
 
+    const randomLegacy = await request("POST", `/api/editor/manhuas/${created.json.slug}/chapters`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        chapterNumber: 9,
+        title: "random",
+        pages: [{ imageUrl: `https://cdn.example.com/pgitest-untracked-${onboardStamp}.webp` }],
+      },
+    });
+    assert.equal(randomLegacy.status, 403, randomLegacy.raw);
+    assert.equal(randomLegacy.json.code, "UPLOAD_OWNERSHIP");
+
+    const legacyCover = `https://cdn.example.com/pgitest-legacy-cover-${onboardStamp}.webp`;
+    await query(`UPDATE arc.manhuas SET cover_image=$2, cover_image_url=$2 WHERE id=$1`, [
+      String(created.json._id),
+      legacyCover,
+    ]);
+    const keepLegacyCover = await request("PATCH", `/api/editor/manhuas/${created.json._id}`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: { title: `Pgitest SSE ${onboardStamp} kept`, coverImage: legacyCover, coverImageUrl: legacyCover },
+    });
+    assert.equal(keepLegacyCover.status, 200, keepLegacyCover.raw);
+
+    const legacyPage = `https://cdn.example.com/pgitest-legacy-page-${onboardStamp}.webp`;
+    await query(
+      `INSERT INTO arc.chapter_pages (chapter_id, page_number, image_url, extra)
+       VALUES ($1,2,$2,'{"pgitest":true}'::jsonb)
+       ON CONFLICT (chapter_id, page_number) DO UPDATE SET image_url = EXCLUDED.image_url`,
+      [String(ownChapter.json._id), legacyPage]
+    );
+    const reorderLegacy = await request("PUT", `/api/editor/chapters/${ownChapter.json._id}`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        status: "draft",
+        pages: [{ imageUrl: pageUrl, pageNumber: 2 }, { imageUrl: legacyPage, pageNumber: 1 }],
+      },
+    });
+    assert.equal(reorderLegacy.status, 200, reorderLegacy.raw);
+    const publishLegacy = await request("PUT", `/api/editor/chapters/${ownChapter.json._id}`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: { status: "published" },
+    });
+    assert.equal(publishLegacy.status, 200, publishLegacy.raw);
+
+    const teamRes = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(adminActor.token, deviceId),
+      body: { name: `pgitest-sse-team-${onboardStamp}` },
+    });
+    assert.equal(teamRes.status, 201, teamRes.raw);
+    ids.teams.push(String(teamRes.json._id));
+    await markPgitest("teams", teamRes.json._id);
+    const inviteA = await request("POST", `/api/editor/teams/${teamRes.json._id}/members`, {
+      headers: authHeaders(adminActor.token, deviceId),
+      body: { userId: String(userA.user._id), role: "editor" },
+    });
+    assert.equal(inviteA.status, 200, inviteA.raw);
+    await request("POST", `/api/me/team-invites/${inviteA.json.invite._id || inviteA.json.invite.id}/accept`, {
+      headers: authHeaders(editorToken, deviceId),
+    });
+    const inviteB = await request("POST", `/api/editor/teams/${teamRes.json._id}/members`, {
+      headers: authHeaders(adminActor.token, deviceId),
+      body: { userId: String(userB.user._id), role: "editor" },
+    });
+    assert.equal(inviteB.status, 200, inviteB.raw);
+    await request("POST", `/api/me/team-invites/${inviteB.json.invite._id || inviteB.json.invite.id}/accept`, {
+      headers: authHeaders(tokenB, deviceId),
+    });
+
+    const teamManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(editorToken, deviceId), "Idempotency-Key": `team-m-${onboardStamp}` },
+      body: {
+        title: `Pgitest team ${onboardStamp}`,
+        slug: `pgitest-team-${onboardStamp}`,
+        teamId: teamRes.json._id,
+      },
+    });
+    assert.equal(teamManhua.status, 201, teamManhua.raw);
+    ids.manhuas.push(String(teamManhua.json._id));
+    await markPgitest("manhuas", teamManhua.json._id);
+
+    const teammatePage = `https://cdn.example.com/pgitest-team-page-${onboardStamp}.webp`;
+    await query(
+      `INSERT INTO arc.published_uploads (id, user_id, purpose, url, bytes, extra, created_at)
+       VALUES ($1,$2,'chapter',$3,24,'{"pgitest":true}'::jsonb, now())`,
+      [newId(), String(userA.user._id), teammatePage]
+    );
+    const teamChapter = await request("POST", `/api/editor/manhuas/${teamManhua.json.slug}/chapters`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        chapterNumber: 1,
+        title: "team ch",
+        status: "draft",
+        pages: [{ imageUrl: teammatePage }],
+      },
+    });
+    assert.equal(teamChapter.status, 201, teamChapter.raw);
+    ids.chapters.push(String(teamChapter.json._id));
+    await markPgitest("chapters", teamChapter.json._id);
+
+    const teammateEdit = await request("PUT", `/api/editor/chapters/${teamChapter.json._id}`, {
+      headers: authHeaders(tokenB, deviceId),
+      body: {
+        status: "published",
+        pages: [{ imageUrl: teammatePage, pageNumber: 1 }],
+      },
+    });
+    assert.equal(teammateEdit.status, 200, teammateEdit.raw);
+
+    const teammateReuse = await request("POST", `/api/editor/manhuas/${teamManhua.json.slug}/chapters`, {
+      headers: authHeaders(tokenB, deviceId),
+      body: {
+        chapterNumber: 2,
+        title: "from teammate upload",
+        pages: [{ imageUrl: teammatePage }],
+      },
+    });
+    assert.equal(teammateReuse.status, 201, teammateReuse.raw);
+    ids.chapters.push(String(teammateReuse.json._id));
+    await markPgitest("chapters", teammateReuse.json._id);
+
+    const grants = await query(`
+      SELECT count(*)::int AS n
+      FROM information_schema.role_table_grants
+      WHERE table_schema='arc'
+        AND table_name IN ('editor_profiles','published_uploads','editor_quota_ledger')
+        AND grantee IN ('PUBLIC','anon','authenticated')
+    `);
+    assert.equal(grants.rows[0].n, 0);
+    const rls = await query(`
+      SELECT bool_or(c.relrowsecurity) AS any_rls
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname='arc'
+        AND c.relname IN ('editor_profiles','published_uploads','editor_quota_ledger')
+    `);
+    assert.equal(rls.rows[0].any_rls, false);
+    const trgm = await query(`SELECT 1 FROM pg_extension WHERE extname='pg_trgm'`);
+    assert.equal(trgm.rowCount, 1);
+    const legacyRole = await query(`SELECT role FROM arc.users WHERE id=$1`, [String(ctx.editor._id)]);
+    assert.equal(legacyRole.rows[0].role, "editor");
+
+    const prevSignup = process.env.SELF_SERVE_EDITOR_SIGNUP;
+    process.env.SELF_SERVE_EDITOR_SIGNUP = "false";
+    try {
+      const closedUser = await makeUser(`pgitse_${onboardStamp}c`);
+      const closed = await request("POST", "/api/user/become-editor", {
+        headers: authHeaders(closedUser.token, deviceId),
+        body: onboardBody({ penName: "Closed Pen" }),
+      });
+      assert.equal(closed.status, 403, closed.raw);
+      assert.equal(closed.json.code, "SELF_SERVE_SIGNUP_DISABLED");
+      const closedRole = await query(`SELECT role FROM arc.users WHERE id=$1`, [String(closedUser.user._id)]);
+      assert.equal(closedRole.rows[0].role, "user");
+      const metaClosed = await request("GET", "/api/user/editor-onboarding", {
+        headers: authHeaders(closedUser.token, deviceId),
+      });
+      assert.equal(metaClosed.status, 200, metaClosed.raw);
+      assert.equal(metaClosed.json.signupEnabled, false);
+      assert.equal(metaClosed.json.eligible, false);
+      const stillEditor = await request("POST", "/api/user/become-editor", {
+        headers: authHeaders(editorToken, deviceId),
+        body: onboardBody({ penName: "Arc Pen A" }),
+      });
+      assert.ok([200, 201].includes(stillEditor.status), stillEditor.raw);
+      const keepCreate = await request("POST", "/api/editor/manhuas", {
+        headers: { ...authHeaders(editorToken, deviceId), "Idempotency-Key": `flag-keep-${onboardStamp}` },
+        body: { title: `Pgitest keep ${onboardStamp}`, slug: `pgitest-keep-${onboardStamp}` },
+      });
+      assert.equal(keepCreate.status, 201, keepCreate.raw);
+      ids.manhuas.push(String(keepCreate.json._id));
+      await markPgitest("manhuas", keepCreate.json._id);
+    } finally {
+      if (prevSignup == null) delete process.env.SELF_SERVE_EDITOR_SIGNUP;
+      else process.env.SELF_SERVE_EDITOR_SIGNUP = prevSignup;
+    }
+
     const published = await request("PUT", `/api/editor/chapters/${ownChapter.json._id}`, {
       headers: authHeaders(editorToken, deviceId),
       body: { status: "published" },
@@ -1123,6 +1302,19 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
       )
     );
     assert.ok(concurrentQuota.every((row) => row.status === 429));
+
+    const prevSignupQuota = process.env.SELF_SERVE_EDITOR_SIGNUP;
+    process.env.SELF_SERVE_EDITOR_SIGNUP = "false";
+    try {
+      const quotaWhileClosed = await request("POST", "/api/editor/manhuas", {
+        headers: { ...authHeaders(tokenQ, deviceId), "Idempotency-Key": `q-manhua-${onboardStamp}-flag` },
+        body: { title: `Pgitest flag quota ${onboardStamp}`, slug: `pgitest-qflag-${onboardStamp}` },
+      });
+      assert.equal(quotaWhileClosed.status, 429, quotaWhileClosed.raw);
+    } finally {
+      if (prevSignupQuota == null) delete process.env.SELF_SERVE_EDITOR_SIGNUP;
+      else process.env.SELF_SERVE_EDITOR_SIGNUP = prevSignupQuota;
+    }
 
     const translator = await makeStaff("translator", `pgitst_${onboardStamp}`);
     const translatorStay = await request("POST", "/api/user/become-editor", {

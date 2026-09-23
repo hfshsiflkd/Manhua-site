@@ -538,3 +538,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS editor_quota_ledger_idem_idx
   ON arc.editor_quota_ledger (user_id, kind, idempotency_key);
 CREATE INDEX IF NOT EXISTS editor_quota_ledger_user_window_idx
   ON arc.editor_quota_ledger (user_id, kind, status, created_at);
+
+REVOKE ALL ON TABLE arc.editor_profiles FROM PUBLIC;
+REVOKE ALL ON TABLE arc.published_uploads FROM PUBLIC;
+REVOKE ALL ON TABLE arc.editor_quota_ledger FROM PUBLIC;

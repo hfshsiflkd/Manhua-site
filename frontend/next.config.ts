@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
+import path from "path";
+
+// Vercel production Root Directory is `frontend`. Pin the same root locally so a
+// parent lockfile (e.g. $HOME/package-lock.json) cannot steal Turbopack's workspace
+// and break next/font/google during `npm run build`.
+const frontendRoot = path.join(__dirname);
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: frontendRoot,
+  turbopack: {
+    root: frontendRoot,
+  },
   images: {
     remotePatterns: [
       // Cloudflare R2 (various patterns)

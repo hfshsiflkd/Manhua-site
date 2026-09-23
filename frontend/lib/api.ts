@@ -367,6 +367,7 @@ export type EditorOnboardingMeta = {
   languages: Array<{ id: string; label: string }>;
   role?: string;
   eligible?: boolean;
+  signupEnabled?: boolean;
   alreadyEditor?: boolean;
   staff?: boolean;
   selfServe?: boolean;

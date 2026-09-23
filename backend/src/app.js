@@ -47,6 +47,8 @@ const defaultCorsOrigins = [
   "https://www.arc-read.com",
   "https://arcread.vercel.app",
   "http://localhost:3000",
+  "http://localhost:3018",
+  "http://127.0.0.1:3018",
 ];
 const envOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim())

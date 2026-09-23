@@ -5,7 +5,7 @@ const { genJwt } = require("../utils/token");
 const { invalidateUserCache } = require("../middleware/authMiddleware");
 const { logAudit } = require("../utils/auditLogger");
 const { becomeEditor, FieldError, rowToProfile } = require("../services/editorOnboardingService");
-const { TERMS_VERSION } = require("../config/selfServeEditor");
+const { TERMS_VERSION, isSelfServeSignupEnabled } = require("../config/selfServeEditor");
 const { isPostgres } = require("../store/driver");
 const { query } = require("../db/postgres");
 
@@ -54,7 +54,9 @@ exports.getEditorOnboardingMeta = async (req, res, next) => {
       selfServe = Boolean(r.rows[0]?.self_serve);
     }
     const locked = req.user.lockUntil && new Date(req.user.lockUntil).getTime() > Date.now();
+    const signupEnabled = isSelfServeSignupEnabled();
     const eligible =
+      signupEnabled &&
       role === "user" &&
       !req.user.blocked &&
       req.user.isActive !== false &&
@@ -66,6 +68,7 @@ exports.getEditorOnboardingMeta = async (req, res, next) => {
       languages: LANGUAGE_META,
       role,
       eligible,
+      signupEnabled,
       alreadyEditor: role === "editor",
       staff: role === "admin" || role === "translator",
       selfServe,

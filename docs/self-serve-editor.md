@@ -26,23 +26,45 @@ These apply only when `arc.editor_profiles.self_serve = true` (users who used th
 | Upload bytes / rolling window | 500 MiB | `SELF_SERVE_EDITOR_UPLOAD_BYTES_PER_DAY` |
 | Window length | 24 hours | `SELF_SERVE_EDITOR_QUOTA_WINDOW_HOURS` |
 | Terms version string | `2026-09-23` | `EDITOR_TERMS_VERSION` |
+| New Profile onboarding | enabled | `SELF_SERVE_EDITOR_SIGNUP` (`true`/`false`) |
 
 Quota is enforced in PostgreSQL (`arc.editor_quota_ledger`) with `pg_advisory_xact_lock`, reservation/commit/release, and idempotency keys. Finalize commits the actual object byte size. Parallel presign/retry/abort cannot double-count a reserved key. Expired reservations are ignored.
+
+`published_uploads` records who finalized a cover/page. Self-serve attach rules:
+
+- New URLs must belong to the current user, or to a teammate with owner/admin/editor access on that manhua.
+- URLs already stored on **this** manhua/chapter may be kept, reordered, and published even if they predate the table.
+- An untracked CDN URL is not accepted as “legacy.”
+
+## Frontend build (Vercel)
+
+Production Vercel Root Directory is `frontend`. Install is `npm ci`. Build is `npm run build` (`next build`).
+
+`frontend/next.config.ts` sets `turbopack.root` and `outputFileTracingRoot` to the frontend folder so a parent lockfile cannot steal the workspace and break `next/font/google`. `frontend/vercel.json` records the same install/build commands. `--webpack` is not part of the production command.
 
 ## Deploy sequence (review first)
 
 Do **not** apply this to production until reviewed.
 
-1. Apply `supabase/migrations/20260923120000_self_serve_editor.sql` to isolated/staging PostgreSQL.
-2. Deploy backend, then frontend.
-3. Smoke with an isolated `@pgitest.local` user only.
-4. Production schema + deploy only after approval.
+1. Apply `supabase/migrations/20260923120000_self_serve_editor.sql` then `20260923131500_self_serve_editor_grants.sql` to isolated/staging PostgreSQL.
+2. Confirm `pg_trgm`, table REVOKE from PUBLIC/anon/authenticated, and that RLS is not enabled (same pattern as other `arc` tables).
+3. Deploy backend, then frontend (`frontend` root, `npm ci`, `npm run build`).
+4. Smoke with an isolated `@pgitest.local` user only, including a real browser cover/page PUT to R2.
+5. Production schema + deploy only after approval.
 
 ## Rollback
 
-1. Keep serving the previous backend/frontend deploy (role stays `user` for anyone who did not submit).
-2. If the migration was applied: new tables can remain unused; do not drop `arc.users.role` values already set to `editor` unless a deliberate data rollback is approved.
-3. To stop self-serve: undeploy the `/api/user/become-editor` route / previous SHA. Existing self-serve editors remain editors until an admin changes role.
+Rolling the backend back to a SHA from before this feature **drops quota enforcement**. Users who already have `role=editor` keep publishing, and the 5 manhua / 500MiB / 24h limits are no longer checked.
+
+To stop **new** Profile onboarding without dropping those limits:
+
+1. Set `SELF_SERVE_EDITOR_SIGNUP=false` on the **current** backend. `POST /api/user/become-editor` returns 403 `SELF_SERVE_SIGNUP_DISABLED` for users who are not already editors. `GET /api/user/editor-onboarding` sets `signupEnabled: false` and `eligible: false`.
+2. Keep serving this backend so `editor_quota_ledger` and `published_uploads` checks still run.
+3. Frontend hides the “Editor болох” action from that GET flag, but hiding the UI is not authorization.
+
+If only the frontend is rolled back, the become-editor endpoint stays open unless the server flag or an older backend is used.
+
+If the migrations were applied: leave the new tables in place. Do not drop `arc.users.role` values already set to `editor` unless a deliberate data rollback is approved.
 
 ## Secrets
 

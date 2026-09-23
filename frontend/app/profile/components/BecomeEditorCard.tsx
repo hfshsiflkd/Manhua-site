@@ -1,10 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { getEditorOnboarding } from "@/lib/api";
 
 export function BecomeEditorCard() {
   const { user } = useAuth();
+  const [signupEnabled, setSignupEnabled] = useState(true);
+
+  useEffect(() => {
+    if (!user || String(user.role || "user").toLowerCase() !== "user") return;
+    getEditorOnboarding()
+      .then((meta) => {
+        if (meta && typeof meta.signupEnabled === "boolean") {
+          setSignupEnabled(meta.signupEnabled);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
   if (!user) return null;
 
   const role = String(user.role || "user").toLowerCase();
@@ -105,15 +120,19 @@ export function BecomeEditorCard() {
         </h2>
       </div>
       <p className="text-[13px] mb-3" style={{ color: "var(--arc-dim)" }}>
-        Өөрийн орчуулсан манхвагаа нийтэлж, уншигчдад хүргээрэй.
+        {signupEnabled
+          ? "Өөрийн орчуулсан манхвагаа нийтэлж, уншигчдад хүргээрэй."
+          : "Одоогоор шинээр editor болох боломжгүй."}
       </p>
-      <Link
-        href="/profile/become-editor"
-        className="inline-flex rounded-[9px] px-4 py-2.5 text-[13px] font-semibold no-underline"
-        style={{ background: "var(--arc-cyan)", color: "#07070e" }}
-      >
-        Editor болох
-      </Link>
+      {signupEnabled ? (
+        <Link
+          href="/profile/become-editor"
+          className="inline-flex rounded-[9px] px-4 py-2.5 text-[13px] font-semibold no-underline"
+          style={{ background: "var(--arc-cyan)", color: "#07070e" }}
+        >
+          Editor болох
+        </Link>
+      ) : null}
     </section>
   );
 }

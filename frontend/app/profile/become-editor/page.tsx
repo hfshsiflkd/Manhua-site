@@ -202,6 +202,20 @@ export default function BecomeEditorPage() {
     );
   }
 
+  if (meta && meta.signupEnabled === false) {
+    return (
+      <div className="mx-auto px-4 py-10 space-y-4" style={{ maxWidth: 640 }}>
+        <h1 className="text-xl font-bold" style={{ color: "var(--arc-text)" }}>Одоогоор шинээр editor болох боломжгүй</h1>
+        <p className="text-[13px]" style={{ color: "var(--arc-dim)" }}>
+          Энэ бүртгэл user эрхтэй хэвээр байна. Аль хэдийн editor болсон хэрэглэгчид өөрийн манхвагаа үргэлжлүүлэн нийтэлнэ.
+        </p>
+        <Link href="/profile" className="inline-flex rounded-[9px] px-4 py-2 text-[12px] font-semibold no-underline" style={{ background: "var(--arc-cyan)", color: "#07070e" }}>
+          Профайл руу буцах
+        </Link>
+      </div>
+    );
+  }
+
   if (status === "success") {
     return (
       <div className="mx-auto px-4 py-10 space-y-5" style={{ maxWidth: 640 }}>

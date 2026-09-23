@@ -2,7 +2,7 @@
 
 const { isPostgres } = require("../store/driver");
 const { withTransaction } = require("../db/postgres");
-const { TERMS_VERSION, SKILLS, EXPERIENCE, LANGUAGES } = require("../config/selfServeEditor");
+const { TERMS_VERSION, SKILLS, EXPERIENCE, LANGUAGES, isSelfServeSignupEnabled } = require("../config/selfServeEditor");
 
 class FieldError extends Error {
   constructor(fields, message = "Мэдээллээ шалгана уу.") {
@@ -169,6 +169,12 @@ async function becomeEditor({ user, body }) {
   if (!isPostgres()) {
     const err = new Error("Editor бүртгэл одоогоор боломжгүй.");
     err.statusCode = 503;
+    throw err;
+  }
+  if (!isSelfServeSignupEnabled() && String(user.role || "user") !== "editor") {
+    const err = new Error("Одоогоор шинээр editor болох боломжгүй.");
+    err.statusCode = 403;
+    err.code = "SELF_SERVE_SIGNUP_DISABLED";
     throw err;
   }
   assertEligible(user);
