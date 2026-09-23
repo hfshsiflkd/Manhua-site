@@ -18,6 +18,7 @@ const {
   describePgTarget,
 } = require("./loadExplicitEnv");
 const { cleanupPgitest, migrationSnapshot, applySqlFile } = require("./pgitestCleanup");
+const { cleanupPgitestR2 } = require("./pgitestR2Cleanup");
 
 function parseEnvFile(file) {
   const out = {};
@@ -230,6 +231,16 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
 
   after(async () => {
     try {
+      try {
+        const { r2Client } = require("../../src/config/r2");
+        const r2Report = await cleanupPgitestR2(query, {
+          r2Client,
+          bucket: process.env.R2_BUCKET_NAME,
+        });
+        console.log(JSON.stringify({ pgitestR2Cleanup: { deleted: r2Report.deleted, listed: r2Report.listed, users: r2Report.users } }));
+      } catch (err) {
+        console.log(JSON.stringify({ pgitestR2Cleanup: { error: String(err.message || err) } }));
+      }
       await cleanupPgitest(query, { since: testStartedAt });
       const afterSnap = await migrationSnapshot(query);
       assert.deepEqual(afterSnap, snapshot);
@@ -2234,5 +2245,186 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     assert.ok(["accepted", "rejected", "withdrawn"].includes(status));
     assert.equal(status === "pending", false);
     assert.equal(finalMember.rowCount, status === "accepted" ? 1 : 0);
+  });
+
+  test("quota policy: team-only, self-serve, self-serve-on-team, staff exemption", async () => {
+    const { newId } = require("../../src/store/pg/helpers");
+    const quota = require("../../src/services/editorQuotaService");
+    const { UPLOAD_BYTES_PER_DAY, MANHUA_LIMIT_PER_DAY } = require("../../src/config/selfServeEditor");
+    const qStamp = `qp${stamp}`;
+    const deviceId = `pgitest-dev-${qStamp}`;
+
+    async function fillUpload(userId, tag) {
+      await query(
+        `INSERT INTO arc.editor_quota_ledger (
+           id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at
+         ) VALUES ($1,$2,'upload',$3,$4,'committed', now() + interval '1 day', '{"pgitest":true}'::jsonb, now(), now())`,
+        [newId(), userId, UPLOAD_BYTES_PER_DAY, `full-${qStamp}-${tag}`]
+      );
+    }
+
+    async function fillManhua(userId, tag, n = MANHUA_LIMIT_PER_DAY) {
+      for (let i = 0; i < n; i += 1) {
+        await query(
+          `INSERT INTO arc.editor_quota_ledger (
+             id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at
+           ) VALUES ($1,$2,'manhua',0,$3,'committed', now() + interval '1 day', '{"pgitest":true}'::jsonb, now(), now())`,
+          [newId(), userId, `mh-${qStamp}-${tag}-${i}`]
+        );
+      }
+    }
+
+    async function presignFor(token, manhuaId) {
+      return request("POST", "/api/upload/presign", {
+        headers: authHeaders(token, deviceId),
+        body: {
+          purpose: "chapter",
+          contentType: "image/png",
+          contentLength: 64,
+          fileName: "q.png",
+          ...(manhuaId ? { manhuaId } : {}),
+        },
+      });
+    }
+
+    const admin = await makeStaff("admin", `pgitqp_a_${qStamp}`);
+    const staffEditor = await makeStaff("editor", `pgitqp_e_${qStamp}`);
+    const translator = await makeStaff("translator", `pgitqp_t_${qStamp}`);
+
+    const teamRes = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-quota-policy-${qStamp}` },
+    });
+    assert.equal(teamRes.status, 201, teamRes.raw);
+    const teamId = String(teamRes.json._id);
+    ids.teams.push(teamId);
+    await markPgitest("teams", teamId);
+
+    const teamManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(admin.token, admin.deviceId), "Idempotency-Key": `qp-tm-${qStamp}` },
+      body: { title: `Pgitest qp team ${qStamp}`, slug: `pgitest-qp-team-${qStamp}`, teamId },
+    });
+    assert.equal(teamManhua.status, 201, teamManhua.raw);
+    ids.manhuas.push(String(teamManhua.json._id));
+    await markPgitest("manhuas", teamManhua.json._id);
+    const teamManhuaId = String(teamManhua.json._id);
+
+    const teamUser = await request("POST", "/api/auth/register", {
+      headers: { "x-device-id": `${deviceId}-tu` },
+      body: {
+        username: `pgitqp_u_${qStamp}`,
+        email: `pgitqp_u_${qStamp}@pgitest.local`,
+        password,
+        deviceId: `${deviceId}-tu`,
+      },
+    });
+    assert.equal(teamUser.status, 200, teamUser.raw);
+    ids.users.push(String(teamUser.json.user._id));
+    const teamUserId = String(teamUser.json.user._id);
+    const teamToken = teamUser.json.token;
+    await query(
+      `INSERT INTO arc.team_members (team_id, user_id, role, added_by, added_at)
+       VALUES ($1,$2,'editor',$3,now())`,
+      [teamId, teamUserId, String(admin.user._id)]
+    );
+    assert.equal(teamUser.json.user.role, "user");
+    assert.equal(await quota.shouldEnforceUploadQuota({ _id: teamUserId, role: "user" }), true);
+    await fillUpload(teamUserId, "teamuser");
+    const teamOver = await presignFor(teamToken, teamManhuaId);
+    assert.equal(teamOver.status, 429, teamOver.raw);
+    assert.equal(teamOver.json.quota?.kind, "upload");
+    assert.equal(teamOver.json.quota?.limit, UPLOAD_BYTES_PER_DAY);
+    const teamManhuaCreate = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(teamToken, `${deviceId}-tu`), "Idempotency-Key": `qp-tu-${qStamp}` },
+      body: { title: `Pgitest qp personal ${qStamp}`, slug: `pgitest-qp-personal-${qStamp}` },
+    });
+    assert.equal(teamManhuaCreate.status, 403, teamManhuaCreate.raw);
+
+    const sseUser = await request("POST", "/api/auth/register", {
+      headers: { "x-device-id": `${deviceId}-sse` },
+      body: {
+        username: `pgitqp_s_${qStamp}`,
+        email: `pgitqp_s_${qStamp}@pgitest.local`,
+        password,
+        deviceId: `${deviceId}-sse`,
+      },
+    });
+    assert.equal(sseUser.status, 200, sseUser.raw);
+    ids.users.push(String(sseUser.json.user._id));
+    const sseId = String(sseUser.json.user._id);
+    const become = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(sseUser.json.token, `${deviceId}-sse`),
+      body: {
+        penName: "Quota Policy Pen",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм шүү.",
+        skills: ["translation"],
+        experience: "beginner",
+        languages: ["mn"],
+        acceptTerms: true,
+      },
+    });
+    assert.ok([200, 201].includes(become.status), become.raw);
+    const sseToken = become.json.token;
+    assert.equal(become.json.user.role, "editor");
+    const sseFlags = await query(`SELECT self_serve FROM arc.editor_profiles WHERE user_id=$1`, [sseId]);
+    assert.equal(sseFlags.rows[0].self_serve, true);
+    assert.equal(await quota.shouldEnforceUploadQuota({ _id: sseId, role: "editor" }), true);
+    await fillManhua(sseId, "sse");
+    const sseSixth = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(sseToken, `${deviceId}-sse`), "Idempotency-Key": `qp-sse-6-${qStamp}` },
+      body: { title: `Pgitest qp sse 6 ${qStamp}`, slug: `pgitest-qp-sse6-${qStamp}` },
+    });
+    assert.equal(sseSixth.status, 429, sseSixth.raw);
+    assert.equal(sseSixth.json.code, "SELF_SERVE_QUOTA");
+    await fillUpload(sseId, "sse");
+    const sseUpload = await presignFor(sseToken);
+    assert.equal(sseUpload.status, 429, sseUpload.raw);
+    assert.equal(sseUpload.json.quota?.limit, UPLOAD_BYTES_PER_DAY);
+
+    await query(
+      `INSERT INTO arc.team_members (team_id, user_id, role, added_by, added_at)
+       VALUES ($1,$2,'editor',$3,now())
+       ON CONFLICT (team_id, user_id) DO NOTHING`,
+      [teamId, sseId, String(admin.user._id)]
+    );
+    assert.equal(await quota.shouldEnforceUploadQuota({ _id: sseId, role: "editor" }), true);
+    const sseOnTeamManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(sseToken, `${deviceId}-sse`), "Idempotency-Key": `qp-sse-team-${qStamp}` },
+      body: { title: `Pgitest qp sse team ${qStamp}`, slug: `pgitest-qp-sseteam-${qStamp}` },
+    });
+    assert.equal(sseOnTeamManhua.status, 429, sseOnTeamManhua.raw);
+    const sseOnTeamUpload = await presignFor(sseToken, teamManhuaId);
+    assert.equal(sseOnTeamUpload.status, 429, sseOnTeamUpload.raw);
+
+    for (const staff of [
+      { label: "editor", actor: staffEditor },
+      { label: "translator", actor: translator },
+      { label: "admin", actor: admin },
+    ]) {
+      const staffId = String(staff.actor.user._id);
+      const profile = await query(`SELECT self_serve FROM arc.editor_profiles WHERE user_id=$1`, [staffId]);
+      assert.equal(profile.rowCount, 0);
+      assert.equal(await quota.shouldEnforceUploadQuota({ _id: staffId, role: staff.label }), false);
+      await fillUpload(staffId, staff.label);
+      await fillManhua(staffId, staff.label);
+      const skipped = await quota.reserveUpload({
+        user: { _id: staffId, role: staff.label, extra: { pgitest: true } },
+        bytes: 2048,
+        idempotencyKey: `staging/${staffId}/chapter/${qStamp}-${staff.label}`,
+      });
+      assert.equal(skipped.skipped, true, staff.label);
+      const staffPresign = await presignFor(staff.actor.token, staff.label === "admin" ? undefined : teamManhuaId);
+      assert.notEqual(staffPresign.status, 429, `${staff.label} ${staffPresign.raw}`);
+      const staffManhua = await request("POST", "/api/editor/manhuas", {
+        headers: {
+          ...authHeaders(staff.actor.token, staff.actor.deviceId),
+          "Idempotency-Key": `qp-staff-${staff.label}-${qStamp}`,
+        },
+        body: { title: `Pgitest qp staff ${staff.label} ${qStamp}`, slug: `pgitest-qp-staff-${staff.label}-${qStamp}` },
+      });
+      assert.equal(staffManhua.status, 201, staffManhua.raw);
+      ids.manhuas.push(String(staffManhua.json._id));
+      await markPgitest("manhuas", staffManhua.json._id);
+    }
   });
 }

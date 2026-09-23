@@ -2,8 +2,33 @@
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { partitionAssetUrls, normalizeAssetUrl } = require("./editorQuotaService");
+const {
+  partitionAssetUrls,
+  normalizeAssetUrl,
+  enforceUploadQuotaDecision,
+  enforceManhuaQuotaDecision,
+} = require("./editorQuotaService");
 const { isSelfServeSignupEnabled } = require("../config/selfServeEditor");
+
+test("upload quota: team-only user is capped; self-serve stays capped even as editor on a team; staff skip", () => {
+  assert.equal(enforceUploadQuotaDecision({ selfServe: false, role: "user" }), true);
+  assert.equal(enforceUploadQuotaDecision({ selfServe: true, role: "editor" }), true);
+  assert.equal(enforceUploadQuotaDecision({ selfServe: true, role: "editor" }), true, "self-serve on a team still capped");
+  assert.equal(enforceUploadQuotaDecision({ selfServe: false, role: "editor" }), false);
+  assert.equal(enforceUploadQuotaDecision({ selfServe: false, role: "translator" }), false);
+  assert.equal(enforceUploadQuotaDecision({ selfServe: false, role: "admin" }), false);
+});
+
+test("role=editor is not an upload-quota skip without self_serve=false from the profile", () => {
+  assert.equal(enforceUploadQuotaDecision({ selfServe: true, role: "editor" }), true);
+  assert.equal(enforceUploadQuotaDecision({ role: "editor" }), false);
+});
+
+test("manhua/day quota is self-serve only, including after joining a team", () => {
+  assert.equal(enforceManhuaQuotaDecision({ selfServe: true }), true);
+  assert.equal(enforceManhuaQuotaDecision({ selfServe: false }), false);
+  assert.equal(enforceManhuaQuotaDecision({ selfServe: false, role: "editor" }), false);
+});
 
 test("legacy attached URLs do not need published_uploads provenance", () => {
   const legacy = "https://cdn.example.com/old-cover.webp";

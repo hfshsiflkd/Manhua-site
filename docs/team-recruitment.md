@@ -39,7 +39,7 @@ Expired `open` rows are treated as closed in query (`expires_at > now()`). No cr
 
 A recruited `role=user` member may presign/finalize **chapter** and **cover** images only when `manhuaId` or `slug` is sent and they currently belong to that manhua’s team. Staff (`admin`/`editor`/`translator`) keep unscoped upload. After the member is removed, the same JWT, an old upload token, and chapter mutations all 403.
 
-Team-only members are not unlimited: they share the self-serve daily upload byte cap (`SELF_SERVE_EDITOR_UPLOAD_BYTES_PER_DAY`, default 500MiB / 24h). Legacy staff skip this cap. Attaching a page URL still requires `published_uploads` provenance (own or teammate).
+Team-only members are not unlimited: they share the self-serve daily upload byte cap (`SELF_SERVE_EDITOR_UPLOAD_BYTES_PER_DAY`, default 500MiB / 24h). Self-serve editors (`editor_profiles.self_serve=true`) keep that upload cap and the 5 manhua/24h cap even after joining a team — do not skip by `role=editor` alone. Legacy staff (`admin` / non-self-serve `editor` / `translator`) skip these caps. Attaching a page URL still requires `published_uploads` provenance (own or teammate).
 
 ## Team create
 

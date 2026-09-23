@@ -38,21 +38,47 @@ function isStaffSiteRole(user) {
   return ["admin", "editor", "translator"].includes(String(user?.role || "").toLowerCase());
 }
 
-/** Self-serve editors and team-only (non-staff) users share the daily upload-byte cap. Staff skip it. */
-async function shouldEnforceUploadQuota(user) {
-  if (!isPostgres()) return false;
+/**
+ * Upload-byte cap: self-serve publishers always, plus team-only (non-staff) users.
+ * `role=editor` is not an exemption by itself — check editor_profiles.self_serve first.
+ */
+function enforceUploadQuotaDecision({ selfServe, role } = {}) {
+  if (selfServe) return true;
+  return !isStaffSiteRole({ role });
+}
+
+/** Manhua/day cap is only for self-serve publishers, including after they join a team. */
+function enforceManhuaQuotaDecision({ selfServe } = {}) {
+  return Boolean(selfServe);
+}
+
+async function loadQuotaSubject(user) {
   const userId = userIdOf(user);
-  if (!userId) return false;
-  if (await isSelfServeEditor(userId)) return true;
-  return !isStaffSiteRole(user);
+  if (!isPostgres() || !userId) return null;
+  const r = await query(
+    `SELECT u.role, coalesce(p.self_serve, false) AS self_serve
+     FROM arc.users u
+     LEFT JOIN arc.editor_profiles p ON p.user_id = u.id
+     WHERE u.id=$1`,
+    [userId]
+  );
+  if (!r.rowCount) {
+    return { selfServe: false, role: user?.role || "" };
+  }
+  return { selfServe: Boolean(r.rows[0].self_serve), role: r.rows[0].role };
+}
+
+/** Self-serve editors and team-only (non-staff) users share the daily upload-byte cap. Legacy staff skip it. */
+async function shouldEnforceUploadQuota(user) {
+  const subject = await loadQuotaSubject(user);
+  if (!subject) return false;
+  return enforceUploadQuotaDecision(subject);
 }
 
 async function shouldAssertAssetProvenance(user) {
-  if (!isPostgres()) return false;
-  const userId = userIdOf(user);
-  if (!userId) return false;
-  if (await isSelfServeEditor(userId)) return true;
-  return !isStaffSiteRole(user);
+  const subject = await loadQuotaSubject(user);
+  if (!subject) return false;
+  return enforceUploadQuotaDecision(subject);
 }
 
 function formatBytesMn(bytes) {
@@ -140,7 +166,9 @@ async function upsertReservation(client, { userId, kind, bytes, idempotencyKey, 
 
 async function reserveManhua({ user, idempotencyKey }) {
   const userId = userIdOf(user);
-  if (!(await isSelfServeEditor(userId))) return { skipped: true };
+  if (!enforceManhuaQuotaDecision({ selfServe: await isSelfServeEditor(userId) })) {
+    return { skipped: true };
+  }
   if (!idempotencyKey) {
     const err = new Error("Idempotency key шаардлагатай.");
     err.statusCode = 400;
@@ -360,6 +388,9 @@ async function assertSelfServeAssetUrls(user, urls, opts = {}) {
 module.exports = {
   QuotaError,
   isSelfServeEditor,
+  isStaffSiteRole,
+  enforceUploadQuotaDecision,
+  enforceManhuaQuotaDecision,
   shouldEnforceUploadQuota,
   reserveManhua,
   reserveUpload,
