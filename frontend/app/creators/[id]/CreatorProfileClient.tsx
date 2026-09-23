@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { PublicCreatorProfile } from "@/lib/api";
+import { copyTextToClipboard } from "@/lib/copyLink";
 import { languageLabel, skillLabel } from "@/lib/creatorLabels";
 import { creatorPublicUrl } from "@/lib/site";
 import { ManhuaCard } from "@/app/manhuas/components/ManhuaCard";
@@ -12,32 +13,54 @@ function CopyLinkButton({ url }: { url: string }) {
   const [state, setState] = useState<"idle" | "ok" | "err">("idle");
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setState("ok");
-      setTimeout(() => setState("idle"), 2000);
-    } catch {
+    const ok = await copyTextToClipboard(url);
+    if (!ok) {
       setState("err");
-      setTimeout(() => setState("idle"), 2500);
+      return;
     }
+    setState("ok");
+    setTimeout(() => setState((prev) => (prev === "ok" ? "idle" : prev)), 2000);
   }
 
   return (
-    <button
-      type="button"
-      onClick={copy}
-      aria-label="Public профайлын холбоос хуулах"
-      className="rounded-[9px] px-3 py-2 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-      style={{
-        border: "1px solid var(--arc-border)",
-        background: "var(--arc-elevated)",
-        color: state === "ok" ? "oklch(0.8 0.14 145)" : "var(--arc-text)",
-        cursor: "pointer",
-        outlineColor: "var(--arc-cyan)",
-      }}
-    >
-      {state === "ok" ? "Хууллаа" : state === "err" ? "Хуулж чадсангүй" : "Холбоос хуулах"}
-    </button>
+    <div className="flex min-w-0 max-w-full flex-col items-stretch gap-1.5 sm:items-end">
+      <button
+        type="button"
+        onClick={copy}
+        aria-label="Public профайлын холбоос хуулах"
+        className="rounded-[9px] px-3 py-2 text-[12px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        style={{
+          border: "1px solid var(--arc-border)",
+          background: "var(--arc-elevated)",
+          color: state === "ok" ? "oklch(0.8 0.14 145)" : "var(--arc-text)",
+          cursor: "pointer",
+          outlineColor: "var(--arc-cyan)",
+        }}
+      >
+        {state === "ok" ? "Хууллаа" : state === "err" ? "Хуулж чадсангүй" : "Холбоос хуулах"}
+      </button>
+      {state === "err" ? (
+        <label className="w-full min-w-0 max-w-[min(100%,320px)] space-y-1">
+          <span className="block text-[11px]" style={{ color: "var(--arc-muted)" }}>
+            Холбоосыг сонгож хуулна уу.
+          </span>
+          <input
+            readOnly
+            value={url}
+            aria-label="Public профайлын холбоос"
+            onFocus={(e) => e.currentTarget.select()}
+            onClick={(e) => e.currentTarget.select()}
+            className="w-full rounded-[8px] px-2.5 py-1.5 text-[11px]"
+            style={{
+              border: "1px solid var(--arc-border)",
+              background: "var(--arc-elevated)",
+              color: "var(--arc-text)",
+              outlineColor: "var(--arc-cyan)",
+            }}
+          />
+        </label>
+      ) : null}
+    </div>
   );
 }
 
