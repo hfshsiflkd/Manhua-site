@@ -28,4 +28,8 @@ const actionLogSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("ActionLog", actionLogSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("ActionLog", actionLogSchema), () =>
+  require("../store/pg/logs").ActionLog
+);

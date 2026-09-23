@@ -17,6 +17,7 @@ const baseEnv = {
   JWT_SECRET,
   JWT_EXPIRES_IN: "1h",
   NODE_ENV: "test",
+  DB_DRIVER: "mongo",
   R2_ACCOUNT_ID: "local",
   R2_ACCESS_KEY_ID: "local-key",
   R2_SECRET_ACCESS_KEY: "local-secret",

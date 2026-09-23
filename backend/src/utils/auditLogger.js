@@ -76,7 +76,10 @@ function hashDeviceId(deviceId) {
  */
 async function logAudit(req, { level, category, action, message, meta = {} }) {
   try {
-    if (mongoose.connection.readyState !== 1) {
+    const { writesFrozen } = require("../config/writeGate");
+    if (writesFrozen()) return;
+    const { isPostgres } = require("../store/driver");
+    if (!isPostgres() && mongoose.connection.readyState !== 1) {
       return;
     }
     const audit = req.audit || {};

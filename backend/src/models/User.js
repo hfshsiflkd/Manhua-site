@@ -104,5 +104,7 @@ userSchema.virtual("isLocked").get(function () {
 userSchema.set("toJSON", { virtuals: true });
 userSchema.set("toObject", { virtuals: true });
 
+const { bindModel } = require("../store/driver");
+
 const User = mongoose.model("User", userSchema);
-module.exports = User;
+module.exports = bindModel(User, () => require("../store/pg/User"));

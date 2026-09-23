@@ -21,7 +21,10 @@ exports.requireActiveAccess = async (req, res, next) => {
 
   // Sync stale isVIP flag asynchronously (best-effort, doesn't block the request)
   if (req.user.isVIP !== isVIP) {
-    User.updateOne({ _id: req.user._id }, { $set: { isVIP } }).catch(() => {});
+    const { writesFrozen } = require("../config/writeGate");
+    if (!writesFrozen()) {
+      User.updateOne({ _id: req.user._id }, { $set: { isVIP } }).catch(() => {});
+    }
   }
 
   if (!isVIP) {

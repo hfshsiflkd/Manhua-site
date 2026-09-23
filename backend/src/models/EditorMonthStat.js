@@ -28,5 +28,10 @@ const editorMonthStatSchema = new mongoose.Schema(
 
 editorMonthStatSchema.index({ monthKey: 1, editorId: 1 }, { unique: true });
 
-module.exports = mongoose.model("EditorMonthStat", editorMonthStatSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(
+  mongoose.model("EditorMonthStat", editorMonthStatSchema),
+  () => require("../store/pg/stats").EditorMonthStat
+);
 

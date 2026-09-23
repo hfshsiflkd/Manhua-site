@@ -16,4 +16,8 @@ const bookmarkSchema = new mongoose.Schema(
 
 bookmarkSchema.index({ user: 1, manhua: 1 }, { unique: true });
 
-module.exports = mongoose.model("Bookmark", bookmarkSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Bookmark", bookmarkSchema), () =>
+  require("../store/pg/social").Bookmark
+);

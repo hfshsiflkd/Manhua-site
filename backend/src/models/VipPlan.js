@@ -29,5 +29,9 @@ const vipPlanSchema = new mongoose.Schema(
 // Index for active plans
 vipPlanSchema.index({ active: 1, displayOrder: 1 });
 
-module.exports = mongoose.model("VipPlan", vipPlanSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("VipPlan", vipPlanSchema), () =>
+  require("../store/pg/stats").VipPlan
+);
 

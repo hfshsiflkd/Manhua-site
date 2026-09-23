@@ -8,7 +8,7 @@ async function getManhuaIdBySlug(slug) {
   const cached = manhuaIdCache.get(slug);
   if (cached) return cached;
 
-  const m = await Manhua.findOne({ slug }).select("_id").lean();
+  const m = await Manhua.findOne({ slug, deletedAt: null }).select("_id").lean();
   if (!m) return null;
 
   manhuaIdCache.set(slug, m._id, 5 * 60_000); // 5 минут (та хүсвэл)

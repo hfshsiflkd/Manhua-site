@@ -7,6 +7,8 @@
  *   Mongo  mongodb://127.0.0.1:27018/manhua_upload_test
  */
 process.env.MONGO_URI = "mongodb://127.0.0.1:27018/manhua_upload_test";
+delete process.env.DB_DRIVER;
+delete process.env.DATABASE_URL;
 process.env.JWT_SECRET = "isolated-test-secret";
 process.env.JWT_EXPIRES_IN = "1h";
 process.env.R2_ENDPOINT = "http://127.0.0.1:9100";

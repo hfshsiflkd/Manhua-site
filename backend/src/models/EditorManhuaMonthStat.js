@@ -33,5 +33,10 @@ editorManhuaMonthStatSchema.index(
   { unique: true }
 );
 
-module.exports = mongoose.model("EditorManhuaMonthStat", editorManhuaMonthStatSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(
+  mongoose.model("EditorManhuaMonthStat", editorManhuaMonthStatSchema),
+  () => require("../store/pg/stats").EditorManhuaMonthStat
+);
 

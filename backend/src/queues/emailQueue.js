@@ -1,8 +1,8 @@
 const sendEmail = require("../utils/sendEmail");
 
 async function enqueueEmail(payload) {
-  // Одоохондоо шууд илгээнэ
-  // Дараа нь Bull / Bee / worker салгаж болно
+  const { writesFrozen } = require("../config/writeGate");
+  if (writesFrozen()) return { skipped: true, reason: "READ_ONLY" };
   return sendEmail(payload);
 }
 

@@ -41,4 +41,8 @@ const teamInviteSchema = new mongoose.Schema(
 
 teamInviteSchema.index({ team: 1, invitedUser: 1, status: 1 });
 
-module.exports = mongoose.model("TeamInvite", teamInviteSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("TeamInvite", teamInviteSchema), () =>
+  require("../store/pg/Team").TeamInvite
+);

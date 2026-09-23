@@ -1,5 +1,9 @@
 // src/app.js
 require("dotenv").config();
+const { isPostgres, installPostgresGuards } = require("./store/driver");
+const { installMongooseWriteGate } = require("./config/writeGate");
+installMongooseWriteGate();
+if (isPostgres()) installPostgresGuards();
 
 const express = require("express");
 const cors = require("cors");
@@ -15,12 +19,13 @@ const {
   auditContext,
   auditRequestEnd,
 } = require("./middleware/auditMiddleware");
+const { writeGateMiddleware } = require("./config/writeGate");
 
 const app = express();
 
 // Ensure DB connection is initialized (serverless-safe)
 connectDB().catch((err) => {
-  console.error("❌ MongoDB connect init failed:", err);
+  console.error("❌ DB connect init failed:", err);
 });
 
 /* =======================
@@ -60,19 +65,26 @@ app.use(
 );
 app.set("etag", false);
 
+/* Freeze mutating HTTP before body parsing so PUT/PATCH/DELETE cannot
+   reach JSON parser, view/audit handlers, or routes. */
+app.use(writeGateMiddleware);
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
-/* =======================
-   Audit logging middleware
-======================= */
 app.use(auditContext);
 
 /* =======================
    Health check
 ======================= */
 app.get("/", (req, res) => {
-  res.json({ message: "Manhua API is running" });
+  const { writesFrozen, inflightMutationCount, deployCommit } = require("./config/writeGate");
+  res.json({
+    message: "Manhua API is running",
+    readOnly: writesFrozen(),
+    commit: deployCommit(),
+    inflightMutations: inflightMutationCount(),
+  });
 });
 
 /* =======================

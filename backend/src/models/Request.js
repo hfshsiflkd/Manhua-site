@@ -24,4 +24,8 @@ const requestSchema = new mongoose.Schema(
 requestSchema.index({ createdAt: -1 });
 requestSchema.index({ votes: -1 });
 
-module.exports = mongoose.model("Request", requestSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Request", requestSchema), () =>
+  require("../store/pg/community").Request
+);

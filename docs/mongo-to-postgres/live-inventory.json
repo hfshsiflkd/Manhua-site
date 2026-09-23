@@ -1,0 +1,1505 @@
+{
+  "generatedAt": "2026-09-22T13:08:07.515Z",
+  "dbName": "test",
+  "topology": {
+    "replicaSet": true,
+    "hasSetName": true,
+    "hostCount": 3,
+    "isWritablePrimary": true,
+    "msg": null
+  },
+  "collections": [
+    {
+      "name": "actionlogs",
+      "estimatedCount": 0,
+      "count": 0,
+      "sizeBytes": 0,
+      "storageBytes": 4096,
+      "indexBytes": 4096,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [],
+      "extraFields": [],
+      "missingFields": [
+        "_id",
+        "user",
+        "action",
+        "targetType",
+        "targetId",
+        "description",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "appsettings",
+      "estimatedCount": 4,
+      "count": 4,
+      "sizeBytes": 1341,
+      "storageBytes": 36864,
+      "indexBytes": 73728,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "key_1",
+          "key": {
+            "key": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "key",
+        "updatedAt",
+        "value"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 4,
+        "sha256": "cce092148564398230847d4e1af21f8a5f752ebd13456049c203187332a65318"
+      }
+    },
+    {
+      "name": "auditlogs",
+      "estimatedCount": 1670,
+      "count": 1670,
+      "sizeBytes": 915642,
+      "storageBytes": 335872,
+      "indexBytes": 1003520,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "ts_1",
+          "key": {
+            "ts": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "level_1",
+          "key": {
+            "level": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "category_1",
+          "key": {
+            "category": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "action_1",
+          "key": {
+            "action": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "user.id_1",
+          "key": {
+            "user.id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "ip_1",
+          "key": {
+            "ip": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "deviceIdHash_1",
+          "key": {
+            "deviceIdHash": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "requestId_1",
+          "key": {
+            "requestId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "category_1_action_1_ts_-1",
+          "key": {
+            "category": 1,
+            "action": 1,
+            "ts": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "user.id_1_ts_-1",
+          "key": {
+            "user.id": 1,
+            "ts": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "ip_1_ts_-1",
+          "key": {
+            "ip": 1,
+            "ts": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "ts_-1",
+          "key": {
+            "ts": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "action",
+        "category",
+        "deviceIdHash",
+        "durationMs",
+        "ip",
+        "level",
+        "message",
+        "meta",
+        "method",
+        "path",
+        "requestId",
+        "statusCode",
+        "ts",
+        "user"
+      ],
+      "extraFields": [
+        "__v"
+      ],
+      "missingFields": [],
+      "extraFieldBsonTypes": {
+        "__v": [
+          "number"
+        ]
+      },
+      "nested": {
+        "user": {
+          "found": [
+            "id",
+            "role",
+            "username"
+          ],
+          "extra": [],
+          "missing": []
+        }
+      },
+      "idChecksum": {
+        "count": 1670,
+        "sha256": "5c81abfedd8253a5e5f4f9fd4dc469be9d1214c6f2991e559d3655ca3167521b"
+      }
+    },
+    {
+      "name": "bookmarks",
+      "estimatedCount": 6,
+      "count": 6,
+      "sizeBytes": 852,
+      "storageBytes": 36864,
+      "indexBytes": 73728,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "user_1_manhua_1",
+          "key": {
+            "user": 1,
+            "manhua": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "chapterNumber",
+        "createdAt",
+        "manhua",
+        "pageNumber",
+        "updatedAt",
+        "user"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 6,
+        "sha256": "06fc1a05269d3249f7eca862893844e57d616233fb5205cea4a954f7a52e97eb"
+      }
+    },
+    {
+      "name": "chapterreadmonths",
+      "estimatedCount": 322,
+      "count": 322,
+      "sizeBytes": 63756,
+      "storageBytes": 69632,
+      "indexBytes": 253952,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "chapterId_1",
+          "key": {
+            "chapterId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "viewerKey_1",
+          "key": {
+            "viewerKey": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "monthKey_1",
+          "key": {
+            "monthKey": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "expireAt_1",
+          "key": {
+            "expireAt": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "chapterId_1_viewerKey_1_monthKey_1",
+          "key": {
+            "chapterId": 1,
+            "viewerKey": 1,
+            "monthKey": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "chapterId",
+        "createdAt",
+        "expireAt",
+        "firstReadAt",
+        "monthKey",
+        "updatedAt",
+        "viewerKey"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 322,
+        "sha256": "911320583e3034d514c74b6579549840bb736f3ead46a3a34b419cc9e3f5d48d"
+      }
+    },
+    {
+      "name": "chapterreads",
+      "estimatedCount": 0,
+      "count": 0,
+      "sizeBytes": 0,
+      "storageBytes": 4096,
+      "indexBytes": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "chapterId_1",
+          "key": {
+            "chapterId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "viewerKey_1",
+          "key": {
+            "viewerKey": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "chapterId_1_viewerKey_1",
+          "key": {
+            "chapterId": 1,
+            "viewerKey": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [],
+      "extraFields": [],
+      "missingFields": [
+        "_id",
+        "chapterId",
+        "viewerKey",
+        "firstReadAt",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "chapters",
+      "estimatedCount": 30,
+      "count": 30,
+      "sizeBytes": 313384,
+      "storageBytes": 143360,
+      "indexBytes": 258048,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "manhua_1",
+          "key": {
+            "manhua": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "manhua_1_language_1_status_1_chapterNumber_1",
+          "key": {
+            "manhua": 1,
+            "language": 1,
+            "status": 1,
+            "chapterNumber": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "manhua_1_language_1_status_1_chapterNumber_-1",
+          "key": {
+            "manhua": 1,
+            "language": 1,
+            "status": 1,
+            "chapterNumber": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "status_1_createdAt_-1",
+          "key": {
+            "status": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "deletedAt_1",
+          "key": {
+            "deletedAt": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "manhua_1_chapterNumber_1_language_1",
+          "key": {
+            "manhua": 1,
+            "chapterNumber": 1,
+            "language": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": {
+            "deletedAt": null
+          }
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "chapterNumber",
+        "createdAt",
+        "dailyViews",
+        "deletedAt",
+        "deletedBy",
+        "language",
+        "manhua",
+        "monthlyViews",
+        "pages",
+        "status",
+        "title",
+        "updatedAt",
+        "uploadedBy",
+        "views"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {
+        "pages": {
+          "found": [
+            "height",
+            "imageUrl",
+            "originalName",
+            "pageNumber",
+            "width"
+          ],
+          "extra": [],
+          "missing": [
+            "sourceUrl"
+          ]
+        }
+      },
+      "idChecksum": {
+        "count": 30,
+        "sha256": "99ba39c322a9167a0cfe60d45e954b67e2425f35f5a593658dd51c56f6fc0e76"
+      }
+    },
+    {
+      "name": "comments",
+      "estimatedCount": 2,
+      "count": 2,
+      "sizeBytes": 294,
+      "storageBytes": 36864,
+      "indexBytes": 147456,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "manhua_1_createdAt_-1",
+          "key": {
+            "manhua": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "chapter_1_createdAt_-1",
+          "key": {
+            "chapter": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "user_1_createdAt_-1",
+          "key": {
+            "user": 1,
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "manhua",
+        "text",
+        "updatedAt",
+        "user",
+        "username"
+      ],
+      "extraFields": [],
+      "missingFields": [
+        "chapter"
+      ],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 2,
+        "sha256": "4fbf35ac6d853ba08200a78b478615e398017153f7d51867ea065ad93581899d"
+      }
+    },
+    {
+      "name": "editormanhuamonthstats",
+      "estimatedCount": 45,
+      "count": 45,
+      "sizeBytes": 6885,
+      "storageBytes": 36864,
+      "indexBytes": 184320,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "monthKey_1",
+          "key": {
+            "monthKey": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "editorId_1",
+          "key": {
+            "editorId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "manhuaId_1",
+          "key": {
+            "manhuaId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "monthKey_1_editorId_1_manhuaId_1",
+          "key": {
+            "monthKey": 1,
+            "editorId": 1,
+            "manhuaId": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "editorId",
+        "manhuaId",
+        "monthKey",
+        "monthlyViews",
+        "updatedAt"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 45,
+        "sha256": "c5aa897b2667326b601391ed6a2c6df5d059163a6a4981134b689ae054e29b0c"
+      }
+    },
+    {
+      "name": "editormonthstats",
+      "estimatedCount": 34,
+      "count": 34,
+      "sizeBytes": 5440,
+      "storageBytes": 36864,
+      "indexBytes": 147456,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "monthKey_1",
+          "key": {
+            "monthKey": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "editorId_1",
+          "key": {
+            "editorId": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "monthKey_1_editorId_1",
+          "key": {
+            "monthKey": 1,
+            "editorId": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "chapterMonthlyViews",
+        "chaptersUploaded",
+        "createdAt",
+        "editorId",
+        "monthKey",
+        "updatedAt"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 34,
+        "sha256": "850e84d30a3f2dfc98e04c31b4792cd1a851d3aaa410537e45751f6c49e389b2"
+      }
+    },
+    {
+      "name": "favorites",
+      "estimatedCount": 16,
+      "count": 16,
+      "sizeBytes": 1712,
+      "storageBytes": 36864,
+      "indexBytes": 110592,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "user_1_manhua_1",
+          "key": {
+            "user": 1,
+            "manhua": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "user_1",
+          "key": {
+            "user": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "manhua",
+        "updatedAt",
+        "user"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 16,
+        "sha256": "66923216a337f145d69822b9fcdb0a74cd5ae063482ffd28fba8c81f9ffef449"
+      }
+    },
+    {
+      "name": "feedbacks",
+      "estimatedCount": 0,
+      "count": 0,
+      "sizeBytes": 0,
+      "storageBytes": 4096,
+      "indexBytes": 16384,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "type_1",
+          "key": {
+            "type": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "createdAt_-1",
+          "key": {
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [],
+      "extraFields": [],
+      "missingFields": [
+        "_id",
+        "type",
+        "name",
+        "description",
+        "imageUrl",
+        "status",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "financemonths",
+      "estimatedCount": 0,
+      "count": 0,
+      "sizeBytes": 0,
+      "storageBytes": 4096,
+      "indexBytes": 8192,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "monthKey_1",
+          "key": {
+            "monthKey": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [],
+      "extraFields": [],
+      "missingFields": [
+        "_id",
+        "monthKey",
+        "totalRevenue",
+        "currency",
+        "revenueEvents",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "manhuas",
+      "estimatedCount": 14,
+      "count": 14,
+      "sizeBytes": 18054,
+      "storageBytes": 53248,
+      "indexBytes": 294912,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "slug_1",
+          "key": {
+            "slug": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "rating_-1",
+          "key": {
+            "rating": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "updatedAt_-1",
+          "key": {
+            "updatedAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "weeklyViews_-1",
+          "key": {
+            "weeklyViews": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "views_-1",
+          "key": {
+            "views": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "deletedAt_1",
+          "key": {
+            "deletedAt": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "owners_1",
+          "key": {
+            "owners": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "coverImage",
+        "coverImageUrl",
+        "createdAt",
+        "createdBy",
+        "dailyViews",
+        "deletedAt",
+        "deletedBy",
+        "description",
+        "genres",
+        "owners",
+        "rating",
+        "ratingAverage",
+        "ratingCount",
+        "slug",
+        "status",
+        "team",
+        "title",
+        "titleEn",
+        "updatedAt",
+        "views",
+        "weeklyViews"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 14,
+        "sha256": "d202469ded48b5147895d77d27288403eb871b6825755afe85843c178ec3184f"
+      }
+    },
+    {
+      "name": "requests",
+      "estimatedCount": 2,
+      "count": 2,
+      "sizeBytes": 831,
+      "storageBytes": 36864,
+      "indexBytes": 110592,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "createdAt_-1",
+          "key": {
+            "createdAt": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "votes_-1",
+          "key": {
+            "votes": -1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "createdBy",
+        "imageUrl",
+        "monthlyVotes",
+        "title",
+        "updatedAt",
+        "votersByMonth",
+        "votes"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 2,
+        "sha256": "2755b497c86b7afae68a4e3ef31d09a8a92c5dea342b56d18774b0faf2ccfda9"
+      }
+    },
+    {
+      "name": "teaminvites",
+      "estimatedCount": 4,
+      "count": 4,
+      "sizeBytes": 765,
+      "storageBytes": 36864,
+      "indexBytes": 184320,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "team_1",
+          "key": {
+            "team": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "invitedUser_1",
+          "key": {
+            "invitedUser": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "status_1",
+          "key": {
+            "status": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "team_1_invitedUser_1_status_1",
+          "key": {
+            "team": 1,
+            "invitedUser": 1,
+            "status": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "invitedBy",
+        "invitedUser",
+        "respondedAt",
+        "role",
+        "status",
+        "team",
+        "updatedAt"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 4,
+        "sha256": "4c6165894f39e2df3a381a756947195ae428b85fe87230d0666ef8e7c9075569"
+      }
+    },
+    {
+      "name": "teams",
+      "estimatedCount": 2,
+      "count": 2,
+      "sizeBytes": 731,
+      "storageBytes": 36864,
+      "indexBytes": 110592,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "name_1",
+          "key": {
+            "name": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "members.user_1",
+          "key": {
+            "members.user": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "createdBy",
+        "description",
+        "members",
+        "name",
+        "updatedAt"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {
+        "members": {
+          "found": [
+            "addedAt",
+            "addedBy",
+            "role",
+            "user"
+          ],
+          "extra": [],
+          "missing": []
+        }
+      },
+      "idChecksum": {
+        "count": 2,
+        "sha256": "7298112bde539f4a31de16d35c5c3a9418316f954dda7efc1241207355bc31a5"
+      }
+    },
+    {
+      "name": "trialdevices",
+      "estimatedCount": 63,
+      "count": 63,
+      "sizeBytes": 12810,
+      "storageBytes": 45056,
+      "indexBytes": 73728,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "deviceId_1",
+          "key": {
+            "deviceId": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "createdAt",
+        "deviceId",
+        "firstGrantedAt",
+        "firstUserId",
+        "ip",
+        "updatedAt"
+      ],
+      "extraFields": [],
+      "missingFields": [],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 63,
+        "sha256": "623696edf2338e73a7e91f7534f8a5eda293ff5ce4471d45609e270e7906fcc4"
+      }
+    },
+    {
+      "name": "users",
+      "estimatedCount": 143,
+      "count": 143,
+      "sizeBytes": 99195,
+      "storageBytes": 110592,
+      "indexBytes": 118784,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "username_1",
+          "key": {
+            "username": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "email_1",
+          "key": {
+            "email": 1
+          },
+          "unique": true,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [
+        "__v",
+        "_id",
+        "avatar",
+        "blocked",
+        "bookmarks",
+        "createdAt",
+        "deviceId",
+        "deviceSwitchCount",
+        "deviceSwitchFirstAt",
+        "deviceSwitchWindowStart",
+        "email",
+        "energyBoosts",
+        "goingOut",
+        "hasUsedTrial",
+        "hobby",
+        "isActive",
+        "isVIP",
+        "lastDeviceId",
+        "lastRegisterIP",
+        "lockReason",
+        "lockUntil",
+        "password",
+        "phone",
+        "preferredActivities",
+        "recentlyViewed",
+        "resetPasswordExpiresAt",
+        "resetPasswordRequestedAt",
+        "resetPasswordTokenHash",
+        "role",
+        "sessionToken",
+        "tokenVersion",
+        "trialGrantedAt",
+        "updatedAt",
+        "username",
+        "vipExpiresAt",
+        "vipLevel",
+        "weekend",
+        "workValues"
+      ],
+      "extraFields": [
+        "energyBoosts",
+        "goingOut",
+        "hobby",
+        "preferredActivities",
+        "weekend",
+        "workValues"
+      ],
+      "missingFields": [],
+      "extraFieldBsonTypes": {
+        "energyBoosts": [
+          "array"
+        ],
+        "goingOut": [
+          "array"
+        ],
+        "hobby": [
+          "array"
+        ],
+        "preferredActivities": [
+          "array"
+        ],
+        "weekend": [
+          "array"
+        ],
+        "workValues": [
+          "array"
+        ]
+      },
+      "nested": {
+        "bookmarks": {
+          "found": [],
+          "extra": [],
+          "missing": [
+            "manhua",
+            "addedAt",
+            "_id"
+          ]
+        },
+        "recentlyViewed": {
+          "found": [],
+          "extra": [],
+          "missing": [
+            "manhua",
+            "lastChapter",
+            "lastReadAt",
+            "_id"
+          ]
+        }
+      },
+      "idChecksum": {
+        "count": 143,
+        "sha256": "fef3bceecd6ff50ba4807e66c020b648c2a09d540433031f78489e583fdad1b1"
+      }
+    },
+    {
+      "name": "vipplans",
+      "estimatedCount": 0,
+      "count": 0,
+      "sizeBytes": 0,
+      "storageBytes": 4096,
+      "indexBytes": 8192,
+      "indexes": [
+        {
+          "name": "_id_",
+          "key": {
+            "_id": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        },
+        {
+          "name": "active_1_displayOrder_1",
+          "key": {
+            "active": 1,
+            "displayOrder": 1
+          },
+          "unique": false,
+          "sparse": false,
+          "partialFilterExpression": null
+        }
+      ],
+      "fields": [],
+      "extraFields": [],
+      "missingFields": [
+        "_id",
+        "months",
+        "priceTotal",
+        "active",
+        "displayOrder",
+        "createdAt",
+        "updatedAt",
+        "__v"
+      ],
+      "extraFieldBsonTypes": {},
+      "nested": {},
+      "idChecksum": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "unexpectedCollections": [],
+  "missingExpectedCollections": [
+    "registerattempts"
+  ]
+}

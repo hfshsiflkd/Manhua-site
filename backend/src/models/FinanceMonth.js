@@ -24,5 +24,10 @@ const financeMonthSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("FinanceMonth", financeMonthSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(
+  mongoose.model("FinanceMonth", financeMonthSchema),
+  () => require("../store/pg/stats").FinanceMonth
+);
 

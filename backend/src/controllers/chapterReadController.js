@@ -55,6 +55,15 @@ exports.startRead = async (req, res) => {
     return res.status(400).json({ message: "Invalid chapter id" });
   }
 
+  const chapter = await Chapter.findById(chapterId).select("_id manhua").lean();
+  if (!chapter) {
+    return res.status(404).json({ message: "Chapter not found" });
+  }
+  const parent = await Manhua.findById(chapter.manhua).select("_id").lean();
+  if (!parent) {
+    return res.status(404).json({ message: "Chapter not found" });
+  }
+
   const token = jwt.sign(
     { chapterId, viewerKey, type: "chapter_read_start" },
     process.env.JWT_SECRET,
@@ -108,6 +117,8 @@ exports.confirmRead = async (req, res, next) => {
       .select("_id manhua uploadedBy")
       .lean();
     if (!chapter) return res.status(404).json({ message: "Chapter not found" });
+    const parent = await Manhua.findById(chapter.manhua).select("_id").lean();
+    if (!parent) return res.status(404).json({ message: "Chapter not found" });
 
     // Count views for editor salary/leaderboard:
     // Deduplicate per (chapterId, viewerKey, monthKey) so the same person can count again next month.

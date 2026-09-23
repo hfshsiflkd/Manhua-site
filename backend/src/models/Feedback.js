@@ -25,5 +25,9 @@ const feedbackSchema = new mongoose.Schema(
 
 feedbackSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model("Feedback", feedbackSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Feedback", feedbackSchema), () =>
+  require("../store/pg/community").Feedback
+);
 

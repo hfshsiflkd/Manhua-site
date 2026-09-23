@@ -5,9 +5,11 @@
  * Cron жишээ (сар бүрийн 1-нд): 0 2 1 * * node src/scripts/pruneDailyViews.js
  */
 require("dotenv").config();
-const mongoose = require("mongoose");
 const Chapter = require("../models/Chapter");
 const Manhua = require("../models/Manhua");
+const { connectAppDb, disconnectAppDb, isPostgres } = require("./connectAppDb");
+const { query } = require("../db/postgres");
+const { assertWritesAllowed } = require("../config/writeGate");
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
@@ -79,12 +81,40 @@ async function main() {
   console.log(
     `dailyViews цэвэрлэлт эхэлж байна (${KEEP_DAYS} хоногоос хуучин өгөгдлийг устгана)${dryRun ? " — DRY RUN" : ""}`
   );
-  await mongoose.connect(process.env.MONGO_URI);
+  if (!dryRun) assertWritesAllowed("pruneDailyViews");
+  await connectAppDb();
 
+  if (isPostgres()) {
+    const cutoffDay = getCutoffDateKey(KEEP_DAYS);
+    const cutoffMonth = getCutoffMonthKey(KEEP_MONTHS);
+    if (!dryRun) {
+      assertWritesAllowed("pruneDailyViews");
+      const manhuaDays = await query(`DELETE FROM arc.manhua_daily_views WHERE day_key < $1`, [cutoffDay]);
+      const chapterDays = await query(`DELETE FROM arc.chapter_daily_views WHERE day_key < $1`, [cutoffDay]);
+      const chapterMonths = await query(
+        `DELETE FROM arc.chapter_monthly_views WHERE month_key < $1`,
+        [cutoffMonth]
+      );
+      console.log(
+        `[Postgres] manhua_daily=${manhuaDays.rowCount} chapter_daily=${chapterDays.rowCount} chapter_monthly=${chapterMonths.rowCount}`
+      );
+    } else {
+      const manhuaDays = await query(
+        `SELECT count(*)::int AS n FROM arc.manhua_daily_views WHERE day_key < $1`,
+        [cutoffDay]
+      );
+      console.log(`[Postgres] (dry-run) manhua_daily=${manhuaDays.rows[0].n}`);
+    }
+    await disconnectAppDb();
+    console.log("Дууслаа.");
+    return;
+  }
+
+  if (!dryRun) assertWritesAllowed("pruneDailyViews");
   await pruneModel(Chapter, "Chapter");
   await pruneModel(Manhua, "Manhua");
 
-  await mongoose.disconnect();
+  await disconnectAppDb();
   console.log("Дууслаа.");
 }
 

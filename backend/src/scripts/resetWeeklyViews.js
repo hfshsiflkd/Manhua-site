@@ -5,14 +5,16 @@
  * Cron жишээ (Даваа гарагийн 00:05): 5 0 * * 1 node src/scripts/resetWeeklyViews.js
  */
 require("dotenv").config();
-const mongoose = require("mongoose");
 const Manhua = require("../models/Manhua");
+const { connectAppDb, disconnectAppDb } = require("./connectAppDb");
+const { assertWritesAllowed } = require("../config/writeGate");
 
 const dryRun = process.argv.includes("--dry-run");
 
 async function main() {
   console.log(`weeklyViews reset эхэлж байна${dryRun ? " — DRY RUN" : ""}`);
-  await mongoose.connect(process.env.MONGO_URI);
+  if (!dryRun) assertWritesAllowed("resetWeeklyViews");
+  await connectAppDb();
 
   if (!dryRun) {
     const result = await Manhua.updateMany(
@@ -25,7 +27,7 @@ async function main() {
     console.log(`(dry-run) ${count} манхуа тэглэгдэх байсан`);
   }
 
-  await mongoose.disconnect();
+  await disconnectAppDb();
   console.log("Дууслаа.");
 }
 

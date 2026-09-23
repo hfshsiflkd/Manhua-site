@@ -38,5 +38,10 @@ chapterReadMonthSchema.index(
 // Auto-delete after expireAt (0 seconds after the time)
 chapterReadMonthSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model("ChapterReadMonth", chapterReadMonthSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(
+  mongoose.model("ChapterReadMonth", chapterReadMonthSchema),
+  () => require("../store/pg/stats").ChapterReadMonth
+);
 

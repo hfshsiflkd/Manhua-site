@@ -9,4 +9,8 @@ const schema = new mongoose.Schema(
 
 schema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 }); // 24 цагийн дараа автоматаар устгана
 
-module.exports = mongoose.model("RegisterAttempt", schema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("RegisterAttempt", schema), () =>
+  require("../store/pg/stats").RegisterAttempt
+);

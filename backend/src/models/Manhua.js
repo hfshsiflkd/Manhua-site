@@ -160,4 +160,8 @@ manhuaSchema.pre("save", function (next) {
 });
 
 
-module.exports = mongoose.model("Manhua", manhuaSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Manhua", manhuaSchema), () =>
+  require("../store/pg/Manhua")
+);

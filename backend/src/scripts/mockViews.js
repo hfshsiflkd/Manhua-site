@@ -17,9 +17,11 @@
 
 require("dotenv").config();
 
-const mongoose = require("mongoose");
 const Chapter = require("../models/Chapter");
 const Manhua = require("../models/Manhua");
+const { connectAppDb, disconnectAppDb, isPostgres } = require("./connectAppDb");
+const { query } = require("../db/postgres");
+const { assertWritesAllowed } = require("../config/writeGate");
 
 function parseArgs(argv) {
   const out = {};
@@ -67,10 +69,12 @@ async function main() {
     process.exit(0);
   }
 
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
-  if (!mongoUri) {
-    console.error("❌ Missing env: MONGO_URI (or MONGODB_URI)");
-    process.exit(1);
+  if (!isPostgres()) {
+    const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+    if (!mongoUri) {
+      console.error("❌ Missing env: MONGO_URI (or MONGODB_URI)");
+      process.exit(1);
+    }
   }
 
   const perChapter = Number(args.perChapter ?? 100);
@@ -86,16 +90,48 @@ async function main() {
   }
   const monthKey = dateToMonthKey(dateKey);
 
-  await mongoose.connect(mongoUri, {
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  });
+  if (!dryRun) assertWritesAllowed("mockViews");
+  await connectAppDb();
+
+  if (isPostgres()) {
+    const totalChapters = await query(`SELECT count(*)::int AS n FROM arc.chapters`);
+    console.log(`Chapters found: ${totalChapters.rows[0].n}`);
+    await query(`UPDATE arc.chapters SET views = views + $1, updated_at = now()`, [perChapter]);
+    await query(
+      `INSERT INTO arc.chapter_daily_views (chapter_id, day_key, views)
+       SELECT id, $1, $2 FROM arc.chapters
+       ON CONFLICT (chapter_id, day_key)
+       DO UPDATE SET views = arc.chapter_daily_views.views + EXCLUDED.views`,
+      [dateKey, perChapter]
+    );
+    await query(
+      `INSERT INTO arc.chapter_monthly_views (chapter_id, month_key, views)
+       SELECT id, $1, $2 FROM arc.chapters
+       ON CONFLICT (chapter_id, month_key)
+       DO UPDATE SET views = arc.chapter_monthly_views.views + EXCLUDED.views`,
+      [monthKey, perChapter]
+    );
+    await query(
+      `UPDATE arc.manhuas m SET
+         views = m.views + s.add,
+         weekly_views = m.weekly_views + s.add,
+         updated_at = now()
+       FROM (
+         SELECT manhua_id, count(*)::int * $1 AS add FROM arc.chapters GROUP BY manhua_id
+       ) s
+       WHERE m.id = s.manhua_id`,
+      [perChapter]
+    );
+    console.log(`Done (postgres). Added +${perChapter} per chapter.`);
+    await disconnectAppDb();
+    process.exit(0);
+  }
 
   const totalChapters = await Chapter.countDocuments({});
   console.log(`Chapters found: ${totalChapters}`);
   if (!totalChapters) {
     console.log("No chapters to update. Exiting.");
+    await disconnectAppDb();
     process.exit(0);
   }
 
@@ -150,7 +186,7 @@ async function main() {
   console.log(
     `Done. Added +${perChapter} to each chapter; added per-manhua totals into dailyViews.${dateKey}.`
   );
-  await mongoose.disconnect();
+  await disconnectAppDb();
   process.exit(0);
 }
 

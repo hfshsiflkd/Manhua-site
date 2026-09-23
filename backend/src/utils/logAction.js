@@ -9,6 +9,8 @@ async function logAction({
   meta,
 }) {
   try {
+    const { writesFrozen } = require("../config/writeGate");
+    if (writesFrozen()) return;
     await ActionLog.create({
       user: userId,
       action,

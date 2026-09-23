@@ -19,5 +19,9 @@ const chapterReadSchema = new mongoose.Schema(
 
 chapterReadSchema.index({ chapterId: 1, viewerKey: 1 }, { unique: true });
 
-module.exports = mongoose.model("ChapterRead", chapterReadSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("ChapterRead", chapterReadSchema), () =>
+  require("../store/pg/stats").ChapterRead
+);
 

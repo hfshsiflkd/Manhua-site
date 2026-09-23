@@ -8,4 +8,8 @@ const appSettingSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("AppSetting", appSettingSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("AppSetting", appSettingSchema), () =>
+  require("../store/pg/settings").AppSetting
+);

@@ -15,4 +15,8 @@ const favoriteSchema = new mongoose.Schema(
 favoriteSchema.index({ user: 1, manhua: 1 }, { unique: true });
 favoriteSchema.index({ user: 1 });
 
-module.exports = mongoose.model("Favorite", favoriteSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Favorite", favoriteSchema), () =>
+  require("../store/pg/Favorite")
+);

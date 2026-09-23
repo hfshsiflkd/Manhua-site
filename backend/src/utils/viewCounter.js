@@ -25,11 +25,19 @@ function getMonthKey() {
 }
 
 function trackView({ chapterId, manhuaId }) {
+  const { writesFrozen } = require("../config/writeGate");
+  if (writesFrozen()) return;
   if (chapterId) inc(chapterCounts, chapterId);
   if (manhuaId) inc(manhuaCounts, manhuaId);
 }
 
 async function flush() {
+  const { writesFrozen } = require("../config/writeGate");
+  if (writesFrozen()) {
+    chapterCounts.clear();
+    manhuaCounts.clear();
+    return;
+  }
   if (chapterCounts.size) {
     const todayKey = getTodayDateKey();
     const monthKey = getMonthKey();

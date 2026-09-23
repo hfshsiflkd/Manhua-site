@@ -10,7 +10,10 @@ async function writeAudit({
   req,
 }) {
   try {
-    if (mongoose.connection.readyState !== 1) {
+    const { writesFrozen } = require("../config/writeGate");
+    if (writesFrozen()) return;
+    const { isPostgres } = require("../store/driver");
+    if (!isPostgres() && mongoose.connection.readyState !== 1) {
       return;
     }
     await AuditLog.create({

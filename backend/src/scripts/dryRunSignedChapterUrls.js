@@ -3,8 +3,8 @@
  * It never writes to the database. Do not pass production credentials
  * unless you intend to read production data.
  */
-const mongoose = require("mongoose");
 const { classifyImageRef } = require("../utils/imageRef");
+const { connectAppDb, disconnectAppDb, isPostgres } = require("./connectAppDb");
 
 if (process.argv.includes("--apply")) {
   console.error("Apply is disabled. This script only reports.");
@@ -12,11 +12,15 @@ if (process.argv.includes("--apply")) {
 }
 
 async function main() {
-  if (!process.env.MONGO_URI || !process.env.R2_PUBLIC_BASE_URL || !process.env.R2_BUCKET_NAME) {
-    console.error("MONGO_URI, R2_PUBLIC_BASE_URL, and R2_BUCKET_NAME are required. Nothing was changed.");
+  if (!process.env.R2_PUBLIC_BASE_URL || !process.env.R2_BUCKET_NAME) {
+    console.error("R2_PUBLIC_BASE_URL and R2_BUCKET_NAME are required. Nothing was changed.");
     process.exit(1);
   }
-  await mongoose.connect(process.env.MONGO_URI);
+  if (!isPostgres() && !process.env.MONGO_URI) {
+    console.error("MONGO_URI is required unless DB_DRIVER=postgres. Nothing was changed.");
+    process.exit(1);
+  }
+  await connectAppDb();
   const Chapter = require("../models/Chapter");
   const chapters = await Chapter.find().setOptions({ withDeleted: true }).select("pages").lean();
   const counts = { store: 0, uncertain: 0, empty: 0 };
@@ -34,10 +38,10 @@ async function main() {
     }
   }
   console.log(JSON.stringify({ dryRun: true, chapters: chapters.length, counts, uncertain }, null, 2));
-  await mongoose.disconnect();
+  await disconnectAppDb();
 }
 
 main().catch((err) => {
-  console.error(err.message);
+  console.error(err);
   process.exit(1);
 });

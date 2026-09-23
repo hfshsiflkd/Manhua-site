@@ -122,4 +122,8 @@ chapterSchema.index({
 // Home latestUpdates: Chapter.find({ status: "published" }).sort({ createdAt: -1 })
 chapterSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.model("Chapter", chapterSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Chapter", chapterSchema), () =>
+  require("../store/pg/Chapter")
+);

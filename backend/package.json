@@ -6,6 +6,12 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "node --test src/utils/*.test.js src/services/*.test.js src/middleware/*.test.js",
+    "test:pg": "node --test scripts/mongo-pg/api.isolated.test.js",
+    "test:pg-integration": "node --test --test-concurrency=1 scripts/mongo-pg/pg.integration.test.js",
+    "test:pg-hosted-integration": "PG_INTEGRATION_TARGET=hosted node --test --test-concurrency=1 scripts/mongo-pg/pg.integration.test.js",
+    "test:pg-reverse-rehearsal": "node scripts/mongo-pg/reverse.rehearsal.js",
+    "test:pg-freeze-rehearsal": "node scripts/mongo-pg/freeze.rehearsal.js",
+    "test:pg-hosted-resync": "ALLOW_SUPABASE_MIGRATE=staging node scripts/mongo-pg/hosted-resync.rehearsal.js",
     "worker": "node src/workers/emailWorker.js",
     "mock:views": "node src/scripts/mockViews.js"
   },
@@ -16,6 +22,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
     "@aws-sdk/s3-request-presigner": "^3.1045.0",
+    "@supabase/server": "^1.8.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.66.0",
@@ -34,6 +41,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.7",
+    "pg": "^8.23.0",
     "sharp": "^0.34.5"
   },
   "devDependencies": {

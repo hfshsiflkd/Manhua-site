@@ -36,4 +36,8 @@ commentSchema.pre("validate", function (next) {
   next();
 });
 
-module.exports = mongoose.model("Comment", commentSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Comment", commentSchema), () =>
+  require("../store/pg/social").Comment
+);

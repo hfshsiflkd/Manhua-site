@@ -3,8 +3,9 @@
 // Usage: node src/scripts/seedVipPlans.js
 
 require("dotenv").config();
-const mongoose = require("mongoose");
 const VipPlan = require("../models/VipPlan");
+const { connectAppDb, disconnectAppDb } = require("./connectAppDb");
+const { assertWritesAllowed } = require("../config/writeGate");
 
 const defaultPlans = [
   { months: 1, priceTotal: 5000, displayOrder: 1 },
@@ -15,14 +16,9 @@ const defaultPlans = [
 
 async function seedPlans() {
   try {
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log("Connected to MongoDB");
+    assertWritesAllowed("seedVipPlans");
+    await connectAppDb();
 
-    // Clear existing plans (optional - comment out if you want to keep existing)
-    // await VipPlan.deleteMany({});
-
-    // Insert default plans
     for (const planData of defaultPlans) {
       const existing = await VipPlan.findOne({ months: planData.months });
       if (existing) {
@@ -38,6 +34,7 @@ async function seedPlans() {
     }
 
     console.log("VIP plans seeded successfully!");
+    await disconnectAppDb();
     process.exit(0);
   } catch (error) {
     console.error("Error seeding VIP plans:", error);
@@ -46,4 +43,3 @@ async function seedPlans() {
 }
 
 seedPlans();
-

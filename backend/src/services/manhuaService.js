@@ -111,7 +111,7 @@ exports.fetchManhuaBySlug = async (slug) => {
   const cached = await redisCache.get(cKey);
   if (cached) return cached;
 
-  const manhua = await Manhua.findOne({ slug })
+  const manhua = await Manhua.findOne({ slug, deletedAt: null })
     .populate({
       path: "chapters",
       match: { status: "published" },

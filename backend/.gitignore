@@ -1,3 +1,5 @@
 /node_modules
 .env
+.env.supabase.local
 .vercel
+scripts/mongo-pg/last-migrate-report.json

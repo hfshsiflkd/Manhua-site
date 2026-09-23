@@ -45,4 +45,8 @@ const teamSchema = new mongoose.Schema(
 teamSchema.index({ name: 1 });
 teamSchema.index({ "members.user": 1 });
 
-module.exports = mongoose.model("Team", teamSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("Team", teamSchema), () =>
+  require("../store/pg/Team").Team
+);

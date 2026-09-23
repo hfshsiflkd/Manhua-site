@@ -56,7 +56,10 @@ exports.auditRequestEnd = (req, res, next) => {
     const shouldLog = req.path.startsWith("/api/admin") || req.path.startsWith("/api/auth");
 
     if (shouldLog && req.audit) {
-      // Log asynchronously to not block response
+      const { writesFrozen } = require("../config/writeGate");
+      if (writesFrozen()) {
+        return originalSend.call(this, data);
+      }
       setImmediate(() => {
         const { logAudit } = require("../utils/auditLogger");
         logAudit(req, {

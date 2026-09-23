@@ -78,4 +78,8 @@ auditLogSchema.statics.hashDeviceId = function (deviceId) {
   return crypto.createHash("sha256").update(deviceId).digest("hex");
 };
 
-module.exports = mongoose.model("AuditLog", auditLogSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("AuditLog", auditLogSchema), () =>
+  require("../store/pg/logs").AuditLog
+);

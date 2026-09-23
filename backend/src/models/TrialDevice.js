@@ -10,4 +10,8 @@ const trialDeviceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("TrialDevice", trialDeviceSchema);
+const { bindModel } = require("../store/driver");
+
+module.exports = bindModel(mongoose.model("TrialDevice", trialDeviceSchema), () =>
+  require("../store/pg/settings").TrialDevice
+);
