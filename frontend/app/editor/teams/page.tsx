@@ -1,14 +1,28 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  editorAcceptTeamInvite, editorCreateTeam, editorDeclineTeamInvite,
+  editorAcceptTeamInvite, editorDeclineTeamInvite,
   editorGetMyTeamInvites, editorGetTeams, Team, TeamInvite,
 } from "@/lib/api";
 import { useToast } from "@/app/components/ToastProvider";
 import { useAuth } from "@/context/AuthContext";
+
+function memberUserId(member: Team["members"] extends (infer M)[] | undefined ? M : never) {
+  const user = member?.user as unknown;
+  if (!user) return "";
+  if (typeof user === "string") return user;
+  if (typeof user === "object" && user && "_id" in user) return String((user as { _id?: string })._id || "");
+  return "";
+}
+
+function myRoleOf(team: Team, userId?: string) {
+  if (team.myRole) return team.myRole;
+  if (!userId) return null;
+  return team.members?.find((m) => memberUserId(m) === userId)?.role || null;
+}
 
 export default function EditorTeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -17,15 +31,12 @@ export default function EditorTeamsPage() {
   const [loadingInvites, setLoadingInvites] = useState(true);
   const [workingInviteId, setWorkingInviteId] = useState<string | null>(null);
   const [showInvites, setShowInvites] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   const { user } = useAuth();
-  const isAdmin = String(user?.role || "") === "admin";
-
-  const fieldStyle: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)", borderRadius: 9, padding: "10px 16px", fontSize: 13, outline: "none", width: "100%" };
+  const canCreate =
+    user?.role === "admin" ||
+    (user?.role === "editor" && user?.canCreateTeam !== false);
+  const isPlainUser = user?.role === "user";
 
   useEffect(() => {
     let active = true;
@@ -44,19 +55,14 @@ export default function EditorTeamsPage() {
     return () => { active = false; };
   }, []);
 
-  const handleCreate = async () => {
-    if (!name.trim()) { setError("Багийн нэр оруулна уу."); return; }
-    try {
-      setCreating(true); setError(null);
-      const team = await editorCreateTeam({ name: name.trim(), description: description.trim() || undefined });
-      setTeams((prev) => [team, ...prev]);
-      setName(""); setDescription("");
-      toast.success("Баг үүсгэлээ");
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || "Баг үүсгэх үед алдаа гарлаа";
-      setError(msg); toast.error(msg);
-    } finally { setCreating(false); }
-  };
+  const owned = useMemo(
+    () => teams.filter((t) => myRoleOf(t, user?._id) === "owner"),
+    [teams, user?._id]
+  );
+  const memberTeams = useMemo(
+    () => teams.filter((t) => myRoleOf(t, user?._id) !== "owner"),
+    [teams, user?._id]
+  );
 
   const handleAccept = async (invite: TeamInvite) => {
     try {
@@ -80,52 +86,62 @@ export default function EditorTeamsPage() {
     finally { setWorkingInviteId(null); }
   };
 
+  const renderTeamCard = (team: Team, manageLabel: string) => (
+    <div key={team._id} className="rounded-[14px] p-4 transition-all hover:brightness-110" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>{team.name}</h3>
+        {team.description && <p className="text-xs line-clamp-2" style={{ color: "var(--arc-muted)" }}>{team.description}</p>}
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs" style={{ color: "var(--arc-muted)" }}>
+        <span>Гишүүд: <span style={{ color: "var(--arc-dim)" }}>{team.membersCount ?? team.members?.length ?? 0}</span></span>
+        <Link href={`/editor/teams/${team._id}`} className="rounded-full px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
+          style={{ border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" }}>
+          {manageLabel}
+        </Link>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6 pb-20 lg:pb-6">
       <div className="relative overflow-hidden rounded-[14px] p-5 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>Teams</h1>
-            <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>Зөвхөн таны орсон багууд энд харагдана.</p>
+            <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>Багууд</h1>
+            <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>Өөрийн удирддаг болон гишүүн багууд.</p>
           </div>
-          <div className="rounded-full px-3 py-1.5 text-[11px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
-            Нийт: <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{teams.length}</span>
+          <div className="flex items-center gap-2">
+            <div className="rounded-full px-3 py-1.5 text-[11px]" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" }}>
+              Нийт: <span className="font-semibold" style={{ color: "var(--arc-text)" }}>{teams.length}</span>
+            </div>
+            {canCreate && (
+              <Link
+                href="/editor/teams/new"
+                className="rounded-[9px] px-4 py-2.5 text-sm font-semibold no-underline"
+                style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}
+              >
+                Баг үүсгэх
+              </Link>
+            )}
           </div>
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
-          {error}
-        </div>
-      )}
-
-      {isAdmin && (
-        <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Шинэ баг</h2>
-            <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Зөвхөн сайт admin</span>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto]">
-            <input type="text" placeholder="Team нэр" style={fieldStyle} value={name} onChange={(e) => setName(e.target.value)} />
-            <input type="text" placeholder="Тайлбар (сонголт)" style={fieldStyle} value={description} onChange={(e) => setDescription(e.target.value)} />
-            <button
-              type="button" onClick={handleCreate} disabled={creating}
-              className="rounded-[9px] px-5 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-60"
-              style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}
-            >
-              {creating ? "Үүсгэж байна..." : "Баг үүсгэх"}
-            </button>
-          </div>
+      {isPlainUser && (
+        <section className="rounded-[14px] p-4 sm:p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+          <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--arc-text)" }}>Баг үүсгэх</h2>
+          <p className="text-[13px] mb-3" style={{ color: "var(--arc-muted)" }}>
+            Шинэ баг нээхийн тулд эхлээд editor болоорой. Багийн гишүүн эрх хувийн баг үүсгэхгүй.
+          </p>
+          <Link href="/profile/become-editor" className="inline-flex rounded-[9px] px-4 py-2 text-[12px] font-semibold no-underline" style={{ background: "var(--arc-cyan)", color: "#07070e" }}>
+            Profile → Editor болох
+          </Link>
         </section>
       )}
 
-      {!isAdmin && (
+      {!canCreate && user?.role === "editor" && (
         <section className="rounded-[14px] p-4 sm:p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
-          <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--arc-text)" }}>Баг үүсгэх</h2>
-          <p className="text-[13px]" style={{ color: "var(--arc-muted)" }}>
-            Баг үүсгэх нь зөвхөн сайт admin-ийн эрх. Editor болон энгийн гишүүн шинэ баг нээхгүй. Шинэ баг хэрэгтэй бол admin-тай холбогдоно уу.
-          </p>
+          <p className="text-[13px]" style={{ color: "var(--arc-muted)" }}>Шинэ баг үүсгэх түр хаагдсан. Одоогийн багууд хэвийн ажиллана.</p>
         </section>
       )}
 
@@ -181,35 +197,52 @@ export default function EditorTeamsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold" style={{ color: "var(--arc-text)" }}>Миний багууд</h2>
+        <h2 className="text-sm font-semibold" style={{ color: "var(--arc-text)" }}>Миний удирддаг багууд</h2>
         {loading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-[14px] animate-pulse" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }} />)}
+            {[1, 2].map((i) => <div key={i} className="h-24 rounded-[14px] animate-pulse" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }} />)}
           </div>
-        ) : teams.length === 0 ? (
-          <div className="rounded-[14px] p-6 text-sm" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-muted)" }}>
-            Одоогоор таны орсон баг алга.
+        ) : owned.length === 0 && memberTeams.length === 0 ? (
+          <div className="rounded-[14px] p-6 space-y-3" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+            <p className="text-sm" style={{ color: "var(--arc-text)" }}>Одоогоор баг алга.</p>
+            <p className="text-[13px]" style={{ color: "var(--arc-muted)" }}>
+              {canCreate
+                ? "Шинэ баг үүсгээд манхва нэмж, хүн хайх зар гаргаж болно."
+                : isPlainUser
+                  ? "Баг үүсгэхийн тулд эхлээд editor болоорой."
+                  : "Таныг урьсан баг энд харагдана."}
+            </p>
+            {canCreate && (
+              <Link href="/editor/teams/new" className="inline-flex rounded-[9px] px-4 py-2 text-[12px] font-semibold no-underline" style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}>
+                Баг үүсгэх
+              </Link>
+            )}
+          </div>
+        ) : owned.length === 0 ? (
+          <div className="rounded-[14px] p-4 text-sm" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)", color: "var(--arc-muted)" }}>
+            Удирддаг баг алга.{canCreate ? " Шинэ баг үүсгэж болно." : ""}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team) => (
-              <div key={team._id} className="rounded-[14px] p-4 transition-all hover:brightness-110" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>{team.name}</h3>
-                  {team.description && <p className="text-xs line-clamp-2" style={{ color: "var(--arc-muted)" }}>{team.description}</p>}
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs" style={{ color: "var(--arc-muted)" }}>
-                  <span>Гишүүд: <span style={{ color: "var(--arc-dim)" }}>{team.membersCount ?? team.members?.length ?? 0}</span></span>
-                  <Link href={`/editor/teams/${team._id}`} className="rounded-full px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80"
-                    style={{ border: "1px solid oklch(0.72 0.17 195/.4)", background: "oklch(0.72 0.17 195/.08)", color: "var(--arc-cyan)" }}>
-                    Manage
-                  </Link>
-                </div>
-              </div>
-            ))}
+            {owned.map((team) => renderTeamCard(team, "Удирдах"))}
           </div>
         )}
       </section>
+
+      {(loading || memberTeams.length > 0) && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold" style={{ color: "var(--arc-text)" }}>Гишүүн багууд</h2>
+          {loading ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[1].map((i) => <div key={i} className="h-24 rounded-[14px] animate-pulse" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }} />)}
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {memberTeams.map((team) => renderTeamCard(team, "Нээх"))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

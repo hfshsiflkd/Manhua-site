@@ -27,6 +27,10 @@ These apply only when `arc.editor_profiles.self_serve = true` (users who used th
 | Window length | 24 hours | `SELF_SERVE_EDITOR_QUOTA_WINDOW_HOURS` |
 | Terms version string | `2026-09-23` | `EDITOR_TERMS_VERSION` |
 | New Profile onboarding | enabled | `SELF_SERVE_EDITOR_SIGNUP` (`true`/`false`) |
+| Self-serve team create | enabled | `SELF_SERVE_TEAM_CREATION_ENABLED` (`true`/`false`) |
+| Active teams owned (non-admin editors) | 2 | `SELF_SERVE_TEAM_ACTIVE_LIMIT` |
+
+Creating a team does not skip these quotas. Self-serve editors stay capped after they become a team owner. Team-only `role=user` members stay capped. Legacy staff (`admin` / non-self-serve `editor` / `translator`) keep the current exemption.
 
 Quota is enforced in PostgreSQL (`arc.editor_quota_ledger`) with `pg_advisory_xact_lock`, reservation/commit/release, and idempotency keys. Finalize commits the actual object byte size. Parallel presign/retry/abort cannot double-count a reserved key. Expired reservations are ignored.
 

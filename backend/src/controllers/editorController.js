@@ -9,6 +9,7 @@ const { makeSlug } = require("../store/pg/helpers");
 const { isPostgres } = require("../store/driver");
 const { query } = require("../db/postgres");
 const quota = require("../services/editorQuotaService");
+const { memberUserId } = require("../services/teamAccessService");
 
 function isValidId(id) {
   return /^[0-9a-fA-F]{24}$/.test(String(id));
@@ -130,7 +131,7 @@ exports.createManhua = async (req, res, next) => {
       }
 
       const member = team.members?.find(
-        (m) => String(m.user) === String(req.user._id)
+        (m) => memberUserId(m) === String(req.user._id)
       );
       const canUseTeam =
         req.user.role === "admin" ||
@@ -208,7 +209,7 @@ exports.createManhua = async (req, res, next) => {
     if (teamId) {
       await Promise.all(
         (team.members || []).map((m) =>
-          redisCache.del(`editor:manhuas:mine:${String(m.user)}`)
+          redisCache.del(`editor:manhuas:mine:${memberUserId(m) || String(m.user)}`)
         )
       );
     }
@@ -264,7 +265,7 @@ exports.updateManhua = async (req, res, next) => {
     if (!hasAccess && manhua.team) {
       const team = await Team.findById(manhua.team).lean();
       const member = team?.members?.find(
-        (m) => String(m.user) === String(req.user._id)
+        (m) => memberUserId(m) === String(req.user._id)
       );
       if (member?.role === "owner" || member?.role === "admin") {
         hasAccess = true;
@@ -308,7 +309,7 @@ exports.updateManhua = async (req, res, next) => {
           return res.status(404).json({ message: "Team олдсонгүй" });
         }
         const member = team.members?.find(
-          (m) => String(m.user) === String(req.user._id)
+          (m) => memberUserId(m) === String(req.user._id)
         );
         const canAssign =
           req.user.role === "admin" ||
@@ -335,13 +336,13 @@ exports.updateManhua = async (req, res, next) => {
     if (oldTeamId) {
       const oldTeam = await Team.findById(oldTeamId).lean();
       for (const m of oldTeam?.members || []) {
-        redisCache.del(`editor:manhuas:mine:${String(m.user)}`);
+        redisCache.del(`editor:manhuas:mine:${memberUserId(m) || String(m.user)}`);
       }
     }
     if (doc?.team && String(doc.team) !== oldTeamId) {
       const newTeam = await Team.findById(doc.team).lean();
       for (const m of newTeam?.members || []) {
-        redisCache.del(`editor:manhuas:mine:${String(m.user)}`);
+        redisCache.del(`editor:manhuas:mine:${memberUserId(m) || String(m.user)}`);
       }
     }
 

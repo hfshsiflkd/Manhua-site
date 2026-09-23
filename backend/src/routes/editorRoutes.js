@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const { protect, requireRole, requireStaffOrTeamMember } = require("../middleware/authMiddleware");
+const { createTeamLimiter } = require("../middleware/teamCreateLimiter");
 const {
   getMyManhuas,
   getSimilarManhuas,
@@ -59,7 +60,7 @@ router.put("/chapters/:id", requireStaffOrTeamMember, editorUpdateChapter);
 router.delete("/chapters/:id", requireStaffOrTeamMember, editorDeleteChapter);
 
 router.get("/teams", requireStaffOrTeamMember, listTeams);
-router.post("/teams", editorAdmin, createTeam);
+router.post("/teams", editorAdmin, createTeamLimiter, createTeam);
 router.get("/teams/:id", requireStaffOrTeamMember, getTeam);
 router.patch("/teams/:id", editorAdmin, updateTeam);
 router.delete("/teams/:id", editorAdmin, deleteTeam);

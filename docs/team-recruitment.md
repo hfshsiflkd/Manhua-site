@@ -26,9 +26,10 @@ Expired `open` rows are treated as closed in query (`expires_at > now()`). No cr
 
 ## Deploy (review first — do not apply to production in this change)
 
-1. Isolated/staging Postgres: `supabase/migrations/20260923153000_team_recruitment.sql`
-2. Deploy backend, then frontend.
-3. Smoke with `@pgitest.local` users only.
+1. Isolated/staging Postgres: `supabase/migrations/20260923153000_team_recruitment.sql` (already in production).
+2. For editor self-serve team create (review only, not production in this change): `supabase/migrations/20260923180000_self_serve_team_creation.sql`
+3. Deploy backend, then frontend.
+4. Smoke with `@pgitest.local` users only.
 
 ## Rollback
 
@@ -43,9 +44,20 @@ Team-only members are not unlimited: they share the self-serve daily upload byte
 
 ## Team create
 
-`POST /api/editor/teams` stays site-admin only. The editor Teams page shows the create form only to site admin and tells everyone else that members/editors cannot open a new team.
+Active site `editor` and `admin` may `POST /api/editor/teams`. Regular `user`, team-only members, and `translator` stay blocked. The Teams page shows **Баг үүсгэх** to editors/admins; other visitors see Profile → Editor болох.
+
+`SELF_SERVE_TEAM_CREATION_ENABLED` (default on) is separate from `TEAM_RECRUITMENT_ENABLED`. `false`/`0`/`off` blocks **new self-serve creates only**. Site admin can still create. Existing teams keep working.
+
+Create runs in one PostgreSQL transaction: `arc.teams` row + creator `team_members.role='owner'`. Owner is always `req.user`. Body `ownerId` / `role` / `members` are ignored. `Idempotency-Key` plus `pg_advisory_xact_lock(hashtext('team-create:'||userId))` stop double-submit and concurrent cap bypass.
+
+Non-admin editors may own at most `SELF_SERVE_TEAM_ACTIVE_LIMIT` (default 2) **active** teams. Active = current `team_members.role='owner'` on existing `arc.teams` rows. Teams are **hard-deleted** (no `deleted_at`); deleting a team drops it from the count. Editors already over the cap keep old teams and cannot create more. Site admin is exempt. Rate limit: `SELF_SERVE_TEAM_CREATE_MAX` / window (default 5 / hour / user; admin skipped).
+
+Creating a team does **not** skip self-serve 500MiB/24h upload, 5 manhua/24h, team-only upload quota, or legacy staff exemption.
+
+Display names are not unique. URLs keep the 24-hex team id (no slug column).
 
 ## Rate limits
 
 - Create listing: `TEAM_RECRUITMENT_CREATE_MAX` / window (default 10 / hour / user)
 - Apply: `TEAM_RECRUITMENT_APPLY_MAX` / window (default 20 / hour / user)
+- Create team: `SELF_SERVE_TEAM_CREATE_MAX` / window (default 5 / hour / user; site admin skipped)

@@ -13,6 +13,7 @@ interface User {
   role?: string;
   teamMember?: boolean;
   canPublishManhua?: boolean;
+  canCreateTeam?: boolean;
 }
 
 interface AuthContextType {
@@ -80,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ...userData,
           teamMember: Boolean(ws.data?.teamMember),
           canPublishManhua: Boolean(ws.data?.canPublishManhua),
+          canCreateTeam: Boolean(ws.data?.canCreateTeam),
         });
       } catch {
         setUser(userData);
@@ -135,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ...userData,
             teamMember: Boolean(ws.data?.teamMember),
             canPublishManhua: Boolean(ws.data?.canPublishManhua),
+          canCreateTeam: Boolean(ws.data?.canCreateTeam),
           });
         } catch {
           setUser(userData);

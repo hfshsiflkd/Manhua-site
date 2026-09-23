@@ -13,6 +13,14 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useToast } from "@/app/components/ToastProvider";
 import { useAuth } from "@/context/AuthContext";
 
+function memberUserId(member: { user?: { _id?: string } | string } | undefined) {
+  const user = member?.user as unknown;
+  if (!user) return "";
+  if (typeof user === "string") return user;
+  if (typeof user === "object" && user && "_id" in user) return String((user as { _id?: string })._id || "");
+  return "";
+}
+
 export default function EditorTeamDetailPage() {
   const params = useParams();
   const teamId = params?.teamId as string;
@@ -36,8 +44,16 @@ export default function EditorTeamDetailPage() {
   const [invites, setInvites] = useState<TeamInvite[]>([]);
   const [loadingInvites, setLoadingInvites] = useState(false);
 
+  const [showCreated, setShowCreated] = useState(false);
+
   const fieldStyle: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)", borderRadius: 9, padding: "10px 16px", fontSize: 13, outline: "none", width: "100%" };
   const btnBase: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-dim)" };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const created = new URLSearchParams(window.location.search).get("created") === "1";
+    setShowCreated(created);
+  }, []);
 
   useEffect(() => {
     if (!teamId) return;
@@ -59,9 +75,12 @@ export default function EditorTeamDetailPage() {
     return () => { active = false; };
   }, [teamId]);
 
-  const myRole = useMemo(() => team?.members?.find((m) => m.user?._id === user?._id)?.role || null, [team?.members, user?._id]);
+  const myRole = useMemo(
+    () => team?.myRole || team?.members?.find((m) => memberUserId(m) === user?._id)?.role || null,
+    [team?.myRole, team?.members, user?._id]
+  );
   const canManage = user?.role === "admin" || myRole === "owner" || myRole === "admin";
-  const isGlobalAdmin = user?.role === "admin";
+  const canEditTeam = user?.role === "admin" || myRole === "owner";
 
   useEffect(() => {
     if (!teamId || !canManage) return;
@@ -146,7 +165,9 @@ export default function EditorTeamDetailPage() {
     <div className="space-y-6 pb-20 lg:pb-6">
       <div className="rounded-[14px] p-5 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
         <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>{team.name}</h1>
-        <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>Багийн мэдээлэл болон гишүүдийн тохиргоо</p>
+        <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>
+          {myRole === "owner" ? "Та энэ багийн эзэн. Энэ нь сайт admin биш." : "Багийн мэдээлэл болон гишүүдийн тохиргоо"}
+        </p>
         {canManage && (
           <Link href={`/editor/teams/${team._id}/recruitment`} className="inline-flex mt-3 rounded-[8px] px-3 py-1.5 text-[12px] font-semibold no-underline" style={{ border: "1px solid var(--arc-border)", color: "var(--arc-text)" }}>
             Хүн хайх зарууд
@@ -154,13 +175,24 @@ export default function EditorTeamDetailPage() {
         )}
       </div>
 
+      {showCreated && (
+        <section className="rounded-[14px] p-4 sm:p-5 space-y-3" style={{ border: "1px solid oklch(0.75 0.17 145/.35)", background: "oklch(0.75 0.17 145/.08)" }}>
+          <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Баг үүслээ</h2>
+          <ul className="text-[13px] space-y-2" style={{ color: "var(--arc-dim)" }}>
+            <li><a href="#team-info" className="underline" style={{ color: "var(--arc-cyan)" }}>Багийн танилцуулгаа шалгах</a></li>
+            <li><Link href={`/editor/manhuas/new?teamId=${team._id}`} className="underline" style={{ color: "var(--arc-cyan)" }}>Манхва нэмэх</Link></li>
+            <li><Link href={`/editor/teams/${team._id}/recruitment/new`} className="underline" style={{ color: "var(--arc-cyan)" }}>Хүн хайх зар үүсгэх</Link></li>
+          </ul>
+        </section>
+      )}
+
       {error && (
         <div className="rounded-[9px] px-4 py-3 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>{error}</div>
       )}
 
-      {isGlobalAdmin && (
-        <section className="rounded-[14px] p-4 sm:p-6 space-y-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
-          <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Team мэдээлэл</h2>
+      {canEditTeam && (
+        <section id="team-info" className="rounded-[14px] p-4 sm:p-6 space-y-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+          <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Багийн мэдээлэл</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <input type="text" style={fieldStyle} value={name} onChange={(e) => setName(e.target.value)} />
             <input type="text" style={fieldStyle} value={description} onChange={(e) => setDescription(e.target.value)} />
@@ -179,13 +211,13 @@ export default function EditorTeamDetailPage() {
         <section className="rounded-[14px] p-4 sm:p-6 space-y-4" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Гишүүд нэмэх</h2>
-            <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Role: editor / team admin</span>
+            <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Эрх: гишүүн / багийн админ</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr,140px,auto]">
             <input type="text" placeholder="username эсвэл email" style={fieldStyle} value={memberInput} onChange={(e) => setMemberInput(e.target.value)} />
             <select style={fieldStyle} value={memberRole} onChange={(e) => setMemberRole(e.target.value as TeamRole)}>
-              <option value="editor">Editor</option>
-              <option value="admin">Team admin</option>
+              <option value="editor">Гишүүн</option>
+              <option value="admin">Багийн админ</option>
             </select>
             <button type="button" onClick={handleAddMember} disabled={addingMember}
               className="rounded-[9px] px-5 py-2.5 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-60"
@@ -214,7 +246,7 @@ export default function EditorTeamDetailPage() {
                 <div key={invite._id} className="flex flex-col gap-2 rounded-[9px] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
                   <div className="min-w-0">
                     <div className="text-sm font-medium" style={{ color: "var(--arc-text)" }}>{invite.invitedUser?.username || "—"}</div>
-                    <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{invite.invitedUser?.email}</div>
+                    <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{invite.role === "admin" ? "Багийн админ" : "Гишүүн"}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded-full px-2 py-1 text-[10px] uppercase" style={{ border: "1px solid oklch(0.82 0.18 75/.4)", background: "oklch(0.82 0.18 75/.08)", color: "var(--arc-amber)" }}>pending</span>
@@ -233,30 +265,35 @@ export default function EditorTeamDetailPage() {
           <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Нийт {team.members?.length || 0}</span>
         </div>
         <div className="space-y-2">
-          {(team.members || []).map((member) => (
-            <div key={member.user._id} className="flex flex-col gap-2 rounded-[9px] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
+          {(team.members || []).map((member) => {
+            const uid = memberUserId(member);
+            return (
+            <div key={uid || member.role} className="flex flex-col gap-2 rounded-[9px] px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-elevated)" }}>
               <div className="min-w-0">
-                <div className="text-sm font-medium" style={{ color: "var(--arc-text)" }}>{member.user.username}</div>
-                <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>{member.user.email}</div>
+                <div className="text-sm font-medium" style={{ color: "var(--arc-text)" }}>{typeof member.user === "object" ? member.user?.username : uid}</div>
+                <div className="text-[11px]" style={{ color: "var(--arc-muted)" }}>
+                  {member.role === "owner" ? "Багийн эзэн" : member.role === "admin" ? "Багийн админ" : "Гишүүн"}
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full px-2 py-1 text-[10px] uppercase" style={roleStyle(member.role)}>{member.role}</span>
+                <span className="rounded-full px-2 py-1 text-[10px] uppercase" style={roleStyle(member.role)}>{member.role === "admin" ? "team admin" : member.role}</span>
                 {canManage && member.role !== "owner" && (
                   <>
-                    <button type="button" onClick={() => handleChangeRole(member.user._id, member.role === "admin" ? "editor" : "admin")} disabled={workingUserId === member.user._id}
+                    <button type="button" onClick={() => handleChangeRole(uid, member.role === "admin" ? "editor" : "admin")} disabled={workingUserId === uid}
                       className="rounded-[7px] px-2.5 py-1 text-[11px] transition-opacity hover:opacity-80 disabled:opacity-60" style={btnBase}>
-                      {member.role === "admin" ? "Editor болгох" : "Admin болгох"}
+                      {member.role === "admin" ? "Гишүүн болгох" : "Багийн админ болгох"}
                     </button>
-                    <button type="button" onClick={() => handleRemoveMember(member.user._id)} disabled={workingUserId === member.user._id}
+                    <button type="button" onClick={() => handleRemoveMember(uid)} disabled={workingUserId === uid}
                       className="rounded-[7px] px-2.5 py-1 text-[11px] transition-opacity hover:opacity-80 disabled:opacity-60"
                       style={{ border: "1px solid oklch(0.65 0.22 15/.4)", background: "oklch(0.65 0.22 15/.08)", color: "oklch(0.85 0.12 15)" }}>
-                      Устгах
+                      Хасах
                     </button>
                   </>
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -296,7 +333,7 @@ export default function EditorTeamDetailPage() {
         )}
       </section>
 
-      {isGlobalAdmin && (
+      {(canEditTeam) && (
         <section className="rounded-[14px] p-4 text-sm" style={{ border: "1px solid oklch(0.65 0.22 15/.3)", background: "oklch(0.65 0.22 15/.06)" }}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

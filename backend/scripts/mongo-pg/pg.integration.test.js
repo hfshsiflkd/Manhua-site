@@ -219,6 +219,10 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
       query,
       path.join(__dirname, "../../../supabase/migrations/20260923153000_team_recruitment.sql")
     );
+    await applySqlFile(
+      query,
+      path.join(__dirname, "../../../supabase/migrations/20260923180000_self_serve_team_creation.sql")
+    );
     await cleanupPgitest(query);
     snapshot = await migrationSnapshot(query);
     testStartedAt = new Date();
@@ -341,10 +345,10 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     assert.ok([401, 403].includes(userEditorDenied.status));
 
     const teamCreateDenied = await request("POST", "/api/editor/teams", {
-      headers: authHeaders(ctx.editorToken, staffEditor.deviceId),
+      headers: authHeaders(ctx.secondToken, ctx.trialDevice),
       body: { name: `pgitest-team-${stamp}` },
     });
-    assert.equal(teamCreateDenied.status, 403);
+    assert.ok([401, 403].includes(teamCreateDenied.status));
 
     const teamCreated = await request("POST", "/api/editor/teams", {
       headers: authHeaders(ctx.adminToken, staffAdmin.deviceId),
@@ -2245,6 +2249,375 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     assert.ok(["accepted", "rejected", "withdrawn"].includes(status));
     assert.equal(status === "pending", false);
     assert.equal(finalMember.rowCount, status === "accepted" ? 1 : 0);
+  });
+
+  test("self-serve team create: allow/deny, txn, cap, permissions, quota, flag", async () => {
+    const quota = require("../../src/services/editorQuotaService");
+    const { MANHUA_LIMIT_PER_DAY, UPLOAD_BYTES_PER_DAY } = require("../../src/config/selfServeEditor");
+    const { newId } = require("../../src/store/pg/helpers");
+    const tStamp = `tc${stamp}`;
+    const prevCreateFlag = process.env.SELF_SERVE_TEAM_CREATION_ENABLED;
+    process.env.SELF_SERVE_TEAM_CREATION_ENABLED = "true";
+    const TEAM_BIO = "Энэ бол хангалттай урт багийн танилцуулга юм.";
+    const teamBody = (name) => ({
+      name,
+      description: TEAM_BIO,
+      acceptTerms: true,
+      ownerId: "deadbeefdeadbeefdeadbeef",
+      role: "admin",
+      members: [{ user: "deadbeefdeadbeefdeadbeef", role: "owner" }],
+    });
+
+    const admin = await makeStaff("admin", `pgittc_a_${tStamp}`);
+    const staffEditor = await makeStaff("editor", `pgittc_e_${tStamp}`);
+    const translator = await makeStaff("translator", `pgittc_t_${tStamp}`);
+    const otherEditor = await makeStaff("editor", `pgittc_o_${tStamp}`);
+
+    const plain = await makeStaff("user", `pgittc_u_${tStamp}`);
+    const userDenied = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(plain.token, plain.deviceId),
+      body: teamBody(`pgitest-user-team-${tStamp}`),
+    });
+    assert.ok([401, 403].includes(userDenied.status), userDenied.raw);
+
+    const translatorDenied = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(translator.token, translator.deviceId),
+      body: teamBody(`pgitest-tr-team-${tStamp}`),
+    });
+    assert.equal(translatorDenied.status, 403, translatorDenied.raw);
+
+    const wsEditor = await request("GET", "/api/user/workspace", {
+      headers: authHeaders(staffEditor.token, staffEditor.deviceId),
+    });
+    assert.equal(wsEditor.status, 200, wsEditor.raw);
+    assert.equal(wsEditor.json.canCreateTeam, true);
+    const wsUser = await request("GET", "/api/user/workspace", {
+      headers: authHeaders(plain.token, plain.deviceId),
+    });
+    assert.equal(wsUser.json.canCreateTeam, false);
+
+    const created = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(staffEditor.token, staffEditor.deviceId), "Idempotency-Key": `tc-ed-${tStamp}` },
+      body: teamBody(`pgitest-self-${tStamp}`),
+    });
+    assert.equal(created.status, 201, created.raw);
+    const teamId = String(created.json._id);
+    ids.teams.push(teamId);
+    await markPgitest("teams", teamId);
+    assert.equal(created.json.myRole, "owner");
+    assert.equal(created.json.members?.[0]?.role, "owner");
+    assert.equal(String(created.json.members?.[0]?.user?._id || created.json.members?.[0]?.user), String(staffEditor.user._id));
+    assert.equal(created.json.members?.[0]?.user?.email, undefined);
+    const rawTeam = await query(`SELECT created_by, extra FROM arc.teams WHERE id=$1`, [teamId]);
+    assert.equal(String(rawTeam.rows[0].created_by), String(staffEditor.user._id));
+    assert.equal(rawTeam.rows[0].extra?.source, "self-serve");
+
+    const replay = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(staffEditor.token, staffEditor.deviceId), "Idempotency-Key": `tc-ed-${tStamp}` },
+      body: teamBody(`pgitest-self-retry-${tStamp}`),
+    });
+    assert.ok([200, 201].includes(replay.status), replay.raw);
+    assert.equal(String(replay.json._id), teamId);
+
+    const listed = await request("GET", "/api/editor/teams", {
+      headers: authHeaders(staffEditor.token, staffEditor.deviceId),
+    });
+    assert.equal(listed.status, 200, listed.raw);
+    assert.ok(listed.json.some((t) => String(t._id) === teamId));
+    assert.ok(listed.json.every((t) => !t.members?.some((m) => m.user?.email)));
+
+    const outsiderGet = await request("GET", `/api/editor/teams/${teamId}`, {
+      headers: authHeaders(otherEditor.token, otherEditor.deviceId),
+    });
+    assert.equal(outsiderGet.status, 403, outsiderGet.raw);
+    const outsiderPatch = await request("PATCH", `/api/editor/teams/${teamId}`, {
+      headers: authHeaders(otherEditor.token, otherEditor.deviceId),
+      body: { name: "hijack" },
+    });
+    assert.equal(outsiderPatch.status, 403, outsiderPatch.raw);
+    const outsiderMember = await request("POST", `/api/editor/teams/${teamId}/members`, {
+      headers: authHeaders(otherEditor.token, otherEditor.deviceId),
+      body: { userId: String(otherEditor.user._id), role: "admin" },
+    });
+    assert.equal(outsiderMember.status, 403, outsiderMember.raw);
+
+    const adminCreated = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-admin-${tStamp}` },
+    });
+    assert.equal(adminCreated.status, 201, adminCreated.raw);
+    ids.teams.push(String(adminCreated.json._id));
+    await markPgitest("teams", adminCreated.json._id);
+
+    const memberUser = await makeStaff("user", `pgittc_m_${tStamp}`);
+    const teamAdminStaff = await makeStaff("editor", `pgittc_ta_${tStamp}`);
+    const teamEditorStaff = await makeStaff("editor", `pgittc_te_${tStamp}`);
+    await query(
+      `INSERT INTO arc.team_members (team_id, user_id, role, added_by, added_at)
+       VALUES ($1,$2,'editor',$3,now()), ($1,$4,'admin',$3,now()), ($1,$5,'editor',$3,now())
+       ON CONFLICT (team_id, user_id) DO UPDATE SET role=EXCLUDED.role`,
+      [
+        teamId,
+        String(memberUser.user._id),
+        String(staffEditor.user._id),
+        String(teamAdminStaff.user._id),
+        String(teamEditorStaff.user._id),
+      ]
+    );
+
+    const teamOnlyCreate = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(memberUser.token, memberUser.deviceId),
+      body: teamBody(`pgitest-teamonly-${tStamp}`),
+    });
+    assert.equal(teamOnlyCreate.status, 403, teamOnlyCreate.raw);
+
+    const ownerPatch = await request("PATCH", `/api/editor/teams/${teamId}`, {
+      headers: authHeaders(staffEditor.token, staffEditor.deviceId),
+      body: { description: `${TEAM_BIO} updated` },
+    });
+    assert.equal(ownerPatch.status, 200, ownerPatch.raw);
+    const teamAdminPatch = await request("PATCH", `/api/editor/teams/${teamId}`, {
+      headers: authHeaders(teamAdminStaff.token, teamAdminStaff.deviceId),
+      body: { name: "nope-admin" },
+    });
+    assert.equal(teamAdminPatch.status, 403, teamAdminPatch.raw);
+    const teamEditorPatch = await request("PATCH", `/api/editor/teams/${teamId}`, {
+      headers: authHeaders(teamEditorStaff.token, teamEditorStaff.deviceId),
+      body: { name: "nope-member" },
+    });
+    assert.equal(teamEditorPatch.status, 403, teamEditorPatch.raw);
+
+    const teamAdminInvite = await request("POST", `/api/editor/teams/${teamId}/members`, {
+      headers: authHeaders(teamAdminStaff.token, teamAdminStaff.deviceId),
+      body: { userId: String(otherEditor.user._id), role: "editor" },
+    });
+    assert.equal(teamAdminInvite.status, 200, teamAdminInvite.raw);
+    const teamEditorInvite = await request("POST", `/api/editor/teams/${teamId}/members`, {
+      headers: authHeaders(teamEditorStaff.token, teamEditorStaff.deviceId),
+      body: { userId: String(translator.user._id), role: "editor" },
+    });
+    assert.equal(teamEditorInvite.status, 403, teamEditorInvite.raw);
+
+    const demoteOwner = await request("PATCH", `/api/editor/teams/${teamId}/members/${staffEditor.user._id}`, {
+      headers: authHeaders(teamAdminStaff.token, teamAdminStaff.deviceId),
+      body: { role: "editor" },
+    });
+    assert.equal(demoteOwner.status, 400, demoteOwner.raw);
+    assert.equal(demoteOwner.json.code, "LAST_OWNER");
+    const promoteSelf = await request("PATCH", `/api/editor/teams/${teamId}/members/${teamAdminStaff.user._id}`, {
+      headers: authHeaders(teamAdminStaff.token, teamAdminStaff.deviceId),
+      body: { role: "owner" },
+    });
+    assert.equal(promoteSelf.status, 400, promoteSelf.raw);
+    const removeOwner = await request("DELETE", `/api/editor/teams/${teamId}/members/${staffEditor.user._id}`, {
+      headers: authHeaders(staffEditor.token, staffEditor.deviceId),
+    });
+    assert.equal(removeOwner.status, 400, removeOwner.raw);
+    assert.equal(removeOwner.json.code, "LAST_OWNER");
+
+    const ownerManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(staffEditor.token, staffEditor.deviceId), "Idempotency-Key": `tc-mh-${tStamp}` },
+      body: { title: `Pgitest tc ${tStamp}`, slug: `pgitest-tc-${tStamp}`, teamId },
+    });
+    assert.equal(ownerManhua.status, 201, ownerManhua.raw);
+    ids.manhuas.push(String(ownerManhua.json._id));
+    await markPgitest("manhuas", ownerManhua.json._id);
+    assert.equal(String(ownerManhua.json.createdBy?._id || ownerManhua.json.createdBy), String(staffEditor.user._id));
+
+    const foreignAttach = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-foreign-${tStamp}` },
+      body: { title: `Pgitest steal ${tStamp}`, slug: `pgitest-steal-${tStamp}`, teamId },
+    });
+    assert.equal(foreignAttach.status, 403, foreignAttach.raw);
+
+    const otherManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-om-${tStamp}` },
+      body: { title: `Pgitest other ${tStamp}`, slug: `pgitest-other-tc-${tStamp}` },
+    });
+    assert.equal(otherManhua.status, 201, otherManhua.raw);
+    ids.manhuas.push(String(otherManhua.json._id));
+    await markPgitest("manhuas", otherManhua.json._id);
+    const stealExisting = await request("PATCH", `/api/editor/manhuas/${otherManhua.json._id}`, {
+      headers: authHeaders(staffEditor.token, staffEditor.deviceId),
+      body: { teamId },
+    });
+    assert.ok([401, 403, 404].includes(stealExisting.status), stealExisting.raw);
+
+    const listing = await request("POST", "/api/recruitment", {
+      headers: authHeaders(staffEditor.token, staffEditor.deviceId),
+      body: {
+        title: "Хүн хайх зар шалгалт",
+        teamId,
+        workRole: "translation",
+        description: "Энэ бол хангалттай урт зарны тайлбар бөгөөд дор хаяж тавин тэмдэгт байна.",
+        languages: ["mn"],
+        compensation: "volunteer",
+        expiresInDays: 30,
+        status: "open",
+      },
+    });
+    assert.equal(listing.status, 201, listing.raw);
+
+    const secondTeam = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(staffEditor.token, staffEditor.deviceId), "Idempotency-Key": `tc-ed2-${tStamp}` },
+      body: teamBody(`pgitest-self-2-${tStamp}`),
+    });
+    assert.equal(secondTeam.status, 201, secondTeam.raw);
+    ids.teams.push(String(secondTeam.json._id));
+    await markPgitest("teams", secondTeam.json._id);
+    const thirdTeam = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(staffEditor.token, staffEditor.deviceId), "Idempotency-Key": `tc-ed3-${tStamp}` },
+      body: teamBody(`pgitest-self-3-${tStamp}`),
+    });
+    assert.equal(thirdTeam.status, 403, thirdTeam.raw);
+    assert.equal(thirdTeam.json.code, "SELF_SERVE_TEAM_LIMIT");
+
+    const capEditor = await makeStaff("editor", `pgittc_c_${tStamp}`);
+    const concurrent = await Promise.all(
+      [0, 1, 2].map((i) =>
+        request("POST", "/api/editor/teams", {
+          headers: { ...authHeaders(capEditor.token, capEditor.deviceId), "Idempotency-Key": `tc-cc-${tStamp}-${i}` },
+          body: teamBody(`pgitest-cc-${tStamp}-${i}`),
+        })
+      )
+    );
+    const okCreates = concurrent.filter((r) => r.status === 201 || r.status === 200);
+    const limited = concurrent.filter((r) => r.status === 403 && r.json.code === "SELF_SERVE_TEAM_LIMIT");
+    assert.equal(okCreates.length, 2, JSON.stringify(concurrent.map((r) => ({ s: r.status, c: r.json?.code, m: r.json?.message }))));
+    assert.equal(limited.length, 1);
+    for (const row of okCreates) {
+      ids.teams.push(String(row.json._id));
+      await markPgitest("teams", row.json._id);
+    }
+    const sameKey = await Promise.all([
+      request("POST", "/api/editor/teams", {
+        headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-same-${tStamp}` },
+        body: teamBody(`pgitest-same-${tStamp}`),
+      }),
+      request("POST", "/api/editor/teams", {
+        headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-same-${tStamp}` },
+        body: teamBody(`pgitest-same-${tStamp}`),
+      }),
+    ]);
+    assert.ok(sameKey.every((r) => r.status === 201 || r.status === 200), JSON.stringify(sameKey.map((r) => r.status)));
+    assert.equal(String(sameKey[0].json._id), String(sameKey[1].json._id));
+    ids.teams.push(String(sameKey[0].json._id));
+    await markPgitest("teams", sameKey[0].json._id);
+
+    const prevFail = process.env.PGITEST_TEAM_CREATE_FAIL;
+    process.env.PGITEST_TEAM_CREATE_FAIL = String(otherEditor.user._id);
+    const beforeCount = await query(`SELECT COUNT(*)::int AS n FROM arc.teams WHERE created_by=$1`, [
+      String(otherEditor.user._id),
+    ]);
+    const rolled = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-roll-${tStamp}` },
+      body: teamBody(`pgitest-roll-${tStamp}`),
+    });
+    assert.ok(rolled.status >= 500, rolled.raw);
+    const afterCount = await query(`SELECT COUNT(*)::int AS n FROM arc.teams WHERE created_by=$1`, [
+      String(otherEditor.user._id),
+    ]);
+    assert.equal(afterCount.rows[0].n, beforeCount.rows[0].n);
+    if (prevFail == null) delete process.env.PGITEST_TEAM_CREATE_FAIL;
+    else process.env.PGITEST_TEAM_CREATE_FAIL = prevFail;
+
+    const sse = await makeStaff("user", `pgittc_s_${tStamp}`);
+    const become = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(sse.token, sse.deviceId),
+      body: {
+        penName: "Team Create Pen",
+        bio: TEAM_BIO,
+        skills: ["translation"],
+        experience: "beginner",
+        languages: ["mn"],
+        acceptTerms: true,
+      },
+    });
+    assert.ok([200, 201].includes(become.status), become.raw);
+    const sseToken = become.json.token;
+    const sseTeam = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(sseToken, sse.deviceId), "Idempotency-Key": `tc-sse-${tStamp}` },
+      body: teamBody(`pgitest-sse-team-${tStamp}`),
+    });
+    assert.equal(sseTeam.status, 201, sseTeam.raw);
+    ids.teams.push(String(sseTeam.json._id));
+    await markPgitest("teams", sseTeam.json._id);
+    const sseId = String(become.json.user._id);
+    assert.equal(await quota.shouldEnforceUploadQuota({ _id: sseId, role: "editor" }), true);
+    for (let i = 0; i < MANHUA_LIMIT_PER_DAY; i += 1) {
+      await query(
+        `INSERT INTO arc.editor_quota_ledger (
+           id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at
+         ) VALUES ($1,$2,'manhua',0,$3,'committed', now() + interval '1 day', '{"pgitest":true}'::jsonb, now(), now())`,
+        [newId(), sseId, `tc-mh-${tStamp}-${i}`]
+      );
+    }
+    const sixth = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(sseToken, sse.deviceId), "Idempotency-Key": `tc-sse-6-${tStamp}` },
+      body: { title: `Pgitest sse 6 ${tStamp}`, slug: `pgitest-sse6-${tStamp}` },
+    });
+    assert.equal(sixth.status, 429, sixth.raw);
+    await query(
+      `INSERT INTO arc.editor_quota_ledger (
+         id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at
+       ) VALUES ($1,$2,'upload',$3,$4,'committed', now() + interval '1 day', '{"pgitest":true}'::jsonb, now(), now())`,
+      [newId(), sseId, UPLOAD_BYTES_PER_DAY, `tc-up-${tStamp}`]
+    );
+    const cappedUpload = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(sseToken, sse.deviceId),
+      body: { purpose: "chapter", contentType: "image/png", contentLength: 64, fileName: "q.png" },
+    });
+    assert.equal(cappedUpload.status, 429, cappedUpload.raw);
+
+    await query(`UPDATE arc.users SET blocked=true WHERE id=$1`, [String(otherEditor.user._id)]);
+    const blockedCreate = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-block-${tStamp}` },
+      body: teamBody(`pgitest-blocked-${tStamp}`),
+    });
+    assert.equal(blockedCreate.status, 403, blockedCreate.raw);
+    assert.equal(blockedCreate.json.code, "ACCOUNT_DISABLED");
+    await query(`UPDATE arc.users SET blocked=false, is_active=true WHERE id=$1`, [String(otherEditor.user._id)]);
+
+    const lockTarget = await makeStaff("editor", `pgittc_l_${tStamp}`);
+    await query(`UPDATE arc.users SET lock_until=now() + interval '10 minutes', lock_reason='pgitest' WHERE id=$1`, [
+      String(lockTarget.user._id),
+    ]);
+    const lockedCreate = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(lockTarget.token, lockTarget.deviceId), "Idempotency-Key": `tc-lock-${tStamp}` },
+      body: teamBody(`pgitest-locked-${tStamp}`),
+    });
+    assert.equal(lockedCreate.status, 423, lockedCreate.raw);
+    await query(`UPDATE arc.users SET lock_until=NULL, lock_reason='' WHERE id=$1`, [String(lockTarget.user._id)]);
+
+    const prevFlag = process.env.SELF_SERVE_TEAM_CREATION_ENABLED;
+    process.env.SELF_SERVE_TEAM_CREATION_ENABLED = "false";
+    const flagEditor = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(otherEditor.token, otherEditor.deviceId), "Idempotency-Key": `tc-flag-${tStamp}` },
+      body: teamBody(`pgitest-flag-${tStamp}`),
+    });
+    assert.equal(flagEditor.status, 403, flagEditor.raw);
+    assert.equal(flagEditor.json.code, "SELF_SERVE_TEAM_CREATION_DISABLED");
+    const flagAdmin = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-flag-admin-${tStamp}` },
+    });
+    assert.equal(flagAdmin.status, 201, flagAdmin.raw);
+    ids.teams.push(String(flagAdmin.json._id));
+    await markPgitest("teams", flagAdmin.json._id);
+    if (prevFlag == null) delete process.env.SELF_SERVE_TEAM_CREATION_ENABLED;
+    else process.env.SELF_SERVE_TEAM_CREATION_ENABLED = prevFlag;
+
+    const prevFreeze = process.env.API_READ_ONLY;
+    process.env.API_READ_ONLY = "true";
+    const frozen = await request("POST", "/api/editor/teams", {
+      headers: { ...authHeaders(admin.token, admin.deviceId), "Idempotency-Key": `tc-frz-${tStamp}` },
+      body: { name: `pgitest-frozen-${tStamp}` },
+    });
+    assert.equal(frozen.status, 503, frozen.raw);
+    if (prevFreeze == null) delete process.env.API_READ_ONLY;
+    else process.env.API_READ_ONLY = prevFreeze;
+    if (prevCreateFlag == null) delete process.env.SELF_SERVE_TEAM_CREATION_ENABLED;
+    else process.env.SELF_SERVE_TEAM_CREATION_ENABLED = prevCreateFlag;
   });
 
   test("quota policy: team-only, self-serve, self-serve-on-team, staff exemption", async () => {

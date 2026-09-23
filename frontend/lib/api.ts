@@ -164,6 +164,7 @@ export interface Team {
   createdBy?: User;
   members?: TeamMember[];
   membersCount?: number;
+  myRole?: TeamRole | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -467,6 +468,7 @@ export type WorkspaceAccess = {
   role: string;
   teamMember: boolean;
   canPublishManhua: boolean;
+  canCreateTeam?: boolean;
 };
 
 export type RecruitmentWorkRole = "translation" | "cleanup" | "typesetting" | "proofreading";
@@ -917,9 +919,16 @@ export async function editorGetTeams() {
 
 export async function editorCreateTeam(payload: {
   name: string;
-  description?: string;
+  description: string;
+  acceptTerms: boolean;
+  idempotencyKey?: string;
 }) {
-  const res = await api.post<Team>(`/editor/teams`, payload);
+  const idempotencyKey =
+    payload.idempotencyKey ||
+    (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `team-${Date.now()}`);
+  const res = await api.post<Team>("/editor/teams", payload, {
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
   return res.data;
 }
 

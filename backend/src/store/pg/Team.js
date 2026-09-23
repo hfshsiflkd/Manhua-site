@@ -8,7 +8,14 @@ function rowToTeam(row, members = []) {
     _id: row.id,
     name: row.name,
     description: row.description,
-    createdBy: row.created_by,
+    createdBy: row.created_username
+      ? {
+          _id: row.created_by,
+          username: row.created_username,
+          avatar: row.created_avatar,
+          role: row.created_role,
+        }
+      : row.created_by,
     members,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -17,11 +24,21 @@ function rowToTeam(row, members = []) {
 
 async function loadMembers(teamId) {
   const r = await query(
-    `SELECT user_id, role, added_by, added_at FROM arc.team_members WHERE team_id=$1`,
+    `SELECT m.user_id, m.role, m.added_by, m.added_at,
+            u.username, u.avatar, u.role AS user_role
+       FROM arc.team_members m
+       JOIN arc.users u ON u.id = m.user_id
+      WHERE m.team_id=$1
+      ORDER BY m.added_at NULLS LAST, m.user_id`,
     [teamId]
   );
   return r.rows.map((row) => ({
-    user: row.user_id,
+    user: {
+      _id: row.user_id,
+      username: row.username,
+      avatar: row.avatar,
+      role: row.user_role,
+    },
     role: row.role,
     addedBy: row.added_by,
     addedAt: row.added_at,
@@ -104,7 +121,10 @@ class TeamQuery {
         `EXISTS (SELECT 1 FROM arc.team_members m WHERE m.team_id=t.id AND m.user_id=$${params.length})`
       );
     }
-    let sql = `SELECT t.* FROM arc.teams t WHERE ${clauses.length ? clauses.join(" AND ") : "true"}`;
+    let sql = `SELECT t.*, u.username AS created_username, u.avatar AS created_avatar, u.role AS created_role
+       FROM arc.teams t
+       LEFT JOIN arc.users u ON u.id = t.created_by
+      WHERE ${clauses.length ? clauses.join(" AND ") : "true"}`;
     if (this._sort?.name) sql += ` ORDER BY t.name ${this._sort.name === -1 ? "DESC" : "ASC"}`;
     else sql += " ORDER BY t.created_at DESC";
     if (this.one) sql += " LIMIT 1";

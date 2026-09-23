@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { uploadImage, editorCreateManhua, editorGetTeams, editorGetSimilarManhuas, Team } from "@/lib/api";
 import { UploadPolicyNote } from "@/components/UploadPolicyNote";
 import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
+import { useAuth } from "@/context/AuthContext";
 
 const GENRE_OPTIONS = ["Romance", "Comedy", "Drama", "Action", "Fantasy", "Slice of Life", "School", "Isekai", "Adventure"];
 
 export default function EditorNewManhuaPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [titleEn, setTitleEn] = useState("");
   const [slug, setSlug] = useState("");
@@ -61,6 +63,12 @@ export default function EditorNewManhuaPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const preset = new URLSearchParams(window.location.search).get("teamId") || "";
+    if (/^[0-9a-fA-F]{24}$/.test(preset)) setTeamId(preset);
+  }, []);
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (file) {
@@ -75,6 +83,16 @@ export default function EditorNewManhuaPage() {
     if (file) { setCoverPreview(URL.createObjectURL(file)); setCoverProgress(null); }
     else { setCoverPreview(null); setCoverProgress(null); }
   };
+
+  const manageableTeams = useMemo(() => {
+    return teams.filter((t) => {
+      const role = t.myRole || t.members?.find((m) => {
+        const id = typeof m.user === "object" ? m.user?._id : m.user;
+        return String(id) === String(user?._id);
+      })?.role;
+      return user?.role === "admin" || role === "owner" || role === "admin" || role === "editor";
+    });
+  }, [teams, user?._id, user?.role]);
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres((prev) => prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]);
@@ -168,9 +186,9 @@ export default function EditorNewManhuaPage() {
                 <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Баг</label>
                 <select style={fieldStyle} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
                   <option value="">Баггүй (хувийн)</option>
-                  {teams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
+                  {manageableTeams.map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
                 </select>
-                <p className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Баг сонговол тухайн багийн гишүүд хамт ажиллаж чадна.</p>
+                <p className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Зөвхөн өөрийн удирдах эрхтэй багийг сонгоно. Хуучин хувийн бүтээл автоматаар шилжихгүй.</p>
               </div>
 
               <div className="space-y-1.5">

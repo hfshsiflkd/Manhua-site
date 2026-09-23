@@ -4,6 +4,13 @@ const User = require("../models/User");
 const Manhua = require("../models/Manhua");
 const Chapter = require("../models/Chapter");
 const cache = require("../utils/cache");
+const { logAudit } = require("../utils/auditLogger");
+const {
+  FieldError,
+  HttpError,
+  createTeamForUser,
+  toClientTeam,
+} = require("../services/teamCreateService");
 
 function isValidId(id) {
   return /^[0-9a-fA-F]{24}$/.test(String(id));
@@ -13,12 +20,15 @@ function isGlobalAdmin(req) {
   return String(req.user?.role || "") === "admin";
 }
 
+function memberIdOf(member) {
+  const u = member?.user;
+  if (!u) return "";
+  if (typeof u === "object" && u !== null) return String(u._id || u.id || "");
+  return String(u);
+}
+
 function getMemberRole(team, userId) {
-  return team.members?.find((m) => {
-    const memberId =
-      typeof m.user === "object" && m.user !== null ? m.user._id : m.user;
-    return String(memberId) === String(userId);
-  })?.role;
+  return team.members?.find((m) => memberIdOf(m) === String(userId))?.role;
 }
 
 function isTeamAdminRole(role) {
@@ -36,12 +46,7 @@ exports.listTeams = async (req, res, next) => {
     const teams = await Team.find({ "members.user": userId })
       .sort({ createdAt: -1 })
       .lean();
-    res.json(
-      teams.map((t) => ({
-        ...t,
-        membersCount: t.members?.length || 0,
-      }))
-    );
+    res.json(teams.map((t) => toClientTeam(t, userId)));
   } catch (err) {
     next(err);
   }
@@ -49,31 +54,39 @@ exports.listTeams = async (req, res, next) => {
 
 exports.createTeam = async (req, res, next) => {
   try {
-    if (!isGlobalAdmin(req)) {
-      return res.status(403).json({ message: "Зөвхөн admin баг үүсгэнэ" });
-    }
-
-    const { name, description } = req.body;
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: "Team нэр шаардлагатай" });
-    }
-
-    const team = await Team.create({
-      name: name.trim(),
-      description: description?.trim() || "",
-      createdBy: req.user._id,
-      members: [
-        {
-          user: req.user._id,
-          role: "owner",
-          addedBy: req.user._id,
-        },
-      ],
+    const idempotencyKey = String(
+      req.body?.idempotencyKey || req.headers["idempotency-key"] || ""
+    ).trim();
+    const { team, replayed } = await createTeamForUser({
+      user: req.user,
+      body: req.body || {},
+      idempotencyKey,
     });
-
-    res.status(201).json(team);
+    logAudit(req, {
+      level: "INFO",
+      category: "team",
+      action: replayed ? "team_create_idempotent" : "team_create",
+      message: `Team created: ${team.name}`,
+      meta: { teamId: team._id, replayed: Boolean(replayed) },
+    }).catch(() => {});
+    return res.status(replayed ? 200 : 201).json(team);
   } catch (err) {
-    next(err);
+    if (err instanceof FieldError) {
+      return res.status(400).json({
+        success: false,
+        message: err.message,
+        code: err.code,
+        fields: err.fields,
+      });
+    }
+    if (err instanceof HttpError || (err.statusCode && err.statusCode < 500)) {
+      return res.status(err.statusCode).json({
+        success: false,
+        message: err.message,
+        code: err.code || undefined,
+      });
+    }
+    return next(err);
   }
 };
 
@@ -81,8 +94,8 @@ exports.getTeam = async (req, res, next) => {
   try {
     if (!isValidId(req.params.id)) return res.status(400).json({ message: "ID буруу байна" });
     const team = await Team.findById(req.params.id)
-      .populate("createdBy", "username email role")
-      .populate("members.user", "username email role")
+      .populate("createdBy", "username avatar role")
+      .populate("members.user", "username avatar role")
       .lean();
 
     if (!team) {
@@ -94,10 +107,7 @@ exports.getTeam = async (req, res, next) => {
       return res.status(403).json({ message: "No permission" });
     }
 
-    res.json({
-      ...team,
-      membersCount: team.members?.length || 0,
-    });
+    res.json(toClientTeam(team, req.user._id));
   } catch (err) {
     next(err);
   }
@@ -114,7 +124,7 @@ exports.updateTeam = async (req, res, next) => {
     }
 
     const role = getMemberRole(team, req.user._id);
-    if (!isGlobalAdmin(req) && !isTeamAdminRole(role)) {
+    if (!isGlobalAdmin(req) && role !== "owner") {
       return res.status(403).json({ message: "No permission" });
     }
 
@@ -122,7 +132,11 @@ exports.updateTeam = async (req, res, next) => {
     if (description !== undefined) team.description = String(description).trim();
 
     await team.save();
-    res.json(team);
+    const updated = await Team.findById(team._id)
+      .populate("createdBy", "username avatar role")
+      .populate("members.user", "username avatar role")
+      .lean();
+    res.json(toClientTeam(updated, req.user._id));
   } catch (err) {
     next(err);
   }
@@ -183,9 +197,7 @@ exports.addTeamMember = async (req, res, next) => {
       return res.status(404).json({ message: "Хэрэглэгч олдсонгүй" });
     }
 
-    const exists = team.members.some(
-      (m) => String(m.user) === String(user._id)
-    );
+    const exists = team.members.some((m) => memberIdOf(m) === String(user._id));
     if (exists) {
       return res.status(400).json({ message: "Хэрэглэгч аль хэдийн багт байна" });
     }
@@ -240,27 +252,41 @@ exports.updateMemberRole = async (req, res, next) => {
       return res.status(403).json({ message: "No permission" });
     }
 
-    const member = team.members.find(
-      (m) => String(m.user) === String(req.params.userId)
-    );
+    const member = team.members.find((m) => memberIdOf(m) === String(req.params.userId));
     if (!member) {
       return res.status(404).json({ message: "Гишүүн олдсонгүй" });
     }
 
+    if (role === "owner") {
+      return res.status(400).json({
+        message: "Owner эрх өгөх боломжгүй",
+        code: "OWNER_TRANSFER_DISABLED",
+      });
+    }
+
     if (member.role === "owner") {
-      return res
-        .status(400)
-        .json({ message: "Owner-ийн role өөрчлөх боломжгүй" });
+      const ownerCount = team.members.filter((m) => m.role === "owner").length;
+      return res.status(400).json({
+        message:
+          ownerCount <= 1
+            ? "Сүүлчийн owner-ийн эрхийг бууруулах боломжгүй"
+            : "Owner-ийн role өөрчлөх боломжгүй",
+        code: "LAST_OWNER",
+      });
+    }
+
+    if (role !== "admin" && role !== "editor") {
+      return res.status(400).json({ message: "Role буруу байна" });
     }
 
     member.role = role === "admin" ? "admin" : "editor";
     await team.save();
 
     const updated = await Team.findById(team._id)
-      .populate("createdBy", "username email role")
-      .populate("members.user", "username email role")
+      .populate("createdBy", "username avatar role")
+      .populate("members.user", "username avatar role")
       .lean();
-    res.json(updated);
+    res.json(toClientTeam(updated, req.user._id));
   } catch (err) {
     next(err);
   }
@@ -281,30 +307,29 @@ exports.removeMember = async (req, res, next) => {
       return res.status(403).json({ message: "No permission" });
     }
 
-    const member = team.members.find(
-      (m) => String(m.user) === String(req.params.userId)
-    );
+    const member = team.members.find((m) => memberIdOf(m) === String(req.params.userId));
     if (!member) {
       return res.status(404).json({ message: "Гишүүн олдсонгүй" });
     }
 
     if (member.role === "owner") {
-      return res
-        .status(400)
-        .json({ message: "Owner-ийг устгах боломжгүй" });
+      const ownerCount = team.members.filter((m) => m.role === "owner").length;
+      return res.status(400).json({
+        message:
+          ownerCount <= 1 ? "Сүүлчийн owner-ийг хасах боломжгүй" : "Owner-ийг устгах боломжгүй",
+        code: "LAST_OWNER",
+      });
     }
 
-    team.members = team.members.filter(
-      (m) => String(m.user) !== String(req.params.userId)
-    );
+    team.members = team.members.filter((m) => memberIdOf(m) !== String(req.params.userId));
     await team.save();
     invalidateUserManhuaCache(req.params.userId);
 
     const updated = await Team.findById(team._id)
-      .populate("createdBy", "username email role")
-      .populate("members.user", "username email role")
+      .populate("createdBy", "username avatar role")
+      .populate("members.user", "username avatar role")
       .lean();
-    res.json(updated);
+    res.json(toClientTeam(updated, req.user._id));
   } catch (err) {
     next(err);
   }
@@ -324,8 +349,8 @@ exports.listTeamInvites = async (req, res, next) => {
     }
 
     const invites = await TeamInvite.find({ team: team._id })
-      .populate("invitedUser", "username email role")
-      .populate("invitedBy", "username email role")
+      .populate("invitedUser", "username avatar role")
+      .populate("invitedBy", "username avatar role")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -342,7 +367,7 @@ exports.listMyTeamInvites = async (req, res, next) => {
       status: "pending",
     })
       .populate("team", "name description")
-      .populate("invitedBy", "username email role")
+      .populate("invitedBy", "username avatar role")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -450,7 +475,7 @@ exports.acceptTeamInvite = async (req, res, next) => {
     }
 
     const alreadyMember = team.members.some(
-      (m) => String(m.user) === String(invite.invitedUser)
+      (m) => memberIdOf(m) === String(invite.invitedUser)
     );
     if (!alreadyMember) {
       team.members.push({
@@ -518,7 +543,7 @@ exports.listTeamManhuas = async (req, res, next) => {
     }
 
     const manhuas = await Manhua.find({ team: team._id })
-      .populate("createdBy", "username email role")
+      .populate("createdBy", "username avatar role")
       .sort({ createdAt: -1 })
       .lean();
 

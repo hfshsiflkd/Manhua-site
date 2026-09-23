@@ -121,6 +121,9 @@ CREATE TABLE IF NOT EXISTS arc.teams (
   mongo_v integer
 );
 CREATE INDEX IF NOT EXISTS teams_name_idx ON arc.teams (name);
+CREATE UNIQUE INDEX IF NOT EXISTS teams_creator_idempotency_idx
+  ON arc.teams (created_by, (extra->>'idempotencyKey'))
+  WHERE extra->>'idempotencyKey' IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS arc.team_members (
   team_id text NOT NULL REFERENCES arc.teams (id) ON DELETE CASCADE,
@@ -131,6 +134,9 @@ CREATE TABLE IF NOT EXISTS arc.team_members (
   PRIMARY KEY (team_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS team_members_user_idx ON arc.team_members (user_id);
+CREATE INDEX IF NOT EXISTS team_members_owner_user_idx
+  ON arc.team_members (user_id)
+  WHERE role = 'owner';
 
 CREATE TABLE IF NOT EXISTS arc.team_invites (
   id text PRIMARY KEY,

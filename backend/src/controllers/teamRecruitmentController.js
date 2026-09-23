@@ -17,6 +17,7 @@ const {
   decideApplication,
 } = require("../services/teamRecruitmentService");
 const { canAccessEditorWorkspace, isPublisherRole } = require("../services/teamAccessService");
+const { canCreateTeam } = require("../config/selfServeTeam");
 const { logAudit } = require("../utils/auditLogger");
 const { invalidateUserCache } = require("../middleware/authMiddleware");
 
@@ -198,6 +199,7 @@ exports.getWorkspace = async (req, res, next) => {
       role,
       teamMember,
       canPublishManhua: isPublisherRole(role),
+      canCreateTeam: canCreateTeam(req.user),
     });
   } catch (err) {
     return handle(err, res, next);
