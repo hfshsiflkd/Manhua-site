@@ -813,6 +813,8 @@ export async function uploadImage(
     onPhase?: (phase: "uploading" | "processing") => void;
     signal?: AbortSignal;
     onPresign?: (token: string) => void;
+    manhuaId?: string;
+    slug?: string;
   }
 ): Promise<UploadedImage> {
   const problem = validateImageFile(fileInput, purpose);
@@ -829,6 +831,8 @@ export async function uploadImage(
     contentType,
     contentLength: fileInput.size,
     fileName: fileInput.name,
+    ...(hooks?.manhuaId ? { manhuaId: hooks.manhuaId } : {}),
+    ...(hooks?.slug ? { slug: hooks.slug } : {}),
   });
   hooks?.onPresign?.(presign.data.token);
   if (hooks?.signal?.aborted) {

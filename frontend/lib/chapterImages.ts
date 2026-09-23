@@ -19,6 +19,8 @@ export async function ensureChapterUpload(
     onPhase?: (phase: "uploading" | "processing") => void;
     onProgress?: (percent: number) => void;
     onPresign?: (token: string) => void;
+    manhuaId?: string;
+    slug?: string;
   }
 ): Promise<SessionPage[]> {
   if (already && already.length) return already;
@@ -26,6 +28,8 @@ export async function ensureChapterUpload(
     signal: hooks?.signal,
     onPhase: hooks?.onPhase,
     onPresign: hooks?.onPresign,
+    manhuaId: hooks?.manhuaId,
+    slug: hooks?.slug,
   });
   const urls = result.urls?.length ? result.urls : [result.url];
   return urls.map((url, index) => ({
@@ -38,7 +42,8 @@ export async function ensureChapterUpload(
 
 export async function uploadFilesAsPages(
   files: File[],
-  onFile?: (index: number, total: number, phase: ChapterFilePhase, filePercent: number) => void
+  onFile?: (index: number, total: number, phase: ChapterFilePhase, filePercent: number) => void,
+  scope?: { manhuaId?: string; slug?: string }
 ): Promise<UploadedChapterPage[]> {
   const pages: UploadedChapterPage[] = [];
   for (let index = 0; index < files.length; index += 1) {
@@ -53,6 +58,8 @@ export async function uploadFilesAsPages(
       {
         onPhase: (phase) =>
           onFile?.(index, files.length, phase, phase === "processing" ? 100 : 0),
+        manhuaId: scope?.manhuaId,
+        slug: scope?.slug,
       }
     );
     const urls = result.urls?.length ? result.urls : [result.url];

@@ -104,7 +104,7 @@ export default function EditorTeamsPage() {
         <section className="rounded-[14px] p-4 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold" style={{ color: "var(--arc-text)" }}>Шинэ баг</h2>
-            <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Admin эрх шаардлагатай</span>
+            <span className="text-[11px]" style={{ color: "var(--arc-muted)" }}>Зөвхөн сайт admin</span>
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr,1fr,auto]">
             <input type="text" placeholder="Team нэр" style={fieldStyle} value={name} onChange={(e) => setName(e.target.value)} />
@@ -117,6 +117,15 @@ export default function EditorTeamsPage() {
               {creating ? "Үүсгэж байна..." : "Баг үүсгэх"}
             </button>
           </div>
+        </section>
+      )}
+
+      {!isAdmin && (
+        <section className="rounded-[14px] p-4 sm:p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
+          <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--arc-text)" }}>Баг үүсгэх</h2>
+          <p className="text-[13px]" style={{ color: "var(--arc-muted)" }}>
+            Баг үүсгэх нь зөвхөн сайт admin-ийн эрх. Editor болон энгийн гишүүн шинэ баг нээхгүй. Шинэ баг хэрэгтэй бол admin-тай холбогдоно уу.
+          </p>
         </section>
       )}
 

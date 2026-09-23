@@ -115,8 +115,8 @@ export default function NewRecruitmentPage() {
   if (teamError || !team) {
     return (
       <div className="space-y-3">
-        <p className="text-[13px]" style={{ color: "var(--arc-muted)" }}>{teamError || "Баггүй тул зар үүсгэхгүй. Эхлээд баг үүсгэнэ үү. Зар үүсгэхэд автоматаар баг үүсэхгүй."}</p>
-        <Link href="/editor/teams" className="text-[12px]" style={{ color: "var(--arc-cyan)" }}>Баг үүсгэх хуудас</Link>
+        <p className="text-[13px]" style={{ color: "var(--arc-muted)" }}>{teamError || "Баггүй тул зар үүсгэхгүй. Зар үүсгэхэд автоматаар баг үүсэхгүй. Баг үүсгэх нь зөвхөн сайт admin-ийн эрх."}</p>
+        <Link href="/editor/teams" className="text-[12px]" style={{ color: "var(--arc-cyan)" }}>Багийн хуудас</Link>
       </div>
     );
   }

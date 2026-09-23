@@ -34,6 +34,27 @@ async function isSelfServeEditor(userId) {
   return Boolean(r.rows[0]?.self_serve);
 }
 
+function isStaffSiteRole(user) {
+  return ["admin", "editor", "translator"].includes(String(user?.role || "").toLowerCase());
+}
+
+/** Self-serve editors and team-only (non-staff) users share the daily upload-byte cap. Staff skip it. */
+async function shouldEnforceUploadQuota(user) {
+  if (!isPostgres()) return false;
+  const userId = userIdOf(user);
+  if (!userId) return false;
+  if (await isSelfServeEditor(userId)) return true;
+  return !isStaffSiteRole(user);
+}
+
+async function shouldAssertAssetProvenance(user) {
+  if (!isPostgres()) return false;
+  const userId = userIdOf(user);
+  if (!userId) return false;
+  if (await isSelfServeEditor(userId)) return true;
+  return !isStaffSiteRole(user);
+}
+
 function formatBytesMn(bytes) {
   const n = Number(bytes) || 0;
   if (n < 1024) return `${n} B`;
@@ -153,7 +174,7 @@ async function reserveManhua({ user, idempotencyKey }) {
 
 async function reserveUpload({ user, bytes, idempotencyKey }) {
   const userId = userIdOf(user);
-  if (!(await isSelfServeEditor(userId))) return { skipped: true };
+  if (!(await shouldEnforceUploadQuota(user))) return { skipped: true };
   const size = Number(bytes) || 0;
   if (size <= 0) {
     const err = new Error("Файлын хэмжээ буруу байна.");
@@ -188,7 +209,11 @@ async function reserveUpload({ user, bytes, idempotencyKey }) {
 async function commitReservation({ user, kind, idempotencyKey, bytes, extra }) {
   if (!isPostgres()) return { skipped: true };
   const userId = userIdOf(user);
-  if (!(await isSelfServeEditor(userId))) return { skipped: true };
+  if (kind === "upload") {
+    if (!(await shouldEnforceUploadQuota(user))) return { skipped: true };
+  } else if (!(await isSelfServeEditor(userId))) {
+    return { skipped: true };
+  }
   const r = await query(
     `UPDATE arc.editor_quota_ledger
      SET status='committed',
@@ -312,7 +337,7 @@ async function userOwnsPublishedUrl(userId, url) {
 
 async function assertSelfServeAssetUrls(user, urls, opts = {}) {
   const userId = userIdOf(user);
-  if (!(await isSelfServeEditor(userId))) return;
+  if (!(await shouldAssertAssetProvenance(user))) return;
   const { needsProvenance } = partitionAssetUrls(urls, opts);
   if (!needsProvenance.length) return;
   const ownerIds = [...new Set([userId, ...(opts.ownerIds || [])].map(String).filter(Boolean))];
@@ -335,6 +360,7 @@ async function assertSelfServeAssetUrls(user, urls, opts = {}) {
 module.exports = {
   QuotaError,
   isSelfServeEditor,
+  shouldEnforceUploadQuota,
   reserveManhua,
   reserveUpload,
   commitReservation,

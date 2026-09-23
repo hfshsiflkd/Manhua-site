@@ -65,6 +65,8 @@ router.post("/presign", protect, async (req, res) => {
       contentType: req.body?.contentType,
       contentLength: req.body?.contentLength,
       fileName: req.body?.fileName,
+      manhuaId: req.body?.manhuaId || req.body?.manhua_id,
+      slug: req.body?.slug,
     });
     return res.json(data);
   } catch (err) {

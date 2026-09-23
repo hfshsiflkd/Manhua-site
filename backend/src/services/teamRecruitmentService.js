@@ -18,6 +18,7 @@ const {
   isTeamAdminRole,
   getMemberRole,
   addTeamEditorMember,
+  lockTeamJoin,
 } = require("./teamAccessService");
 
 class FieldError extends Error {
@@ -687,6 +688,12 @@ async function withdrawApplication(user, applicationId) {
   if (!isValidId(applicationId)) throw new HttpError(400, "ID буруу байна");
   const userId = asId(user._id || user.id);
   return withTransaction(async (client) => {
+    const peek = await client.query(
+      `SELECT team_id, applicant_id FROM arc.team_recruitment_applications WHERE id=$1`,
+      [applicationId]
+    );
+    if (!peek.rowCount) throw new HttpError(404, "Хүсэлт олдсонгүй");
+    await lockTeamJoin(client, peek.rows[0].team_id, peek.rows[0].applicant_id);
     const r = await client.query(
       `SELECT * FROM arc.team_recruitment_applications WHERE id=$1 FOR UPDATE`,
       [applicationId]
@@ -756,6 +763,12 @@ async function decideApplication(user, applicationId, { action, decisionNote }) 
   }
 
   return withTransaction(async (client) => {
+    const peek = await client.query(
+      `SELECT team_id, applicant_id FROM arc.team_recruitment_applications WHERE id=$1`,
+      [applicationId]
+    );
+    if (!peek.rowCount) throw new HttpError(404, "Хүсэлт олдсонгүй");
+    await lockTeamJoin(client, peek.rows[0].team_id, peek.rows[0].applicant_id);
     const appRes = await client.query(
       `SELECT * FROM arc.team_recruitment_applications WHERE id=$1 FOR UPDATE`,
       [applicationId]

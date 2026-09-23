@@ -25,7 +25,7 @@ function uid() {
   return `job_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function useChapterUploadQueue() {
+export function useChapterUploadQueue(scope?: { manhuaId?: string; slug?: string }) {
   const [jobs, setJobs] = useState<QueueJob[]>([]);
   const jobsRef = useRef<QueueJob[]>([]);
   const filesRef = useRef(new Map<string, File>());
@@ -96,6 +96,8 @@ export function useChapterUploadQueue() {
           onPhase: (phase) => {
             if (phase === "processing") updateJob(id, { status: "processing", progress: 100 });
           },
+          manhuaId: scope?.manhuaId,
+          slug: scope?.slug,
         }
       );
       const urls = result.urls?.length ? result.urls : [result.url];

@@ -9,6 +9,7 @@ const { formatChapterPage } = require("../utils/chapterPage");
 const { invalidateManhuaChapterReads } = require("../services/chapterReadCache");
 const { createChapterOnce } = require("../services/chapterIdempotency");
 const quota = require("../services/editorQuotaService");
+const { memberUserId } = require("../services/teamAccessService");
 
 /* =====================================================
    🔥 IN-MEMORY CACHE (60 секунд)
@@ -52,7 +53,7 @@ async function getTeamRole(teamId, userId) {
   const team = await Team.findById(normalizedId).select("members").lean();
   if (!team) return null;
   const member = team.members?.find(
-    (m) => String(m.user) === String(userId)
+    (m) => memberUserId(m) === String(userId)
   );
   return member?.role || null;
 }

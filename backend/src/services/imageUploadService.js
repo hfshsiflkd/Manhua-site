@@ -11,16 +11,14 @@ const {
 } = require("../utils/imagePolicy");
 const { extensionFor, processImage } = require("../utils/image");
 
-async function assertUploadPermission(user, purpose) {
-  try {
-    assertRole(user, purpose);
-  } catch (err) {
-    if (err instanceof ImagePolicyError && err.statusCode === 403) {
-      const { hasTeamMembership } = require("./teamAccessService");
-      if (await hasTeamMembership(user._id || user.id)) return;
-    }
-    throw err;
-  }
+function defaultCanUploadForManhua(user, scope) {
+  const { canUploadForManhua } = require("./teamAccessService");
+  return canUploadForManhua(user, scope);
+}
+
+function defaultResolveManhuaId(scope) {
+  const { resolveManhuaId } = require("./teamAccessService");
+  return resolveManhuaId(scope);
 }
 
 function requireR2Env() {
@@ -111,6 +109,8 @@ function browserHeaders(uploadUrl) {
 function createImageUploadService(deps = {}) {
   const storage = deps.storage || null;
   const saveAvatar = deps.saveAvatar || defaultSaveAvatar;
+  const canUploadForManhua = deps.canUploadForManhua || defaultCanUploadForManhua;
+  const resolveManhuaId = deps.resolveManhuaId || defaultResolveManhuaId;
 
   function storageOrDefault() {
     if (storage) return storage;
@@ -118,8 +118,28 @@ function createImageUploadService(deps = {}) {
     return defaultStorage();
   }
 
-  async function presign({ user, purpose, contentType, contentLength, fileName }) {
-    await assertUploadPermission(user, purpose);
+  async function assertUploadPermission(user, purpose, scope = {}) {
+    try {
+      assertRole(user, purpose);
+      return { staff: true, manhuaId: scope.manhuaId ? String(scope.manhuaId) : null };
+    } catch (err) {
+      if (!(err instanceof ImagePolicyError && err.statusCode === 403)) throw err;
+      const policy = getPurpose(purpose);
+      if (!policy.staffOnly) throw err;
+      const manhuaId = scope.manhuaId ? String(scope.manhuaId) : await resolveManhuaId(scope);
+      if (!manhuaId) {
+        throw new ImagePolicyError("Багийн бүтээлд зураг оруулахад манхва зааж өгнө үү.", 403);
+      }
+      const ok = await canUploadForManhua(user, { manhuaId, slug: scope.slug });
+      if (!ok) {
+        throw new ImagePolicyError("Энэ бүтээлд зураг оруулах эрхгүй.", 403);
+      }
+      return { staff: false, manhuaId };
+    }
+  }
+
+  async function presign({ user, purpose, contentType, contentLength, fileName, manhuaId, slug }) {
+    const access = await assertUploadPermission(user, purpose, { manhuaId, slug });
     const size = Number(contentLength);
     assertDeclaredUpload({
       purpose,
@@ -159,6 +179,7 @@ function createImageUploadService(deps = {}) {
       contentType: String(contentType).toLowerCase(),
       contentLength: size,
       fileName: String(fileName || "").slice(0, 180),
+      manhuaId: access.manhuaId || undefined,
       iat: Date.now(),
     });
     return {
@@ -201,7 +222,7 @@ function createImageUploadService(deps = {}) {
   async function finalize({ user, token }) {
     const payload = readUploadToken(token);
     assertTokenOwner(payload, user);
-    await assertUploadPermission(user, payload.purpose);
+    await assertUploadPermission(user, payload.purpose, { manhuaId: payload.manhuaId });
     const policy = getPurpose(payload.purpose);
     const store = storageOrDefault();
     const releaseQuota = async () => {

@@ -127,7 +127,7 @@ export default function EditorManhuasPage() {
       ) : filteredManhuas.length === 0 ? (
         <EmptyState
           title={searchQuery ? "Хайлтын үр дүн олдсонгүй" : "Одоогоор манхуа алга"}
-          description={searchQuery ? "Өөр түлхүүр үгээр хайж үзнэ үү." : "Эхний манхуа-аа үүсгэж эхлээрэй."}
+          description={searchQuery ? "Өөр түлхүүр үгээр хайж үзнэ үү." : canPublish ? "Эхний манхуа-аа үүсгэж эхлээрэй." : "Та багийн бүтээл дээр ажиллана. Хувийн шинэ манхва үүсгэх эрхгүй."}
           action={!searchQuery && canPublish ? { label: "+ Эхний манхуа үүсгэх", href: "/editor/manhuas/new" } : undefined}
           icon={searchQuery ? "🔍" : "📚"}
         />

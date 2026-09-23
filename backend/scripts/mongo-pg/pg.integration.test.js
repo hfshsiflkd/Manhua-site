@@ -1833,4 +1833,406 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     assert.equal(frozen.status, 503, frozen.raw);
     assert.equal(frozen.json.code, "READ_ONLY");
   });
+
+  test("team-only member scoped upload, quota, removal, invite overlap", async () => {
+    const https = require("https");
+    const sharp = require("sharp");
+    const { newId } = require("../../src/store/pg/helpers");
+    const { UPLOAD_BYTES_PER_DAY, formatBytesMn: fmt } = (() => {
+      const cfg = require("../../src/config/selfServeEditor");
+      const quota = require("../../src/services/editorQuotaService");
+      return { UPLOAD_BYTES_PER_DAY: cfg.UPLOAD_BYTES_PER_DAY, formatBytesMn: quota.formatBytesMn };
+    })();
+    const applyBody = {
+      intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.",
+      experience: "beginner",
+      weeklyHoursNote: "10 цаг",
+      acceptJoin: true,
+    };
+    const listingBody = (title, teamId) => ({
+      title,
+      teamId,
+      workRole: "translation",
+      description: "Энэ бол хангалттай урт зарны тайлбар бөгөөд дор хаяж тавин тэмдэгт байна.",
+      languages: ["mn"],
+      compensation: "volunteer",
+      expiresInDays: 30,
+      status: "open",
+    });
+
+    function putBytes(url, body, headers = {}) {
+      return new Promise((resolve, reject) => {
+        const u = new URL(url);
+        const lib = u.protocol === "https:" ? https : http;
+        const req = lib.request(
+          url,
+          { method: "PUT", headers: { ...headers, "Content-Length": String(body.length) } },
+          (res) => {
+            res.resume();
+            res.on("end", () => resolve(res.statusCode));
+          }
+        );
+        req.on("error", reject);
+        req.write(body);
+        req.end();
+      });
+    }
+
+    const admin = await makeStaff("admin", `pgitu_a_${stamp}`);
+    const otherEditor = await makeStaff("editor", `pgitu_e_${stamp}`);
+    const teamRes = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-upload-${stamp}` },
+    });
+    assert.equal(teamRes.status, 201, teamRes.raw);
+    const teamId = String(teamRes.json._id);
+    ids.teams.push(teamId);
+    await markPgitest("teams", teamId);
+
+    const otherTeam = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-upload-other-${stamp}` },
+    });
+    assert.equal(otherTeam.status, 201, otherTeam.raw);
+    ids.teams.push(String(otherTeam.json._id));
+    await markPgitest("teams", otherTeam.json._id);
+
+    const teamManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(admin.token, admin.deviceId), "Idempotency-Key": `tu-m-${stamp}` },
+      body: { title: `Pgitest team-only ${stamp}`, slug: `pgitest-team-only-${stamp}`, teamId },
+    });
+    assert.equal(teamManhua.status, 201, teamManhua.raw);
+    ids.manhuas.push(String(teamManhua.json._id));
+    await markPgitest("manhuas", teamManhua.json._id);
+
+    const otherManhua = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(admin.token, admin.deviceId), "Idempotency-Key": `tu-o-${stamp}` },
+      body: {
+        title: `Pgitest other-team ${stamp}`,
+        slug: `pgitest-other-team-${stamp}`,
+        teamId: otherTeam.json._id,
+      },
+    });
+    assert.equal(otherManhua.status, 201, otherManhua.raw);
+    ids.manhuas.push(String(otherManhua.json._id));
+    await markPgitest("manhuas", otherManhua.json._id);
+
+    const listing = await request("POST", "/api/recruitment", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: listingBody("Upload tester хайж байна", teamId),
+    });
+    assert.equal(listing.status, 201, listing.raw);
+    const applicant = await request("POST", "/api/auth/register", {
+      headers: { "x-device-id": `pgitest-dev-${stamp}-up` },
+      body: {
+        username: `pgitu_u_${stamp}`,
+        email: `pgitu_u_${stamp}@pgitest.local`,
+        password,
+        deviceId: `pgitest-dev-${stamp}-up`,
+      },
+    });
+    assert.equal(applicant.status, 200, applicant.raw);
+    const appToken = applicant.json.token;
+    const appUserId = String(applicant.json.user._id);
+    const appDevice = `pgitest-dev-${stamp}-up`;
+    ids.users.push(appUserId);
+
+    const apply = await request("POST", `/api/recruitment/${listing.json.id}/applications`, {
+      headers: authHeaders(appToken, appDevice),
+      body: applyBody,
+    });
+    assert.equal(apply.status, 201, apply.raw);
+    const accepted = await request("POST", `/api/recruitment/applications/${apply.json.id}/decision`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { action: "accept" },
+    });
+    assert.equal(accepted.status, 200, accepted.raw);
+    const roleRow = await query(`SELECT role FROM arc.users WHERE id=$1`, [appUserId]);
+    assert.equal(roleRow.rows[0].role, "user");
+    const ws = await request("GET", "/api/user/workspace", { headers: authHeaders(appToken, appDevice) });
+    assert.equal(ws.json.teamMember, true);
+    assert.equal(ws.json.canPublishManhua, false);
+
+    const noScope = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(appToken, appDevice),
+      body: { purpose: "chapter", contentType: "image/png", contentLength: 1024, fileName: "a.png" },
+    });
+    assert.equal(noScope.status, 403, noScope.raw);
+
+    const otherScope = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(appToken, appDevice),
+      body: {
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: 1024,
+        fileName: "a.png",
+        manhuaId: otherManhua.json._id,
+      },
+    });
+    assert.equal(otherScope.status, 403, otherScope.raw);
+
+    const createDenied = await request("POST", "/api/editor/manhuas", {
+      headers: authHeaders(appToken, appDevice),
+      body: { title: "personal bypass" },
+    });
+    assert.ok([401, 403].includes(createDenied.status));
+
+    const png = await sharp({
+      create: { width: 12, height: 20, channels: 3, background: { r: 4, g: 5, b: 6 } },
+    })
+      .png()
+      .toBuffer();
+
+    const ownPresign = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(appToken, appDevice),
+      body: {
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: png.length,
+        fileName: "page.png",
+        manhuaId: teamManhua.json._id,
+        slug: teamManhua.json.slug,
+      },
+    });
+    assert.ok([200, 500].includes(ownPresign.status), ownPresign.raw);
+
+    let pageUrl = null;
+    if (ownPresign.status === 200) {
+      const putStatus = await putBytes(ownPresign.json.uploadUrl, png, ownPresign.json.headers || {});
+      assert.ok(putStatus >= 200 && putStatus < 300, `R2 PUT ${putStatus}`);
+      const finalized = await request("POST", "/api/upload/finalize", {
+        headers: authHeaders(appToken, appDevice),
+        body: { token: ownPresign.json.token },
+      });
+      assert.equal(finalized.status, 200, finalized.raw);
+      pageUrl = finalized.json.url;
+      const ledger = await query(
+        `SELECT status, bytes FROM arc.editor_quota_ledger WHERE user_id=$1 AND kind='upload' ORDER BY created_at DESC LIMIT 1`,
+        [appUserId]
+      );
+      assert.equal(ledger.rowCount, 1);
+      assert.equal(ledger.rows[0].status, "committed");
+    } else {
+      pageUrl = `https://cdn.example.com/pgitest-team-only-${stamp}.png`;
+      await query(
+        `INSERT INTO arc.published_uploads (id, user_id, purpose, url, bytes, extra, created_at)
+         VALUES ($1,$2,'chapter',$3,$4,'{"pgitest":true}'::jsonb, now())`,
+        [newId(), appUserId, pageUrl, png.length]
+      );
+    }
+
+    const draft = await request("POST", `/api/editor/manhuas/${teamManhua.json.slug}/chapters`, {
+      headers: authHeaders(appToken, appDevice),
+      body: {
+        chapterNumber: 1,
+        title: "Team member draft",
+        status: "draft",
+        pages: [{ imageUrl: pageUrl }],
+      },
+    });
+    assert.equal(draft.status, 201, draft.raw);
+    ids.chapters.push(String(draft.json._id));
+    await markPgitest("chapters", draft.json._id);
+    assert.equal(draft.json.status, "draft");
+
+    const preview = await request("GET", `/api/editor/chapters/${draft.json._id}`, {
+      headers: authHeaders(appToken, appDevice),
+    });
+    assert.equal(preview.status, 200, preview.raw);
+    assert.ok((preview.json.pages || []).length >= 1);
+
+    const published = await request("PUT", `/api/editor/chapters/${draft.json._id}`, {
+      headers: authHeaders(appToken, appDevice),
+      body: { status: "published" },
+    });
+    assert.equal(published.status, 200, published.raw);
+    assert.equal(published.json.status, "published");
+
+    const otherChapter = await request("POST", `/api/editor/manhuas/${otherManhua.json.slug}/chapters`, {
+      headers: authHeaders(appToken, appDevice),
+      body: { chapterNumber: 1, title: "nope", status: "draft", pages: [{ imageUrl: pageUrl }] },
+    });
+    assert.equal(otherChapter.status, 403);
+
+    const stalePresign = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(appToken, appDevice),
+      body: {
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: 64,
+        fileName: "stale.png",
+        manhuaId: teamManhua.json._id,
+      },
+    });
+    const staleOk = stalePresign.status === 200;
+
+    await query(
+      `INSERT INTO arc.editor_quota_ledger (
+         id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at
+       ) VALUES ($1,$2,'upload',$3,$4,'committed', now() + interval '1 day', '{"pgitest":true}'::jsonb, now(), now())`,
+      [newId(), appUserId, UPLOAD_BYTES_PER_DAY, `full-${stamp}`]
+    );
+    const overQuota = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(appToken, appDevice),
+      body: {
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: png.length,
+        fileName: "over.png",
+        manhuaId: teamManhua.json._id,
+      },
+    });
+    assert.equal(overQuota.status, 429, overQuota.raw);
+    assert.equal(overQuota.json.quota?.kind, "upload");
+    assert.equal(overQuota.json.quota?.limit, UPLOAD_BYTES_PER_DAY);
+    const staffWhileCapped = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(otherEditor.token, otherEditor.deviceId),
+      body: {
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: png.length,
+        fileName: "staff.png",
+      },
+    });
+    assert.ok([200, 500].includes(staffWhileCapped.status), staffWhileCapped.raw);
+    console.log(
+      JSON.stringify({
+        teamOnlyUploadQuota: {
+          limitBytes: UPLOAD_BYTES_PER_DAY,
+          limitLabel: fmt(UPLOAD_BYTES_PER_DAY),
+          windowHours: 24,
+          enforced: true,
+          staffSkip: true,
+        },
+      })
+    );
+    const removed = await request("DELETE", `/api/editor/teams/${teamId}/members/${appUserId}`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+    });
+    assert.equal(removed.status, 200, removed.raw);
+    const memberGone = await query(`SELECT 1 FROM arc.team_members WHERE team_id=$1 AND user_id=$2`, [
+      teamId,
+      appUserId,
+    ]);
+    assert.equal(memberGone.rowCount, 0);
+
+    if (staleOk) {
+      const staleFinalize = await request("POST", "/api/upload/finalize", {
+        headers: authHeaders(appToken, appDevice),
+        body: { token: stalePresign.json.token },
+      });
+      assert.equal(staleFinalize.status, 403, staleFinalize.raw);
+    }
+    const afterRemovePresign = await request("POST", "/api/upload/presign", {
+      headers: authHeaders(appToken, appDevice),
+      body: {
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: png.length,
+        fileName: "gone.png",
+        manhuaId: teamManhua.json._id,
+      },
+    });
+    assert.equal(afterRemovePresign.status, 403, afterRemovePresign.raw);
+    const afterRemoveChapter = await request("POST", `/api/editor/manhuas/${teamManhua.json.slug}/chapters`, {
+      headers: authHeaders(appToken, appDevice),
+      body: { chapterNumber: 9, title: "gone", status: "draft", pages: [{ imageUrl: pageUrl }] },
+    });
+    assert.ok([401, 403].includes(afterRemoveChapter.status), afterRemoveChapter.raw);
+
+    const listingB = await request("POST", "/api/recruitment", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: listingBody("Overlap хүсэлт хайж байна", teamId),
+    });
+    assert.equal(listingB.status, 201, listingB.raw);
+    const overlapUser = await request("POST", "/api/auth/register", {
+      headers: { "x-device-id": `pgitest-dev-${stamp}-ov` },
+      body: {
+        username: `pgitu_ov_${stamp}`,
+        email: `pgitu_ov_${stamp}@pgitest.local`,
+        password,
+        deviceId: `pgitest-dev-${stamp}-ov`,
+      },
+    });
+    assert.equal(overlapUser.status, 200, overlapUser.raw);
+    ids.users.push(String(overlapUser.json.user._id));
+    const ovToken = overlapUser.json.token;
+    const ovDevice = `pgitest-dev-${stamp}-ov`;
+    const ovId = String(overlapUser.json.user._id);
+    const ovApply = await request("POST", `/api/recruitment/${listingB.json.id}/applications`, {
+      headers: authHeaders(ovToken, ovDevice),
+      body: applyBody,
+    });
+    assert.equal(ovApply.status, 201, ovApply.raw);
+    const ovInvite = await request("POST", `/api/editor/teams/${teamId}/members`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { userId: ovId, role: "editor" },
+    });
+    assert.equal(ovInvite.status, 200, ovInvite.raw);
+    const inviteId = String(ovInvite.json.invite._id || ovInvite.json.invite.id);
+    const overlap = await Promise.all([
+      request("POST", `/api/recruitment/applications/${ovApply.json.id}/decision`, {
+        headers: authHeaders(admin.token, admin.deviceId),
+        body: { action: "accept" },
+      }),
+      request("POST", `/api/me/team-invites/${inviteId}/accept`, {
+        headers: authHeaders(ovToken, ovDevice),
+      }),
+    ]);
+    const overlapOk = overlap.filter((r) => r.status === 200);
+    assert.ok(overlapOk.length >= 1, JSON.stringify(overlap.map((r) => ({ status: r.status, json: r.json }))));
+    const members = await query(`SELECT role FROM arc.team_members WHERE team_id=$1 AND user_id=$2`, [teamId, ovId]);
+    assert.equal(members.rowCount, 1);
+    const appState = await query(`SELECT status FROM arc.team_recruitment_applications WHERE id=$1`, [ovApply.json.id]);
+    assert.equal(appState.rows[0].status, "accepted");
+    const inviteState = await query(`SELECT status FROM arc.team_invites WHERE id=$1`, [inviteId]);
+    assert.equal(inviteState.rows[0].status, "accepted");
+    assert.equal(appState.rows[0].status === "accepted" && members.rowCount === 1, true);
+
+    const listingC = await request("POST", "/api/recruitment", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: listingBody("Race хүсэлт хайж байна", teamId),
+    });
+    assert.equal(listingC.status, 201, listingC.raw);
+    const raceUser = await request("POST", "/api/auth/register", {
+      headers: { "x-device-id": `pgitest-dev-${stamp}-rc` },
+      body: {
+        username: `pgitu_rc_${stamp}`,
+        email: `pgitu_rc_${stamp}@pgitest.local`,
+        password,
+        deviceId: `pgitest-dev-${stamp}-rc`,
+      },
+    });
+    assert.equal(raceUser.status, 200, raceUser.raw);
+    ids.users.push(String(raceUser.json.user._id));
+    const rcToken = raceUser.json.token;
+    const rcDevice = `pgitest-dev-${stamp}-rc`;
+    const rcId = String(raceUser.json.user._id);
+    const rcApply = await request("POST", `/api/recruitment/${listingC.json.id}/applications`, {
+      headers: authHeaders(rcToken, rcDevice),
+      body: applyBody,
+    });
+    assert.equal(rcApply.status, 201, rcApply.raw);
+    const raced = await Promise.all([
+      request("POST", `/api/recruitment/applications/${rcApply.json.id}/decision`, {
+        headers: authHeaders(admin.token, admin.deviceId),
+        body: { action: "accept" },
+      }),
+      request("POST", `/api/recruitment/applications/${rcApply.json.id}/decision`, {
+        headers: authHeaders(admin.token, admin.deviceId),
+        body: { action: "reject", decisionNote: "Давхар оролдлого" },
+      }),
+      request("POST", `/api/recruitment/applications/${rcApply.json.id}/withdraw`, {
+        headers: authHeaders(rcToken, rcDevice),
+      }),
+    ]);
+    const terminals = raced.filter((r) => r.status === 200);
+    assert.equal(terminals.length, 1, JSON.stringify(raced.map((r) => ({ status: r.status, json: r.json }))));
+    const finalApp = await query(`SELECT status FROM arc.team_recruitment_applications WHERE id=$1`, [rcApply.json.id]);
+    const finalMember = await query(`SELECT 1 FROM arc.team_members WHERE team_id=$1 AND user_id=$2`, [teamId, rcId]);
+    const status = finalApp.rows[0].status;
+    assert.ok(["accepted", "rejected", "withdrawn"].includes(status));
+    assert.equal(status === "pending", false);
+    assert.equal(finalMember.rowCount, status === "accepted" ? 1 : 0);
+  });
 }

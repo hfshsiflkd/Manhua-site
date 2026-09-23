@@ -116,7 +116,9 @@ export default function EditorManhuaDetailPage() {
     if (problem) { toast.error(problem); return; }
     try {
       setUploadingCover(true); setError(null); setCoverProgress(0);
-      const result = await uploadImage(file, (p) => setCoverProgress(p), "cover");
+      const result = await uploadImage(file, (p) => setCoverProgress(p), "cover", {
+        manhuaId: manhua?._id,
+      });
       setForm((f) => ({ ...f, coverImage: (result as any).url }));
       setCoverProgress(100);
       toast.success("Хавтас бэлэн. Манхуаг хадгалахад орно.");

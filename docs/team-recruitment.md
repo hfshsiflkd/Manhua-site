@@ -35,6 +35,16 @@ Expired `open` rows are treated as closed in query (`expires_at > now()`). No cr
 - Set `TEAM_RECRUITMENT_ENABLED=false` on the current backend to stop new applications/acceptance without dropping members.
 - Rolling the backend/frontend to a pre-feature SHA hides the board; leave the new tables in place. Do not `DELETE FROM arc.team_members` created by this feature unless a data rollback is explicitly approved.
 
+## Team-only uploads
+
+A recruited `role=user` member may presign/finalize **chapter** and **cover** images only when `manhuaId` or `slug` is sent and they currently belong to that manhua’s team. Staff (`admin`/`editor`/`translator`) keep unscoped upload. After the member is removed, the same JWT, an old upload token, and chapter mutations all 403.
+
+Team-only members are not unlimited: they share the self-serve daily upload byte cap (`SELF_SERVE_EDITOR_UPLOAD_BYTES_PER_DAY`, default 500MiB / 24h). Legacy staff skip this cap. Attaching a page URL still requires `published_uploads` provenance (own or teammate).
+
+## Team create
+
+`POST /api/editor/teams` stays site-admin only. The editor Teams page shows the create form only to site admin and tells everyone else that members/editors cannot open a new team.
+
 ## Rate limits
 
 - Create listing: `TEAM_RECRUITMENT_CREATE_MAX` / window (default 10 / hour / user)

@@ -355,6 +355,82 @@ exports.listMyTeamInvites = async (req, res, next) => {
 exports.acceptTeamInvite = async (req, res, next) => {
   try {
     if (!isValidId(req.params.inviteId)) return res.status(400).json({ message: "ID буруу байна" });
+    const { isPostgres } = require("../store/driver");
+    if (isPostgres()) {
+      const { withTransaction } = require("../db/postgres");
+      const { addTeamEditorMember, lockTeamJoin } = require("../services/teamAccessService");
+      const inviteId = String(req.params.inviteId);
+      const userId = String(req.user._id);
+      await withTransaction(async (client) => {
+        const invRes = await client.query(
+          `SELECT * FROM arc.team_invites WHERE id=$1`,
+          [inviteId]
+        );
+        if (!invRes.rowCount) {
+          const err = new Error("Хүсэлт олдсонгүй");
+          err.statusCode = 404;
+          throw err;
+        }
+        const row = invRes.rows[0];
+        if (String(row.invited_user_id) !== userId) {
+          const err = new Error("No permission");
+          err.statusCode = 403;
+          throw err;
+        }
+        await lockTeamJoin(client, row.team_id, row.invited_user_id);
+        const locked = await client.query(
+          `SELECT * FROM arc.team_invites WHERE id=$1 FOR UPDATE`,
+          [inviteId]
+        );
+        const inviteRow = locked.rows[0];
+        if (!inviteRow) {
+          const err = new Error("Хүсэлт олдсонгүй");
+          err.statusCode = 404;
+          throw err;
+        }
+        if (inviteRow.status !== "pending") {
+          const err = new Error("Хүсэлтийн төлөв буруу байна");
+          err.statusCode = 400;
+          throw err;
+        }
+        const teamRes = await client.query(`SELECT id FROM arc.teams WHERE id=$1`, [inviteRow.team_id]);
+        if (!teamRes.rowCount) {
+          const err = new Error("Team олдсонгүй");
+          err.statusCode = 404;
+          throw err;
+        }
+        const taken = await client.query(
+          `UPDATE arc.team_invites
+           SET status='accepted', responded_at=now(), updated_at=now()
+           WHERE id=$1 AND status='pending'
+           RETURNING id`,
+          [inviteId]
+        );
+        if (!taken.rowCount) {
+          const err = new Error("Хүсэлтийн төлөв буруу байна");
+          err.statusCode = 400;
+          throw err;
+        }
+        await addTeamEditorMember(client, {
+          teamId: inviteRow.team_id,
+          userId: inviteRow.invited_user_id,
+          addedBy: inviteRow.invited_by_id,
+        });
+        await client.query(
+          `UPDATE arc.team_recruitment_applications
+           SET status='accepted', decided_at=now(), updated_at=now()
+           WHERE team_id=$1 AND applicant_id=$2 AND status='pending'`,
+          [inviteRow.team_id, inviteRow.invited_user_id]
+        );
+        await client.query(
+          `UPDATE arc.users SET role='editor', updated_at=now() WHERE id=$1 AND role='user'`,
+          [inviteRow.invited_user_id]
+        );
+      });
+      invalidateUserManhuaCache(req.user._id);
+      return res.json({ message: "Хүсэлт зөвшөөрөгдлөө" });
+    }
+
     const invite = await TeamInvite.findById(req.params.inviteId);
     if (!invite) {
       return res.status(404).json({ message: "Хүсэлт олдсонгүй" });
@@ -396,19 +472,6 @@ exports.acceptTeamInvite = async (req, res, next) => {
     await invite.save();
 
     invalidateUserManhuaCache(req.user._id);
-
-    const { isPostgres } = require("../store/driver");
-    if (isPostgres()) {
-      const { query } = require("../db/postgres");
-      const teamId = String(invite.team?._id || invite.team);
-      await query(
-        `UPDATE arc.team_recruitment_applications
-         SET status='accepted', decided_at=now(), updated_at=now()
-         WHERE team_id=$1 AND applicant_id=$2 AND status='pending'`,
-        [teamId, String(invite.invitedUser)]
-      );
-    }
-
     res.json({ message: "Хүсэлт зөвшөөрөгдлөө" });
   } catch (err) {
     next(err);

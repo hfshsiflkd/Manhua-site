@@ -248,6 +248,7 @@ export default function EditorEditChapterPage() {
         setUploadingIndex(index + 1);
         const parts = await ensureChapterUpload(file, keptUploads.current.get(key), {
           signal: controller.signal,
+          slug,
           onPhase: (phase) => setUploadPhase(phase),
           onProgress: (percent) =>
             setUploadProgress(Math.min(100, Math.round(((index + percent / 100) / fileArr.length) * 100))),

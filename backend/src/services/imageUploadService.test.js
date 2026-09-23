@@ -180,3 +180,80 @@ test("avatar finalize stores a fitted image and records the profile url", async 
   assert.equal(saved[0].url, result.url);
   assert.match(result.url, /\/avatars\//);
 });
+
+test("team-only chapter presign requires a manhua the member can edit", async () => {
+  const storage = memoryStorage();
+  const allowed = new Set(["team-manhua-1"]);
+  const service = createImageUploadService({
+    storage,
+    canUploadForManhua: async (_user, { manhuaId }) => allowed.has(String(manhuaId || "")),
+    resolveManhuaId: async ({ manhuaId, slug }) => manhuaId || (slug === "own-slug" ? "team-manhua-1" : null),
+  });
+  const member = { _id: "user-team", role: "user" };
+  await assert.rejects(
+    () =>
+      service.presign({
+        user: member,
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: 1000,
+        fileName: "page.png",
+      }),
+    (err) => err.statusCode === 403
+  );
+  await assert.rejects(
+    () =>
+      service.presign({
+        user: member,
+        purpose: "chapter",
+        contentType: "image/png",
+        contentLength: 1000,
+        fileName: "page.png",
+        manhuaId: "other-team-manhua",
+      }),
+    (err) => err.statusCode === 403
+  );
+  const signed = await service.presign({
+    user: member,
+    purpose: "chapter",
+    contentType: "image/png",
+    contentLength: 1000,
+    fileName: "page.png",
+    slug: "own-slug",
+  });
+  assert.ok(signed.token);
+  const payload = JSON.parse(Buffer.from(signed.token.split(".")[0], "base64url").toString("utf8"));
+  assert.equal(payload.manhuaId, "team-manhua-1");
+});
+
+test("finalize revokes a team-only token after membership is gone", async () => {
+  const storage = memoryStorage();
+  let allowed = true;
+  const service = createImageUploadService({
+    storage,
+    canUploadForManhua: async () => allowed,
+    resolveManhuaId: async () => "team-manhua-1",
+  });
+  const member = { _id: "user-team-2", role: "user" };
+  const png = await sharp({
+    create: { width: 12, height: 20, channels: 3, background: { r: 9, g: 8, b: 7 } },
+  })
+    .png()
+    .toBuffer();
+  const signed = await service.presign({
+    user: member,
+    purpose: "chapter",
+    contentType: "image/png",
+    contentLength: png.length,
+    fileName: "page.png",
+    manhuaId: "team-manhua-1",
+  });
+  const key = signed.uploadUrl.slice("https://storage.test/".length).split("?")[0];
+  storage.objects.set(key, { body: png });
+  allowed = false;
+  await assert.rejects(
+    () => service.finalize({ user: member, token: signed.token }),
+    (err) => err.statusCode === 403
+  );
+  assert.ok(storage.objects.has(key));
+});

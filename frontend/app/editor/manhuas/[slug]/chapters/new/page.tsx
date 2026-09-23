@@ -233,6 +233,7 @@ export default function EditorNewChapterPage() {
         try {
           const parts = await ensureChapterUpload(item.file, item.uploaded, {
             signal: controller.signal,
+            slug,
             onPhase: (phase) => {
               setUploadPhase(phase);
               setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: phase } : page));
