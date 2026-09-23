@@ -92,6 +92,7 @@ export function ProfileHeader({ activeTab, onTabChange, stats }: ProfileHeaderPr
                 cursor: "pointer",
               }}
               title="Профайл зураг солих"
+              aria-label="Профайл зураг солих"
             >
               {avatarUrl ? (
                 <Image src={avatarUrl} alt={user.username} fill sizes="88px" className="object-cover" />

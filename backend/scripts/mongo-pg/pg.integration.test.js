@@ -210,6 +210,10 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
       query,
       path.join(__dirname, "../../../supabase/migrations/20260923131500_self_serve_editor_grants.sql")
     );
+    await applySqlFile(
+      query,
+      path.join(__dirname, "../../../supabase/migrations/20260923140000_creator_public_indexes.sql")
+    );
     await cleanupPgitest(query);
     snapshot = await migrationSnapshot(query);
     testStartedAt = new Date();
@@ -1324,5 +1328,285 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     assert.equal(translatorStay.status, 403, translatorStay.raw);
     const trRole = await query(`SELECT role FROM arc.users WHERE id=$1`, [String(translator.user._id)]);
     assert.equal(trRole.rows[0].role, "translator");
+  });
+
+  test("public creator profile and manhua credits", async () => {
+    const crypto = require("crypto");
+    const { creditForManhua, PRIVATE_KEYS } = require("../../src/services/creatorProfileService");
+    const deviceId = `pgitest-dev-${stamp}-creator`;
+    const onboardStamp = `c${stamp}`;
+
+    function hexId() {
+      return crypto.randomBytes(12).toString("hex");
+    }
+
+    function denyPrivate(obj) {
+      const blob = JSON.stringify(obj);
+      const lower = blob.toLowerCase();
+      for (const key of PRIVATE_KEYS) {
+        assert.equal(Object.prototype.hasOwnProperty.call(obj, key), false, `leaked ${key}`);
+      }
+      assert.equal(lower.includes("@pgitest.local"), false);
+      assert.equal(lower.includes("password_hash"), false);
+      assert.equal(lower.includes("jwt"), false);
+      assert.equal(lower.includes("device_id"), false);
+      assert.equal(lower.includes("self_serve"), false);
+      assert.equal(lower.includes("terms_accepted"), false);
+    }
+
+    async function insertManhua({ creatorId, slug, title, deletedAt = null, extra = { pgitest: true }, teamId = null, published = true }) {
+      const manhuaId = hexId();
+      ids.manhuas.push(manhuaId);
+      await query(
+        `INSERT INTO arc.manhuas (
+           id, title, slug, rating, status, created_by, team_id, views, weekly_views, deleted_at, extra, created_at, updated_at
+         ) VALUES ($1,$2,$3,0,'ongoing',$4,$5,0,0,$6,$7::jsonb, now(), now())`,
+        [manhuaId, title, slug, creatorId, teamId, deletedAt, JSON.stringify(extra)]
+      );
+      const chapterId = hexId();
+      ids.chapters.push(chapterId);
+      await query(
+        `INSERT INTO arc.chapters (
+           id, manhua_id, chapter_number, title, language, status, views, extra, created_at, updated_at
+         ) VALUES ($1,$2,1,$3,'mn',$4,0,'{"pgitest":true}'::jsonb, now(), now())`,
+        [chapterId, manhuaId, `${title} ch`, published ? "published" : "draft"]
+      );
+      return { manhuaId, chapterId, slug };
+    }
+
+    const onboarded = await User.create({
+      username: `pgitcr_${onboardStamp}`,
+      email: `pgitcr_${onboardStamp}@pgitest.local`,
+      password,
+      role: "user",
+      sessionToken: genSessionToken(),
+      deviceId,
+      lastDeviceId: deviceId,
+      extra: { pgitest: true },
+    });
+    ids.users.push(String(onboarded._id));
+    const onboardToken = genJwt(onboarded);
+    const become = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(onboardToken, deviceId),
+      body: {
+        penName: "Arc Public Pen",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм.",
+        skills: ["translation"],
+        experience: "beginner",
+        languages: ["mn"],
+        portfolioUrl: "https://example.com/portfolio",
+        acceptTerms: true,
+        role: "admin",
+        self_serve: false,
+      },
+    });
+    assert.ok([200, 201].includes(become.status), become.raw);
+    const editorId = String(onboarded._id);
+    const editorToken = become.json.token;
+
+    const published = await insertManhua({
+      creatorId: editorId,
+      slug: `pgitest-pub-${onboardStamp}`,
+      title: `Pgitest pub ${onboardStamp}`,
+    });
+    await query(`INSERT INTO arc.manhua_owners (manhua_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [
+      published.manhuaId,
+      editorId,
+    ]);
+    const ownerB = await makeStaff("editor", `pgitown_${onboardStamp}`);
+    await query(`INSERT INTO arc.manhua_owners (manhua_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [
+      published.manhuaId,
+      String(ownerB.user._id),
+    ]);
+
+    const draftOnly = await insertManhua({
+      creatorId: editorId,
+      slug: `pgitest-draft-${onboardStamp}`,
+      title: `Pgitest draft ${onboardStamp}`,
+      published: false,
+    });
+    const deleted = await insertManhua({
+      creatorId: editorId,
+      slug: `pgitest-del-${onboardStamp}`,
+      title: `Pgitest del ${onboardStamp}`,
+      deletedAt: new Date(),
+    });
+    const placeholder = await insertManhua({
+      creatorId: editorId,
+      slug: `pgitest-ph-${onboardStamp}`,
+      title: `Pgitest ph ${onboardStamp}`,
+      extra: { pgitest: true, quarantinePlaceholder: true },
+    });
+
+    const publicProfile = await request("GET", `/api/creators/${editorId}`);
+    assert.equal(publicProfile.status, 200, publicProfile.raw);
+    denyPrivate(publicProfile.json);
+    assert.equal(publicProfile.json.displayName, "Arc Public Pen");
+    assert.equal(publicProfile.json.portfolioUrl, "https://example.com/portfolio");
+    assert.equal(publicProfile.json.publishedCount, 1);
+    assert.equal(publicProfile.json.manhuas.length, 1);
+    assert.equal(publicProfile.json.manhuas[0].slug, published.slug);
+    const listed = JSON.stringify(publicProfile.json);
+    assert.equal(listed.includes(draftOnly.slug), false);
+    assert.equal(listed.includes(deleted.slug), false);
+    assert.equal(listed.includes(placeholder.slug), false);
+    assert.equal(listed.includes("pages"), false);
+
+    const page2 = await request("GET", `/api/creators/${editorId}?page=1&limit=1`);
+    assert.equal(page2.json.manhuas.length, 1);
+    assert.equal(page2.json.publishedCount, 1);
+
+    const unauth = await request("GET", `/api/creators/${editorId}`);
+    assert.equal(unauth.status, 200);
+
+    const legacy = await makeStaff("editor", `pgitleg_${onboardStamp}`);
+    const legacyPub = await insertManhua({
+      creatorId: String(legacy.user._id),
+      slug: `pgitest-legacy-pub-${onboardStamp}`,
+      title: `Pgitest legacy pub ${onboardStamp}`,
+    });
+    const legacyPublic = await request("GET", `/api/creators/${legacy.user._id}`);
+    assert.equal(legacyPublic.status, 200, legacyPublic.raw);
+    denyPrivate(legacyPublic.json);
+    assert.equal(legacyPublic.json.displayName, legacy.user.username);
+    assert.equal(legacyPublic.json.bio, null);
+    assert.equal(legacyPublic.json.publishedCount, 1);
+    assert.equal(legacyPublic.json.manhuas[0].slug, legacyPub.slug);
+
+    const regular = await User.create({
+      username: `pgitreg_${onboardStamp}`,
+      email: `pgitreg_${onboardStamp}@pgitest.local`,
+      password,
+      role: "user",
+      sessionToken: genSessionToken(),
+      deviceId: `${deviceId}-reg`,
+      lastDeviceId: `${deviceId}-reg`,
+      extra: { pgitest: true },
+    });
+    ids.users.push(String(regular._id));
+    const missing = await request("GET", `/api/creators/${regular._id}`);
+    assert.equal(missing.status, 404);
+
+    await query(`UPDATE arc.users SET blocked=true WHERE id=$1`, [editorId]);
+    const blockedGet = await request("GET", `/api/creators/${editorId}`);
+    assert.equal(blockedGet.status, 404);
+    await query(`UPDATE arc.users SET blocked=false, is_active=true WHERE id=$1`, [editorId]);
+
+    const otherPatch = await request("PATCH", "/api/user/creator-profile", {
+      headers: authHeaders(ownerB.token, ownerB.deviceId),
+      body: { penName: "Hijack", bio: "Энэ бол хангалттай урт танилцуулга текст юм.", skills: ["cleanup"], languages: ["en"] },
+    });
+    assert.equal(otherPatch.status, 200, otherPatch.raw);
+    const still = await request("GET", `/api/creators/${editorId}`);
+    assert.equal(still.json.displayName, "Arc Public Pen");
+
+    const asRegular = await request("PATCH", "/api/user/creator-profile", {
+      headers: authHeaders(genJwt(regular), `${deviceId}-reg`),
+      body: { penName: "Nope", bio: "Энэ бол хангалттай урт танилцуулга текст юм.", skills: ["cleanup"], languages: ["en"] },
+    });
+    assert.equal(asRegular.status, 403);
+
+    const xss = await request("PATCH", "/api/user/creator-profile", {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        penName: "<script>alert(1)</script>",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм.",
+        skills: ["translation"],
+        languages: ["mn"],
+        portfolioUrl: "javascript:alert(1)",
+        role: "admin",
+        self_serve: true,
+        userId: String(ownerB.user._id),
+      },
+    });
+    assert.equal(xss.status, 400, xss.raw);
+    assert.ok(xss.json.fields.portfolioUrl);
+
+    const storedXss = await request("PATCH", "/api/user/creator-profile", {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        penName: "<b>bold</b>",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм.",
+        skills: ["translation"],
+        languages: ["mn"],
+        portfolioUrl: "https://example.com/x",
+      },
+    });
+    assert.equal(storedXss.status, 200, storedXss.raw);
+    const xssPublic = await request("GET", `/api/creators/${editorId}`);
+    assert.equal(xssPublic.json.displayName, "<b>bold</b>");
+
+    const okPatch = await request("PATCH", "/api/user/creator-profile", {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        penName: "Шинэ нэр",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм.",
+        skills: ["cleanup", "translation"],
+        languages: ["mn", "en"],
+        portfolioUrl: "https://example.com/new",
+        role: "admin",
+        self_serve: true,
+        quota: 99,
+      },
+    });
+    assert.equal(okPatch.status, 200, okPatch.raw);
+    denyPrivate(okPatch.json.profile);
+    assert.equal(okPatch.json.profile.penName, "Шинэ нэр");
+    assert.equal(okPatch.json.profile.hasProfile, true);
+    assert.match(okPatch.json.profile.publicUrl, /^https:\/\/www\.arc-read\.com\/creators\//);
+    assert.equal(okPatch.json.profile.publicUrl.includes("localhost"), false);
+
+    const afterRole = await query(`SELECT role FROM arc.users WHERE id=$1`, [editorId]);
+    assert.equal(afterRole.rows[0].role, "editor");
+    const afterServe = await query(`SELECT self_serve FROM arc.editor_profiles WHERE user_id=$1`, [editorId]);
+    assert.equal(afterServe.rows[0].self_serve, true);
+
+    const refreshed = await request("GET", `/api/creators/${editorId}`);
+    assert.equal(refreshed.json.displayName, "Шинэ нэр");
+
+    const detail = await request("GET", `/api/manhuas/${published.slug}`);
+    assert.equal(detail.status, 200, detail.raw);
+    assert.equal(detail.json.credit.publisher.displayName, "Шинэ нэр");
+    assert.equal(detail.json.credit.publisher.href, `/creators/${editorId}`);
+    assert.equal(JSON.stringify(detail.json.chapters || []).includes("imageUrl"), false);
+    assert.equal(JSON.stringify(detail.json).includes("@pgitest.local"), false);
+
+    const teamId = hexId();
+    ids.teams.push(teamId);
+    await query(
+      `INSERT INTO arc.teams (id, name, description, created_by, extra, created_at, updated_at)
+       VALUES ($1,$2,'test',$3,'{"pgitest":true}'::jsonb, now(), now())`,
+      [teamId, `pgitest-team-${onboardStamp}`, editorId]
+    );
+    await query(`UPDATE arc.manhuas SET team_id=$1 WHERE id=$2`, [teamId, published.manhuaId]);
+    const redisCache = require("../../src/cache/redisCache");
+    await redisCache.del(`manhua:slug:${published.slug}`);
+    const withTeam = await request("GET", `/api/manhuas/${published.slug}`);
+    assert.equal(withTeam.json.credit.team.name, `pgitest-team-${onboardStamp}`);
+    assert.equal(withTeam.json.credit.team.href, null);
+
+    const missingCredit = await creditForManhua({
+      createdBy: "000000000000000000000000",
+      team: "111111111111111111111111",
+    });
+    assert.equal(missingCredit.publisher.displayName, "Үл мэдэгдэх");
+    assert.equal(missingCredit.publisher.href, null);
+    assert.equal(missingCredit.team, null);
+
+    const legacyPatch = await request("PATCH", "/api/user/creator-profile", {
+      headers: authHeaders(legacy.token, legacy.deviceId),
+      body: {
+        penName: "Legacy Pen",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм.",
+        skills: ["proofreading"],
+        languages: ["ko"],
+      },
+    });
+    assert.equal(legacyPatch.status, 200, legacyPatch.raw);
+    const legacyFlags = await query(`SELECT self_serve, terms_version FROM arc.editor_profiles WHERE user_id=$1`, [
+      String(legacy.user._id),
+    ]);
+    assert.equal(legacyFlags.rows[0].self_serve, false);
+    assert.equal(legacyFlags.rows[0].terms_version, "legacy-profile");
   });
 }

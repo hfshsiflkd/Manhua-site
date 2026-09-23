@@ -21,7 +21,10 @@ export interface Manhua {
   lastChapterNumber?: number | null;
   lastChapterId?: string | null;
   lastChapterAt?: string | null;
-  
+  credit?: {
+    publisher?: { id?: string | null; displayName: string; href?: string | null } | null;
+    team?: { id?: string; name: string; href?: string | null } | null;
+  };
 }
 
 export interface ChapterPage {

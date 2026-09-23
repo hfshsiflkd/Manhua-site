@@ -120,6 +120,29 @@ exports.fetchManhuaBySlug = async (slug) => {
     })
     .lean();
 
-  if (manhua) redisCache.set(cKey, manhua, 300).catch(() => {}); // 5 мин
+  if (!manhua) return null;
+
+  try {
+    const { isPostgres } = require("../store/driver");
+    if (isPostgres()) {
+      const { query } = require("../db/postgres");
+      const hidden = await query(
+        `SELECT 1 FROM arc.manhuas m
+         WHERE m.id=$1
+           AND coalesce(m.extra->>'quarantinePlaceholder','') = 'true'`,
+        [String(manhua._id)]
+      );
+      if (hidden.rowCount) return null;
+    }
+    const { creditForManhua } = require("./creatorProfileService");
+    manhua.credit = await creditForManhua(manhua);
+  } catch {
+    manhua.credit = {
+      publisher: { id: null, displayName: "Үл мэдэгдэх", href: null },
+      team: null,
+    };
+  }
+
+  redisCache.set(cKey, manhua, 300).catch(() => {}); // 5 мин
   return manhua;
 };

@@ -7,6 +7,7 @@ const PREFIXES = [
   "manhua:",          // services/manhuaService.js: manhua:list:*, manhua:slug:*
   "home-sections-",   // controllers/manhuaController.js
   "popular-today-",   // controllers/manhuaController.js
+  "creator:public:",  // services/creatorProfileService.js
 ];
 
 async function invalidatePublicManhuaCache() {

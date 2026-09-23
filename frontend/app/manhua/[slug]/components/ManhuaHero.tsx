@@ -32,6 +32,33 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
   hiatus:    { background: "oklch(0.82 0.16 85/.12)",  color: "var(--arc-amber)",      border: "1px solid oklch(0.82 0.16 85/.25)" },
 };
 
+function Credits({ manhua }: { manhua: Manhua }) {
+  const publisher = manhua.credit?.publisher;
+  const team = manhua.credit?.team;
+  if (!publisher && !team) return null;
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]" style={{ color: "var(--arc-muted)" }}>
+      {publisher ? (
+        <span>
+          Нийтэлсэн:{" "}
+          {publisher.href ? (
+            <Link href={publisher.href} className="font-semibold no-underline" style={{ color: "var(--arc-cyan)" }}>
+              {publisher.displayName}
+            </Link>
+          ) : (
+            <b style={{ color: "var(--arc-dim)" }}>{publisher.displayName}</b>
+          )}
+        </span>
+      ) : null}
+      {team ? (
+        <span>
+          Баг: <b style={{ color: "var(--arc-dim)" }}>{team.name}</b>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function HeartIcon({ filled }: { filled: boolean }) {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
@@ -184,6 +211,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
               {manhua.artist && <span>Уран зурагч: <b style={{ color: "var(--arc-dim)" }}>{manhua.artist}</b></span>}
             </div>
           )}
+          <Credits manhua={manhua} />
 
           {/* CTA */}
           <CTAButtons />
@@ -262,6 +290,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
                 {manhua.artist && <p style={{ color: "var(--arc-muted)" }}>Уран зурагч: <b style={{ color: "var(--arc-text)" }}>{manhua.artist}</b></p>}
               </div>
             )}
+            <Credits manhua={manhua} />
 
             <CTAButtons />
           </div>

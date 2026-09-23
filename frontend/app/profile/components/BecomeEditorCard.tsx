@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { getEditorOnboarding } from "@/lib/api";
+import { creatorPublicPath } from "@/lib/site";
 
 export function BecomeEditorCard() {
   const { user } = useAuth();
@@ -51,6 +52,15 @@ export function BecomeEditorCard() {
           >
             Editor удирдлага
           </Link>
+          {user._id ? (
+            <Link
+              href={creatorPublicPath(user._id)}
+              className="rounded-[9px] px-4 py-2 text-[12px] font-semibold no-underline"
+              style={{ border: "1px solid var(--arc-border)", color: "var(--arc-text)" }}
+            >
+              Миний public профайл
+            </Link>
+          ) : null}
         </div>
       </section>
     );
@@ -75,6 +85,15 @@ export function BecomeEditorCard() {
         >
           Editor удирдлага
         </Link>
+        {user._id ? (
+          <Link
+            href={creatorPublicPath(user._id)}
+            className="ml-2 inline-flex rounded-[9px] px-4 py-2 text-[12px] font-semibold no-underline"
+            style={{ border: "1px solid var(--arc-border)", color: "var(--arc-text)" }}
+          >
+            Миний public профайл
+          </Link>
+        ) : null}
       </section>
     );
   }
@@ -106,6 +125,15 @@ export function BecomeEditorCard() {
           >
             Манхва нэмэх
           </Link>
+          {user._id ? (
+            <Link
+              href={creatorPublicPath(user._id)}
+              className="rounded-[9px] px-4 py-2 text-[12px] font-semibold no-underline"
+              style={{ border: "1px solid var(--arc-border)", color: "var(--arc-text)" }}
+            >
+              Миний public профайл
+            </Link>
+          ) : null}
         </div>
       </section>
     );

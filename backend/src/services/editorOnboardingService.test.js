@@ -5,7 +5,9 @@ const assert = require("node:assert/strict");
 const {
   FieldError,
   pickOnboarding,
+  pickProfileUpdate,
   validateAndNormalize,
+  validateProfileUpdate,
 } = require("./editorOnboardingService");
 
 const valid = {
@@ -37,6 +39,24 @@ test("validateAndNormalize accepts a complete onboarding payload", () => {
   assert.equal(out.penName, "Arc Pen");
   assert.deepEqual(out.skills, ["translation", "cleanup"]);
   assert.equal(out.experience, "beginner");
+});
+
+test("validateProfileUpdate does not require terms and ignores privilege fields", () => {
+  const picked = pickProfileUpdate({
+    penName: valid.penName,
+    bio: valid.bio,
+    skills: valid.skills,
+    languages: valid.languages,
+    acceptTerms: true,
+    role: "admin",
+    self_serve: true,
+    userId: "hack",
+  });
+  assert.equal(picked.role, undefined);
+  assert.equal(picked.acceptTerms, undefined);
+  const out = validateProfileUpdate(picked);
+  assert.equal(out.penName, "Arc Pen");
+  assert.equal(out.experience, null);
 });
 
 test("validateAndNormalize returns Mongolian field errors", () => {

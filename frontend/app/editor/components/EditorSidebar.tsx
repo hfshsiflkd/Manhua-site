@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
+import { creatorPublicPath } from "@/lib/site";
 import { editorGetLeaderboard, LeaderboardRow } from "@/lib/editorLeaderboard";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 interface EditorSidebarProps {
   isOpen: boolean;
@@ -122,6 +123,9 @@ export default function EditorSidebar({ isOpen, onClose, pathname }: EditorSideb
   ];
   if (isAdmin || isEditor) {
     navItems.push({ href: "/editor/leaderboard", label: "Leaderboard", icon: "🏆" });
+  }
+  if (user?._id) {
+    navItems.push({ href: creatorPublicPath(user._id), label: "Миний public профайл", icon: "👤" });
   }
 
   const isActive = (href: string) => {

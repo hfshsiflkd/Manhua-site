@@ -176,6 +176,7 @@ CREATE INDEX IF NOT EXISTS manhuas_updated_idx ON arc.manhuas (updated_at DESC);
 CREATE INDEX IF NOT EXISTS manhuas_weekly_views_idx ON arc.manhuas (weekly_views DESC);
 CREATE INDEX IF NOT EXISTS manhuas_views_idx ON arc.manhuas (views DESC);
 CREATE INDEX IF NOT EXISTS manhuas_deleted_idx ON arc.manhuas (deleted_at);
+CREATE INDEX IF NOT EXISTS manhuas_created_by_updated_idx ON arc.manhuas (created_by, updated_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS manhuas_title_trgm_idx ON arc.manhuas USING gin (title gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS manhuas_title_en_trgm_idx ON arc.manhuas USING gin (title_en gin_trgm_ops);
 

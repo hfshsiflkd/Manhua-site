@@ -55,6 +55,81 @@ function normalizeLanguages(value, customLanguage) {
   return out;
 }
 
+function pickProfileUpdate(body) {
+  const src = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+  return {
+    penName: src.penName,
+    bio: src.bio,
+    skills: src.skills,
+    experience: src.experience,
+    languages: src.languages,
+    customLanguage: src.customLanguage,
+    portfolioUrl: src.portfolioUrl,
+  };
+}
+
+function validateProfileUpdate(raw, { requireExperience = false } = {}) {
+  const fields = {};
+  const penName = asString(raw.penName);
+  if (penName.length < 2 || penName.length > 40) {
+    fields.penName = "Нийтлэгчийн нэр 2–40 тэмдэгт байна.";
+  }
+  const bio = asString(raw.bio);
+  if (bio.length < 20 || bio.length > 500) {
+    fields.bio = "Танилцуулга 20–500 тэмдэгт байна.";
+  }
+  const skills = normalizeSkills(raw.skills);
+  if (!skills.length) {
+    fields.skills = "Хийж чаддаг ажлаа дор хаяж нэгийг сонгоно уу.";
+  }
+  let experience = asString(raw.experience);
+  if (requireExperience || experience) {
+    if (!EXPERIENCE.includes(experience)) {
+      fields.experience = "Туршлагаа сонгоно уу.";
+    }
+  } else {
+    experience = "";
+  }
+  let languages = [];
+  try {
+    languages = normalizeLanguages(raw.languages, raw.customLanguage);
+  } catch (err) {
+    if (err instanceof FieldError) Object.assign(fields, err.fields);
+    else throw err;
+  }
+  if (!languages.length) {
+    fields.languages = "Ажиллах хэлээ дор хаяж нэгийг сонгох эсвэл нэмнэ үү.";
+  }
+  let portfolioUrl = asString(raw.portfolioUrl);
+  if (portfolioUrl) {
+    if (portfolioUrl.length > 200) {
+      fields.portfolioUrl = "Холбоос хамгийн ихдээ 200 тэмдэгт байна.";
+    } else {
+      try {
+        const parsed = new URL(portfolioUrl);
+        if (parsed.protocol !== "https:") {
+          fields.portfolioUrl = "Зөвхөн HTTPS холбоос оруулна уу.";
+        } else {
+          portfolioUrl = parsed.toString();
+        }
+      } catch {
+        fields.portfolioUrl = "Зөв HTTPS холбоос оруулна уу.";
+      }
+    }
+  } else {
+    portfolioUrl = null;
+  }
+  if (Object.keys(fields).length) throw new FieldError(fields);
+  return {
+    penName,
+    bio,
+    skills,
+    experience: experience || null,
+    languages,
+    portfolioUrl,
+  };
+}
+
 function validateAndNormalize(raw) {
   const fields = {};
   const penName = asString(raw.penName);
@@ -271,7 +346,9 @@ async function becomeEditor({ user, body }) {
 module.exports = {
   FieldError,
   pickOnboarding,
+  pickProfileUpdate,
   validateAndNormalize,
+  validateProfileUpdate,
   becomeEditor,
   rowToProfile,
   assertEligible,

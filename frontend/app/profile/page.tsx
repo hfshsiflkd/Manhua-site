@@ -20,6 +20,7 @@ import { ContinueReading } from "./components/ContinueReading";
 import { LibraryTabs } from "./components/LibraryTabs";
 import { ProfileSettings } from "./components/ProfileSettings";
 import { BecomeEditorCard } from "./components/BecomeEditorCard";
+import { CreatorProfileForm } from "./components/CreatorProfileForm";
 import { VipPurchase } from "./components/VipPurchase";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -298,7 +299,14 @@ export default function ProfilePage() {
             />
           )}
 
-          {activeTab === "settings" && <ProfileSettings />}
+          {activeTab === "settings" && (
+            <div className="space-y-5">
+              {(me.role === "editor" || me.role === "admin" || me.role === "translator") && (
+                <CreatorProfileForm userId={me._id} />
+              )}
+              <ProfileSettings />
+            </div>
+          )}
         </div>
 
         {/* Sidebar — hidden on mobile */}

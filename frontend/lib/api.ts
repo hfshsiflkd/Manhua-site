@@ -46,7 +46,8 @@ api.interceptors.request.use((config) => {
     method === "get" &&
     (/^\/manhuas\/home\/sections(\/|$)/.test(url) ||
       /^\/manhuas(\/|$)/.test(url) ||
-      /^\/chapters(\/|$)/.test(url));
+      /^\/chapters(\/|$)/.test(url) ||
+      /^\/creators(\/|$)/.test(url));
 
   if (isPublicGetRequest && !hasToken) {
     // Ensure no credentials/authorization for cacheable public endpoints
@@ -411,6 +412,67 @@ export async function becomeEditor(payload: {
     };
     profile?: EditorOnboardingMeta["profile"];
   }>("/user/become-editor", payload);
+  return res.data;
+}
+
+export type PublicCreatorManhua = {
+  _id: string;
+  title: string;
+  titleEn?: string | null;
+  slug: string;
+  coverImage?: string | null;
+  status: string;
+  updatedAt?: string;
+  views?: number;
+  ratingAverage?: number;
+};
+
+export type PublicCreatorProfile = {
+  id: string;
+  displayName: string;
+  avatar?: string | null;
+  bio?: string | null;
+  skills: string[];
+  languages: string[];
+  portfolioUrl?: string | null;
+  publishedCount: number;
+  manhuas: PublicCreatorManhua[];
+  page: number;
+  limit: number;
+};
+
+export type OwnCreatorProfile = {
+  penName: string;
+  bio: string;
+  skills: string[];
+  experience?: string;
+  languages: string[];
+  portfolioUrl?: string | null;
+  hasProfile: boolean;
+  publicPath: string;
+  publicUrl: string;
+};
+
+export async function getPublicCreator(id: string, params?: { page?: number; limit?: number }) {
+  const res = await api.get<PublicCreatorProfile>(`/creators/${id}`, { params });
+  return res.data;
+}
+
+export async function getOwnCreatorProfile() {
+  const res = await api.get<OwnCreatorProfile>("/user/creator-profile");
+  return res.data;
+}
+
+export async function updateOwnCreatorProfile(payload: {
+  penName: string;
+  bio: string;
+  skills: string[];
+  languages: string[];
+  customLanguage?: string;
+  portfolioUrl?: string;
+  experience?: string;
+}) {
+  const res = await api.patch<{ success: boolean; profile: OwnCreatorProfile }>("/user/creator-profile", payload);
   return res.data;
 }
 
