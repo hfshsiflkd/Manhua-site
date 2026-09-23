@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
-import { readServerGate } from "@/lib/serverPageAccess";
+import { readServerGate, requestPathname } from "@/lib/serverPageAccess";
 import { pathAllowed } from "@/lib/pageAccess";
 import UnavailableScreen from "@/app/components/UnavailableScreen";
 import EditorLayout from "./components/EditorLayout";
@@ -14,9 +13,9 @@ export default async function EditorLayoutWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = (await headers()).get("x-arc-pathname") || "/editor";
+  const pathname = await requestPathname(null);
   const gate = await readServerGate();
   if (gate.status === "unavailable") return <UnavailableScreen />;
-  if (gate.status !== "allow" || !pathAllowed(pathname, gate.access.pages)) notFound();
+  if (!pathname || gate.status !== "allow" || !pathAllowed(pathname, gate.access.pages)) notFound();
   return <EditorLayout>{children}</EditorLayout>;
 }

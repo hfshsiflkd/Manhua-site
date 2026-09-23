@@ -52,6 +52,15 @@ export function pathAllowed(pathname: string, pages: PageFlags | null | undefine
   return true;
 }
 
+export function shouldReloadAfterBridge(opts: {
+  alreadyBridged: boolean;
+  pathname: string;
+  pages: PageFlags | null | undefined;
+}): boolean {
+  if (opts.alreadyBridged || !opts.pages) return false;
+  return isProtectedAppPath(opts.pathname) && pathAllowed(opts.pathname, opts.pages);
+}
+
 export type DocumentGate = "allow" | "notfound" | "unavailable";
 
 export function decideDocumentGate(opts: {

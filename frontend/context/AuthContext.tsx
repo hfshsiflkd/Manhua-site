@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
-import { isProtectedAppPath, pathAllowed, type PageFlags } from "@/lib/pageAccess";
+import { isProtectedAppPath, shouldReloadAfterBridge, type PageFlags } from "@/lib/pageAccess";
 
 interface User {
   _id: string;
@@ -104,13 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (typeof window !== "undefined" && bridged.ok && bridged.pages) {
+      const alreadyBridged = sessionStorage.getItem("arc_session_bridged") === "1";
+      sessionStorage.setItem("arc_session_bridged", "1");
       const path = window.location.pathname;
-      if (isProtectedAppPath(path) && pathAllowed(path, bridged.pages) && !sessionStorage.getItem("arc_session_reload")) {
-        sessionStorage.setItem("arc_session_reload", "1");
+      if (shouldReloadAfterBridge({ alreadyBridged, pathname: path, pages: bridged.pages })) {
         window.location.replace(path + window.location.search);
         return;
       }
-      sessionStorage.removeItem("arc_session_reload");
     }
   };
 
@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setReady(true);
       if (typeof window !== "undefined") {
-        sessionStorage.removeItem("arc_session_reload");
+        sessionStorage.removeItem("arc_session_bridged");
         if (isProtectedAppPath(window.location.pathname)) {
           window.location.replace("/");
         }

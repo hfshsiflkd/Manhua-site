@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decideDocumentGate, isProtectedAppPath, pathAllowed, EMPTY_PAGE_FLAGS } from "./pageAccess.ts";
+import {
+  decideDocumentGate,
+  isProtectedAppPath,
+  pathAllowed,
+  shouldReloadAfterBridge,
+  EMPTY_PAGE_FLAGS,
+} from "./pageAccess.ts";
 
 const adminPages = {
   ...EMPTY_PAGE_FLAGS,
@@ -22,6 +28,12 @@ const editorPages = {
 const teamOnlyPages = {
   ...EMPTY_PAGE_FLAGS,
   editor: true,
+};
+
+const translatorPages = {
+  ...EMPTY_PAGE_FLAGS,
+  editor: true,
+  editorCreateManhua: true,
 };
 
 test("protected path matcher covers nested admin and editor routes", () => {
@@ -55,6 +67,50 @@ test("role matrix for page flags", () => {
   assert.equal(pathAllowed("/editor/leaderboard", teamOnlyPages), false);
   assert.equal(pathAllowed("/editor/manhuas", teamOnlyPages), true);
   assert.equal(pathAllowed("/editor/teams/new", editorPages), true);
+  assert.equal(pathAllowed("/editor", translatorPages), true);
+  assert.equal(pathAllowed("/editor/manhuas", translatorPages), true);
+  assert.equal(pathAllowed("/editor/manhuas/new", translatorPages), true);
+  assert.equal(pathAllowed("/editor/manhuas/new?teamId=abc", translatorPages), true);
+  assert.equal(pathAllowed("/editor/teams/new", translatorPages), false);
+  assert.equal(pathAllowed("/editor/teams/new/", translatorPages), false);
+  assert.equal(pathAllowed("/editor/leaderboard", translatorPages), false);
+  assert.equal(pathAllowed("/editor/leaderboard", editorPages), true);
+  assert.equal(pathAllowed("/admin", translatorPages), false);
+  assert.equal(
+    decideDocumentGate({
+      pathname: "/editor/teams/new",
+      cookieValid: true,
+      fetchFailed: false,
+      access: {
+        ok: true,
+        role: "translator",
+        teamMember: true,
+        canPublishManhua: true,
+        canCreateTeam: false,
+        pages: translatorPages,
+      },
+    }),
+    "notfound"
+  );
+});
+
+test("legacy localStorage bridge reloads once only when the path is allowed", () => {
+  assert.equal(
+    shouldReloadAfterBridge({ alreadyBridged: false, pathname: "/editor/teams/new", pages: editorPages }),
+    true
+  );
+  assert.equal(
+    shouldReloadAfterBridge({ alreadyBridged: true, pathname: "/editor/teams/new", pages: editorPages }),
+    false
+  );
+  assert.equal(
+    shouldReloadAfterBridge({ alreadyBridged: false, pathname: "/editor/teams/new", pages: translatorPages }),
+    false
+  );
+  assert.equal(
+    shouldReloadAfterBridge({ alreadyBridged: false, pathname: "/login", pages: editorPages }),
+    false
+  );
 });
 
 test("forged or empty access never opens protected pages", () => {

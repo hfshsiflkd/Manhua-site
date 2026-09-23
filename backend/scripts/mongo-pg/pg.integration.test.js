@@ -2655,6 +2655,7 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
       headers: authHeaders(translator.token, translator.deviceId),
     });
     assert.equal(translatorAccess.json.pages.editor, true);
+    assert.equal(translatorAccess.json.pages.editorCreateManhua, true);
     assert.equal(translatorAccess.json.pages.editorCreateTeam, false);
     assert.equal(translatorAccess.json.pages.editorLeaderboard, false);
 

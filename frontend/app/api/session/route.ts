@@ -6,6 +6,7 @@ import {
   sealSession,
   sessionCookieOptions,
   sessionSecret,
+  requestIsHttps,
 } from "@/lib/sessionCookie";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     canPublishManhua: access.canPublishManhua,
     canCreateTeam: access.canCreateTeam,
   });
-  res.cookies.set(SESSION_COOKIE_NAME, sealed, sessionCookieOptions(process.env.NODE_ENV === "production"));
+  res.cookies.set(SESSION_COOKIE_NAME, sealed, sessionCookieOptions(requestIsHttps(req)));
   return res;
 }
 
@@ -53,8 +54,9 @@ export async function DELETE(req: Request) {
   if (!sameOriginRequest(req)) return json({ ok: false, code: "BAD_ORIGIN" }, 403);
   const res = json({ ok: true });
   res.cookies.set(SESSION_COOKIE_NAME, "", {
-    ...sessionCookieOptions(process.env.NODE_ENV === "production"),
+    ...sessionCookieOptions(requestIsHttps(req)),
     maxAge: 0,
+    expires: new Date(0),
   });
   return res;
 }

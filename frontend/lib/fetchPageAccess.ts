@@ -1,17 +1,25 @@
 import type { PageAccess } from "./pageAccess";
 
-function apiBase(): string {
-  return String(process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
+export function pageAccessUrl(rawBase: string): string | null {
+  const base = String(rawBase || "").trim().replace(/\/+$/, "");
+  if (!base) return null;
+  if (/\/auth\/page-access$/i.test(base)) return base;
+  if (/\/api$/i.test(base)) return `${base}/auth/page-access`;
+  return `${base}/api/auth/page-access`;
+}
+
+function apiBase(): string | null {
+  return pageAccessUrl(process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "");
 }
 
 export async function fetchPageAccess(
   token: string,
   deviceId: string
 ): Promise<{ access: PageAccess | null; failed: boolean }> {
-  const base = apiBase();
-  if (!base) return { access: null, failed: true };
+  const url = apiBase();
+  if (!url) return { access: null, failed: true };
   try {
-    const res = await fetch(`${base}/auth/page-access`, {
+    const res = await fetch(url, {
       method: "GET",
       headers: {
         authorization: `Bearer ${token}`,

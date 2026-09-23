@@ -1,8 +1,8 @@
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { unsealSession, SESSION_COOKIE_NAME, sessionSecret } from "./sessionCookie";
 import { fetchPageAccess } from "./fetchPageAccess";
-import type { PageAccess } from "./pageAccess";
+import type { PageAccess, PageFlags } from "./pageAccess";
 
 export type ServerGate =
   | { status: "allow"; access: PageAccess; token: string; deviceId: string }
@@ -20,3 +20,26 @@ export const readServerGate = cache(async (): Promise<ServerGate> => {
   if (!access) return { status: "notfound" };
   return { status: "allow", access, token: session.token, deviceId: session.deviceId };
 });
+
+export async function requestPathname(fallback: string | null = null): Promise<string | null> {
+  const h = await headers();
+  const fromProxy = h.get("x-arc-pathname");
+  if (fromProxy) return fromProxy;
+  const nextUrl = h.get("next-url");
+  if (nextUrl) {
+    try {
+      const url = nextUrl.startsWith("http") ? new URL(nextUrl) : new URL(nextUrl, "http://local.invalid");
+      return url.pathname;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+export async function requirePageFlag(flag: keyof PageFlags) {
+  const gate = await readServerGate();
+  if (gate.status === "unavailable") return { status: "unavailable" as const };
+  if (gate.status !== "allow" || !gate.access.pages[flag]) return { status: "notfound" as const };
+  return { status: "allow" as const, access: gate.access };
+}
