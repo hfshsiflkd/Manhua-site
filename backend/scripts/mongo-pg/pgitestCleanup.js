@@ -187,6 +187,29 @@ async function cleanupPgitest(query, { since } = {}) {
   `);
 
   await query(`
+    DELETE FROM arc.team_recruitment_applications
+    WHERE extra->>'pgitest' = 'true'
+       OR applicant_id IN (SELECT id FROM arc.users WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local')
+       OR team_id IN (SELECT id FROM arc.teams WHERE extra->>'pgitest' = 'true' OR name LIKE 'pgitest-%')
+       OR listing_id IN (
+         SELECT id FROM arc.team_recruitment_listings
+         WHERE extra->>'pgitest' = 'true'
+            OR created_by IN (SELECT id FROM arc.users WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local')
+            OR team_id IN (SELECT id FROM arc.teams WHERE extra->>'pgitest' = 'true' OR name LIKE 'pgitest-%')
+       )
+  `).catch((err) => {
+    if (!/does not exist|undefined_table/i.test(String(err.message || err))) throw err;
+  });
+  await query(`
+    DELETE FROM arc.team_recruitment_listings
+    WHERE extra->>'pgitest' = 'true'
+       OR created_by IN (SELECT id FROM arc.users WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local')
+       OR team_id IN (SELECT id FROM arc.teams WHERE extra->>'pgitest' = 'true' OR name LIKE 'pgitest-%')
+  `).catch((err) => {
+    if (!/does not exist|undefined_table/i.test(String(err.message || err))) throw err;
+  });
+
+  await query(`
     DELETE FROM arc.team_invites
     WHERE extra->>'pgitest' = 'true'
        OR team_id IN (SELECT id FROM arc.teams WHERE extra->>'pgitest' = 'true' OR name LIKE 'pgitest-%')

@@ -137,6 +137,22 @@ exports.requireRole =
     next();
   };
 
+exports.requireStaffOrTeamMember = async (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Нэвтэрсэн байх шаардлагатай" });
+    }
+    const { canAccessEditorWorkspace } = require("../services/teamAccessService");
+    const ok = await canAccessEditorWorkspace(req.user);
+    if (!ok) {
+      return res.status(403).json({ message: "Энэ үйлдэлд эрх хүрэхгүй байна" });
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // Call after login/password-change/role-change/ban so the next request re-fetches from DB.
 // IMPORTANT: returns a promise — `await` it before sending response so the cache is truly cleared.
 exports.invalidateUserCache = async (userId) => {

@@ -7,6 +7,8 @@ import type { Manhua, Chapter } from "@/types/manhua";
 import { useFavorites } from "@/lib/hooks/useFavorites";
 import { useBookmarks } from "@/lib/hooks/useBookmarks";
 import { useAuth } from "@/context/AuthContext";
+import { listRecruitment } from "@/lib/api";
+import { useEffect, useState } from "react";
 
 type ManhuaHeroProps = { manhua: Manhua; chapters: Chapter[] };
 
@@ -56,6 +58,26 @@ function Credits({ manhua }: { manhua: Manhua }) {
         </span>
       ) : null}
     </div>
+  );
+}
+
+function RecruitmentLink({ manhua }: { manhua: Manhua }) {
+  const [href, setHref] = useState<string | null>(null);
+  useEffect(() => {
+    const id = manhua._id;
+    if (!id) return;
+    listRecruitment({ manhuaId: id, limit: 1 })
+      .then((data) => {
+        const first = data.items?.[0];
+        if (first?.id) setHref(`/recruitment/${first.id}`);
+      })
+      .catch(() => {});
+  }, [manhua._id]);
+  if (!href) return null;
+  return (
+    <Link href={href} className="text-[12px] font-semibold no-underline" style={{ color: "var(--arc-cyan)" }}>
+      Энэ бүтээлийн багт нэгдэх
+    </Link>
   );
 }
 
@@ -212,6 +234,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
             </div>
           )}
           <Credits manhua={manhua} />
+          <RecruitmentLink manhua={manhua} />
 
           {/* CTA */}
           <CTAButtons />
@@ -291,6 +314,7 @@ export function ManhuaHero({ manhua, chapters }: ManhuaHeroProps) {
               </div>
             )}
             <Credits manhua={manhua} />
+            <RecruitmentLink manhua={manhua} />
 
             <CTAButtons />
           </div>

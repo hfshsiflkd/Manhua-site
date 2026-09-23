@@ -21,6 +21,7 @@ import { LibraryTabs } from "./components/LibraryTabs";
 import { ProfileSettings } from "./components/ProfileSettings";
 import { BecomeEditorCard } from "./components/BecomeEditorCard";
 import { CreatorProfileForm } from "./components/CreatorProfileForm";
+import { MyRecruitmentApplications } from "./components/MyRecruitmentApplications";
 import { VipPurchase } from "./components/VipPurchase";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -231,6 +232,7 @@ export default function ProfilePage() {
         {/* Main column */}
         <div className="space-y-5">
           <BecomeEditorCard />
+          <MyRecruitmentApplications />
 
           {/* Team invites */}
           {(loadingInvites || invites.length > 0) && (

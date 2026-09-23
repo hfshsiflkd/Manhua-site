@@ -463,6 +463,135 @@ export async function getOwnCreatorProfile() {
   return res.data;
 }
 
+export type WorkspaceAccess = {
+  role: string;
+  teamMember: boolean;
+  canPublishManhua: boolean;
+};
+
+export type RecruitmentWorkRole = "translation" | "cleanup" | "typesetting" | "proofreading";
+export type RecruitmentCompensation = "volunteer" | "paid" | "negotiable";
+export type RecruitmentListingStatus = "draft" | "open" | "closed";
+export type RecruitmentApplicationStatus = "pending" | "accepted" | "rejected" | "withdrawn";
+
+export type PublicRecruitmentListing = {
+  id: string;
+  title: string;
+  team: { id: string; name: string };
+  manhua: { id: string; title: string; slug: string; coverImage?: string | null } | null;
+  workRole: RecruitmentWorkRole;
+  compensation: RecruitmentCompensation;
+  compensationNote?: string | null;
+  compensationDisclaimer?: string;
+  description: string;
+  languages: string[];
+  skills: string[];
+  weeklyHoursNote?: string | null;
+  createdAt: string;
+  expiresAt: string;
+  accepting: boolean;
+  closed: boolean;
+  expired: boolean;
+  status?: RecruitmentListingStatus;
+  hidden?: boolean;
+  pendingCount?: number;
+};
+
+export type RecruitmentApplication = {
+  id: string;
+  listingId: string;
+  teamId: string;
+  teamName?: string;
+  listingTitle?: string;
+  status: RecruitmentApplicationStatus;
+  intro: string;
+  experience: "beginner" | "experienced";
+  weeklyHoursNote: string;
+  portfolioUrl?: string | null;
+  decisionNote?: string | null;
+  createdAt: string;
+  decidedAt?: string | null;
+  applicant?: { id: string; displayName: string; avatar?: string | null; publicPath: string };
+};
+
+export async function getWorkspaceAccess() {
+  const res = await api.get<WorkspaceAccess>("/user/workspace");
+  return res.data;
+}
+
+export async function listRecruitment(params?: {
+  page?: number;
+  limit?: number;
+  workRole?: string;
+  compensation?: string;
+  q?: string;
+  manhuaId?: string;
+}) {
+  const res = await api.get<{ items: PublicRecruitmentListing[]; page: number; limit: number; total: number }>(
+    "/recruitment",
+    { params }
+  );
+  return res.data;
+}
+
+export async function getRecruitmentListing(id: string) {
+  const res = await api.get<PublicRecruitmentListing>(`/recruitment/${id}`);
+  return res.data;
+}
+
+export async function createRecruitmentListing(payload: Record<string, unknown>) {
+  const res = await api.post<PublicRecruitmentListing>("/recruitment", payload);
+  return res.data;
+}
+
+export async function listTeamRecruitment(teamId: string) {
+  const res = await api.get<{ items: PublicRecruitmentListing[] }>(`/recruitment/teams/${teamId}/manage`);
+  return res.data;
+}
+
+export async function getManagedRecruitment(id: string) {
+  const res = await api.get<PublicRecruitmentListing>(`/recruitment/manage/${id}`);
+  return res.data;
+}
+
+export async function updateRecruitmentListing(id: string, payload: Record<string, unknown>) {
+  const res = await api.patch<PublicRecruitmentListing>(`/recruitment/manage/${id}`, payload);
+  return res.data;
+}
+
+export async function applyToRecruitment(id: string, payload: {
+  intro: string;
+  experience: "beginner" | "experienced";
+  weeklyHoursNote: string;
+  portfolioUrl?: string;
+  acceptJoin: boolean;
+}) {
+  const res = await api.post<RecruitmentApplication>(`/recruitment/${id}/applications`, payload);
+  return res.data;
+}
+
+export async function listMyRecruitmentApplications() {
+  const res = await api.get<{ items: RecruitmentApplication[] }>("/user/recruitment-applications");
+  return res.data;
+}
+
+export async function withdrawRecruitmentApplication(applicationId: string) {
+  const res = await api.post<{ ok: boolean; status: string }>(`/recruitment/applications/${applicationId}/withdraw`);
+  return res.data;
+}
+
+export async function listRecruitmentApplications(listingId: string, status?: string) {
+  const res = await api.get<{ items: RecruitmentApplication[] }>(`/recruitment/manage/${listingId}/applications`, {
+    params: status ? { status } : undefined,
+  });
+  return res.data;
+}
+
+export async function decideRecruitmentApplication(applicationId: string, payload: { action: "accept" | "reject"; decisionNote?: string }) {
+  const res = await api.post<{ ok: boolean; status: string }>(`/recruitment/applications/${applicationId}/decision`, payload);
+  return res.data;
+}
+
 export async function updateOwnCreatorProfile(payload: {
   penName: string;
   bio: string;

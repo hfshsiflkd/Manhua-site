@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { editorGetMyManhuas, editorUpdateManhua, Manhua } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import EmptyState from "../components/EmptyState";
 import { TableSkeleton } from "../components/LoadingSkeleton";
 
@@ -26,6 +27,8 @@ const prettyStatus = (status?: string) => {
 };
 
 export default function EditorManhuasPage() {
+  const { user } = useAuth();
+  const canPublish = user?.role === "admin" || user?.role === "editor" || user?.role === "translator" || user?.canPublishManhua;
   const [manhuas, setManhuas] = useState<Manhua[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +82,7 @@ export default function EditorManhuasPage() {
             Өөрийн нэмсэн манхуа-гаа жагсааж, статус, chapters болон public page-ээ удирдана.
           </p>
         </div>
+        {canPublish && (
         <Link
           href="/editor/manhuas/new"
           className="inline-flex items-center justify-center rounded-full px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80 whitespace-nowrap w-full sm:w-auto"
@@ -86,6 +90,7 @@ export default function EditorManhuasPage() {
         >
           + Манхва нэмэх
         </Link>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -123,7 +128,7 @@ export default function EditorManhuasPage() {
         <EmptyState
           title={searchQuery ? "Хайлтын үр дүн олдсонгүй" : "Одоогоор манхуа алга"}
           description={searchQuery ? "Өөр түлхүүр үгээр хайж үзнэ үү." : "Эхний манхуа-аа үүсгэж эхлээрэй."}
-          action={!searchQuery ? { label: "+ Эхний манхуа үүсгэх", href: "/editor/manhuas/new" } : undefined}
+          action={!searchQuery && canPublish ? { label: "+ Эхний манхуа үүсгэх", href: "/editor/manhuas/new" } : undefined}
           icon={searchQuery ? "🔍" : "📚"}
         />
       ) : (

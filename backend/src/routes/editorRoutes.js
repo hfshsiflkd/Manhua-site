@@ -2,8 +2,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { protect } = require("../middleware/authMiddleware");
-const { requireRole } = require("../middleware/authMiddleware");
+const { protect, requireRole, requireStaffOrTeamMember } = require("../middleware/authMiddleware");
 const {
   getMyManhuas,
   getSimilarManhuas,
@@ -39,52 +38,38 @@ const {
 // бүх editor route-ууд auth шаардлагатай
 router.use(protect);
 
+const staff = requireRole("admin", "editor", "translator");
+const publisher = requireRole("admin", "editor", "translator");
+const editorAdmin = requireRole("admin", "editor");
+
 // Leaderboard should be visible to editors + admins (NOT translators)
 router.get("/leaderboard", requireRole("admin", "editor"), getEditorLeaderboard);
 
-// The rest of the editor area can be used by admin/editor/translator
-router.use(requireRole("admin", "editor", "translator"));
+// Team members (site role=user) may work on accepted team manhua only.
+// Creating a personal manhua still requires editor/translator/admin.
+router.get("/manhuas/mine", requireStaffOrTeamMember, getMyManhuas);
+router.get("/manhuas/similar", staff, getSimilarManhuas);
+router.post("/manhuas", publisher, createManhua);
+router.patch("/manhuas/:id", requireStaffOrTeamMember, updateManhua);
+router.delete("/manhuas/:id", requireStaffOrTeamMember, deleteManhua);
+router.get("/manhuas/:slug/chapters", requireStaffOrTeamMember, editorListChaptersOfManhua);
+router.post("/manhuas/:slug/chapters", requireStaffOrTeamMember, editorCreateChapter);
+router.get("/chapters/:id", requireStaffOrTeamMember, editorGetChapterById);
+router.put("/chapters/:id", requireStaffOrTeamMember, editorUpdateChapter);
+router.delete("/chapters/:id", requireStaffOrTeamMember, editorDeleteChapter);
 
-// өөрийнхөө манхуа жагсаалт
-router.get("/manhuas/mine", getMyManhuas);
-router.get("/manhuas/similar", getSimilarManhuas);
-
-// шинэ манхуа үүсгэх
-router.post("/manhuas", createManhua);
-
-// манхуа update хийх
-router.patch("/manhuas/:id", updateManhua);
-
-// манхуа устгах (admin бүгдийг, editor өөрийнхийг)
-router.delete("/manhuas/:id", deleteManhua);
-
-// ✅ EDITOR: өөрийн manhua-ны chapter-ууд (LIST)
-router.get("/manhuas/:slug/chapters", editorListChaptersOfManhua);
-
-// ✅ EDITOR: шинэ chapter үүсгэх (CREATE)
-router.post("/manhuas/:slug/chapters", editorCreateChapter);
-
-// ✅ EDITOR: chapter one by id
-router.get("/chapters/:id", editorGetChapterById);
-router.put("/chapters/:id", editorUpdateChapter);
-router.delete("/chapters/:id", editorDeleteChapter);
-
-// ✅ EDITOR: teams
-router.use("/teams", requireRole("admin", "editor"));
-router.get("/teams", listTeams);
-router.post("/teams", createTeam);
-router.get("/teams/:id", getTeam);
-router.patch("/teams/:id", updateTeam);
-router.delete("/teams/:id", deleteTeam);
-router.post("/teams/:id/members", addTeamMember);
-router.patch("/teams/:id/members/:userId", updateMemberRole);
-router.delete("/teams/:id/members/:userId", removeMember);
-router.get("/teams/:id/invites", listTeamInvites);
-router.post("/teams/:id/invites/:inviteId/accept", acceptTeamInvite);
-router.post("/teams/:id/invites/:inviteId/decline", declineTeamInvite);
-router.get("/teams/:id/manhuas", listTeamManhuas);
-
-// ✅ EDITOR: my pending team invites
-router.get("/team-invites", listMyTeamInvites);
+router.get("/teams", requireStaffOrTeamMember, listTeams);
+router.post("/teams", editorAdmin, createTeam);
+router.get("/teams/:id", requireStaffOrTeamMember, getTeam);
+router.patch("/teams/:id", editorAdmin, updateTeam);
+router.delete("/teams/:id", editorAdmin, deleteTeam);
+router.post("/teams/:id/members", editorAdmin, addTeamMember);
+router.patch("/teams/:id/members/:userId", editorAdmin, updateMemberRole);
+router.delete("/teams/:id/members/:userId", editorAdmin, removeMember);
+router.get("/teams/:id/invites", editorAdmin, listTeamInvites);
+router.post("/teams/:id/invites/:inviteId/accept", editorAdmin, acceptTeamInvite);
+router.post("/teams/:id/invites/:inviteId/decline", editorAdmin, declineTeamInvite);
+router.get("/teams/:id/manhuas", requireStaffOrTeamMember, listTeamManhuas);
+router.get("/team-invites", requireStaffOrTeamMember, listMyTeamInvites);
 
 module.exports = router;

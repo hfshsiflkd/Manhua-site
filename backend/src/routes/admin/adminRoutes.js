@@ -80,4 +80,9 @@ router.put("/settings/vip", updateVipSettings);
 router.get("/settings/free-read", getFreeReadMode);
 router.post("/settings/free-read", setFreeReadMode);
 
+router.post(
+  "/recruitment/:id/hide",
+  require("../../controllers/teamRecruitmentController").hide
+);
+
 module.exports = router;

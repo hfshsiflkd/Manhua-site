@@ -214,6 +214,10 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
       query,
       path.join(__dirname, "../../../supabase/migrations/20260923140000_creator_public_indexes.sql")
     );
+    await applySqlFile(
+      query,
+      path.join(__dirname, "../../../supabase/migrations/20260923153000_team_recruitment.sql")
+    );
     await cleanupPgitest(query);
     snapshot = await migrationSnapshot(query);
     testStartedAt = new Date();
@@ -1608,5 +1612,225 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     ]);
     assert.equal(legacyFlags.rows[0].self_serve, false);
     assert.equal(legacyFlags.rows[0].terms_version, "legacy-profile");
+  });
+
+  test("team recruitment listings, applications, membership, freeze", async () => {
+    const admin = await makeStaff("admin", `pgitr_a_${stamp}`);
+    const editor = await makeStaff("editor", `pgitr_e_${stamp}`);
+    const teamRes = await request("POST", "/api/editor/teams", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { name: `pgitest-recruit-${stamp}` },
+    });
+    assert.equal(teamRes.status, 201, teamRes.raw);
+    const teamId = String(teamRes.json._id);
+    ids.teams.push(teamId);
+    await markPgitest("teams", teamId);
+
+    const outsiderListing = await request("POST", "/api/recruitment", {
+      headers: authHeaders(editor.token, editor.deviceId),
+      body: {
+        title: "Хүн хайж байна үү",
+        teamId,
+        workRole: "translation",
+        description: "Энэ бол хангалттай урт зарны тайлбар бөгөөд дор хаяж тавин тэмдэгт байна.",
+        languages: ["mn"],
+        compensation: "volunteer",
+        expiresInDays: 30,
+      },
+    });
+    assert.equal(outsiderListing.status, 403, outsiderListing.raw);
+
+    const listing = await request("POST", "/api/recruitment", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: {
+        title: "Орчуулагч хайж байна",
+        teamId,
+        workRole: "translation",
+        description: "Энэ бол хангалттай урт зарны тайлбар бөгөөд дор хаяж тавин тэмдэгт байна.",
+        languages: ["mn"],
+        compensation: "volunteer",
+        expiresInDays: 30,
+        status: "open",
+      },
+    });
+    assert.equal(listing.status, 201, listing.raw);
+    const listingId = listing.json.id;
+    assert.equal(listing.json.compensationDisclaimer.includes("баг"), true);
+    assert.equal(Object.prototype.hasOwnProperty.call(listing.json, "email"), false);
+
+    const publicList = await request("GET", "/api/recruitment?page=1&limit=12");
+    assert.equal(publicList.status, 200);
+    assert.ok(publicList.json.items.some((item) => item.id === listingId));
+    const leaked = JSON.stringify(publicList.json);
+    assert.equal(/@pgitest\.local|"email"|"deviceId"|"isVIP"/.test(leaked), false);
+
+    const applicant = await request("POST", "/api/auth/register", {
+      headers: { "x-device-id": `pgitest-dev-${stamp}-rec` },
+      body: {
+        username: `pgitr_u_${stamp}`,
+        email: `pgitr_u_${stamp}@pgitest.local`,
+        password,
+        deviceId: `pgitest-dev-${stamp}-rec`,
+      },
+    });
+    assert.equal(applicant.status, 200, applicant.raw);
+    const appToken = applicant.json.token;
+    const appUserId = applicant.json.user._id;
+    ids.users.push(String(appUserId));
+
+    const unauthApply = await request("POST", `/api/recruitment/${listingId}/applications`, {
+      body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "beginner", weeklyHoursNote: "10 цаг", acceptJoin: true },
+    });
+    assert.equal(unauthApply.status, 401);
+
+    const apply = await request("POST", `/api/recruitment/${listingId}/applications`, {
+      headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`),
+      body: {
+        intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.",
+        experience: "beginner",
+        weeklyHoursNote: "10 цаг",
+        acceptJoin: true,
+        email: "hidden@pgitest.local",
+        role: "admin",
+      },
+    });
+    assert.equal(apply.status, 201, apply.raw);
+    const applicationId = apply.json.id;
+    assert.equal(apply.json.status, "pending");
+    assert.equal(apply.json.email, undefined);
+
+    const dup = await Promise.all([
+      request("POST", `/api/recruitment/${listingId}/applications`, {
+        headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`),
+        body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "beginner", weeklyHoursNote: "10 цаг", acceptJoin: true },
+      }),
+      request("POST", `/api/recruitment/${listingId}/applications`, {
+        headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`),
+        body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "beginner", weeklyHoursNote: "10 цаг", acceptJoin: true },
+      }),
+    ]);
+    assert.ok(dup.every((r) => r.status === 409 || r.status === 400));
+
+    const editorApply = await request("POST", `/api/recruitment/${listingId}/applications`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "experienced", weeklyHoursNote: "5 цаг", acceptJoin: true },
+    });
+    assert.equal(editorApply.status, 400);
+
+    const wsBefore = await request("GET", "/api/user/workspace", { headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`) });
+    assert.equal(wsBefore.json.teamMember, false);
+    assert.equal(wsBefore.json.canPublishManhua, false);
+
+    const mineDenied = await request("GET", "/api/editor/manhuas/mine", { headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`) });
+    assert.equal(mineDenied.status, 403);
+
+    const rejectOther = await request("POST", `/api/recruitment/applications/${applicationId}/decision`, {
+      headers: authHeaders(editor.token, editor.deviceId),
+      body: { action: "reject", decisionNote: "Багтаа тохирохгүй" },
+    });
+    assert.equal(rejectOther.status, 403);
+
+    const acceptA = request("POST", `/api/recruitment/applications/${applicationId}/decision`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { action: "accept" },
+    });
+    const acceptB = request("POST", `/api/recruitment/applications/${applicationId}/decision`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { action: "reject", decisionNote: "Давхар оролдлого" },
+    });
+    const concurrent = await Promise.all([acceptA, acceptB]);
+    const accepted = concurrent.filter((r) => r.status === 200 && r.json.status === "accepted");
+    const conflicted = concurrent.filter((r) => r.status === 409 || (r.status === 200 && r.json.status === "rejected") || r.status >= 400);
+    assert.equal(accepted.length, 1, JSON.stringify(concurrent.map((r) => ({ status: r.status, json: r.json }))));
+    assert.equal(conflicted.length, 1);
+
+    const members = await query(`SELECT role FROM arc.team_members WHERE team_id=$1 AND user_id=$2`, [teamId, String(appUserId)]);
+    assert.equal(members.rowCount, 1);
+    assert.equal(members.rows[0].role, "editor");
+    const roleRow = await query(`SELECT role FROM arc.users WHERE id=$1`, [String(appUserId)]);
+    assert.equal(roleRow.rows[0].role, "user");
+
+    const wsAfter = await request("GET", "/api/user/workspace", { headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`) });
+    assert.equal(wsAfter.json.teamMember, true);
+    assert.equal(wsAfter.json.canPublishManhua, false);
+
+    const mineOk = await request("GET", "/api/editor/manhuas/mine", { headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`) });
+    assert.equal(mineOk.status, 200, mineOk.raw);
+
+    const createDenied = await request("POST", "/api/editor/manhuas", {
+      headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`),
+      body: { title: "quota bypass" },
+    });
+    assert.ok([401, 403].includes(createDenied.status));
+
+    const myApps = await request("GET", "/api/user/recruitment-applications", { headers: authHeaders(appToken, `pgitest-dev-${stamp}-rec`) });
+    assert.equal(myApps.status, 200);
+    assert.equal(myApps.json.items[0].status, "accepted");
+    assert.equal(myApps.json.items[0].email, undefined);
+
+    const closed = await request("PATCH", `/api/recruitment/manage/${listingId}`, {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: { status: "closed" },
+    });
+    assert.equal(closed.status, 200, closed.raw);
+    const publicClosed = await request("GET", `/api/recruitment/${listingId}`);
+    assert.equal(publicClosed.json.closed, true);
+    assert.equal(publicClosed.json.accepting, false);
+
+    const applicant2 = await makeStaff("user", `pgitr_w_${stamp}`);
+    const listing2 = await request("POST", "/api/recruitment", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: {
+        title: "Цэвэрлэгч хайж байна",
+        teamId,
+        workRole: "cleanup",
+        description: "Энэ бол хангалттай урт зарны тайлбар бөгөөд дор хаяж тавин тэмдэгт байна.",
+        languages: ["mn"],
+        compensation: "negotiable",
+        compensationNote: "Цалин тохиролцоно",
+        expiresInDays: 30,
+      },
+    });
+    assert.equal(listing2.status, 201, listing2.raw);
+    const apply2 = await request("POST", `/api/recruitment/${listing2.json.id}/applications`, {
+      headers: authHeaders(applicant2.token, applicant2.deviceId),
+      body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "experienced", weeklyHoursNote: "8 цаг", acceptJoin: true },
+    });
+    assert.equal(apply2.status, 201, apply2.raw);
+    const withdraw = await request("POST", `/api/recruitment/applications/${apply2.json.id}/withdraw`, {
+      headers: authHeaders(applicant2.token, applicant2.deviceId),
+    });
+    assert.equal(withdraw.status, 200, withdraw.raw);
+    const reapply = await request("POST", `/api/recruitment/${listing2.json.id}/applications`, {
+      headers: authHeaders(applicant2.token, applicant2.deviceId),
+      body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "experienced", weeklyHoursNote: "8 цаг", acceptJoin: true },
+    });
+    assert.equal(reapply.status, 409);
+
+    await query(`UPDATE arc.team_recruitment_listings SET expires_at=now() - interval '1 hour' WHERE id=$1`, [listing2.json.id]);
+    const applicant3 = await makeStaff("user", `pgitr_x_${stamp}`);
+    const expiredApply = await request("POST", `/api/recruitment/${listing2.json.id}/applications`, {
+      headers: authHeaders(applicant3.token, applicant3.deviceId),
+      body: { intro: "Би нэгдэх хүсэлтэй учир энэ танилцуулгыг бичиж байна.", experience: "beginner", weeklyHoursNote: "4 цаг", acceptJoin: true },
+    });
+    assert.ok([400, 404].includes(expiredApply.status));
+
+    const prevFreeze = process.env.API_READ_ONLY;
+    process.env.API_READ_ONLY = "true";
+    const frozen = await request("POST", "/api/recruitment", {
+      headers: authHeaders(admin.token, admin.deviceId),
+      body: {
+        title: "Freeze зар нэр энд",
+        teamId,
+        workRole: "proofreading",
+        description: "Энэ бол хангалттай урт зарны тайлбар бөгөөд дор хаяж тавин тэмдэгт байна.",
+        languages: ["mn"],
+        compensation: "volunteer",
+      },
+    });
+    if (prevFreeze == null) delete process.env.API_READ_ONLY;
+    else process.env.API_READ_ONLY = prevFreeze;
+    assert.equal(frozen.status, 503, frozen.raw);
+    assert.equal(frozen.json.code, "READ_ONLY");
   });
 }

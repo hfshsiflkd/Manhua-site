@@ -11,6 +11,8 @@ interface User {
   vipExpiresAt?: string | null;
   avatar?: string | null;
   role?: string;
+  teamMember?: boolean;
+  canPublishManhua?: boolean;
 }
 
 interface AuthContextType {
@@ -72,7 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await api.get("/auth/me");
       const userData = res.data?.user || res.data;
-      setUser(userData);
+      try {
+        const ws = await api.get("/user/workspace");
+        setUser({
+          ...userData,
+          teamMember: Boolean(ws.data?.teamMember),
+          canPublishManhua: Boolean(ws.data?.canPublishManhua),
+        });
+      } catch {
+        setUser(userData);
+      }
     } catch (err: any) {
       if (err?.response?.status === 401 || err?.response?.status === 403) {
         localStorage.removeItem("token");
@@ -116,9 +127,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (preview) setUser(preview);
     api
       .get("/auth/me")
-      .then((res) => {
+      .then(async (res) => {
         const userData = res.data?.user || res.data;
-        setUser(userData);
+        try {
+          const ws = await api.get("/user/workspace");
+          setUser({
+            ...userData,
+            teamMember: Boolean(ws.data?.teamMember),
+            canPublishManhua: Boolean(ws.data?.canPublishManhua),
+          });
+        } catch {
+          setUser(userData);
+        }
       })
       .catch((err: any) => {
         if (err?.response?.status === 401 || err?.response?.status === 403) {

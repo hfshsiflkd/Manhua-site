@@ -93,6 +93,7 @@ export default function Header() {
           <Link href="/manhuas" prefetch={false} className={navLinkClass("/manhuas")}>Жагсаалт</Link>
           <Link href="/leaderboard" prefetch={false} className={navLinkClass("/leaderboard")}>Leaderboard</Link>
           <Link href="/requests" prefetch={false} className={navLinkClass("/requests")}>Хүсэлт</Link>
+          <Link href="/recruitment" prefetch={false} className={navLinkClass("/recruitment")}>Багт нэгдэх</Link>
           <Link href="/profile" prefetch={false} className={navLinkClass("/profile")}>Профайл</Link>
 
           {user && isAdmin && (
@@ -102,7 +103,7 @@ export default function Header() {
               Admin
             </Link>
           )}
-          {user && isEditor && (
+          {user && (isEditor || user.teamMember) && (
             <Link href="/editor/manhuas" prefetch={false}
               className="ml-1 rounded-full px-3 py-1.5 text-[12px] font-semibold"
               style={{ background: "linear-gradient(135deg,oklch(0.72 0.85 160),oklch(0.72 0.17 195))", color: "#07070e" }}>
@@ -215,6 +216,7 @@ export default function Header() {
               { href: "/manhuas", label: "Жагсаалт" },
               { href: "/leaderboard", label: "Leaderboard" },
               { href: "/requests", label: "Хүсэлт" },
+              { href: "/recruitment", label: "Багт нэгдэх" },
               { href: "/profile", label: "Профайл" },
             ].map(({ href, label }) => (
               <Link key={href} href={href} prefetch={false}
@@ -232,7 +234,7 @@ export default function Header() {
                 Admin
               </Link>
             )}
-            {user && isEditor && (
+            {user && (isEditor || user.teamMember) && (
               <Link href="/editor/manhuas" prefetch={false}
                 className="mt-1 rounded-full px-3 py-2 text-[12px] font-semibold text-center"
                 style={{ background: "linear-gradient(135deg,oklch(0.72 0.85 160),oklch(0.72 0.17 195))", color: "#07070e" }}

@@ -11,6 +11,18 @@ const {
 } = require("../utils/imagePolicy");
 const { extensionFor, processImage } = require("../utils/image");
 
+async function assertUploadPermission(user, purpose) {
+  try {
+    assertRole(user, purpose);
+  } catch (err) {
+    if (err instanceof ImagePolicyError && err.statusCode === 403) {
+      const { hasTeamMembership } = require("./teamAccessService");
+      if (await hasTeamMembership(user._id || user.id)) return;
+    }
+    throw err;
+  }
+}
+
 function requireR2Env() {
   if (
     !process.env.R2_ACCOUNT_ID ||
@@ -107,7 +119,7 @@ function createImageUploadService(deps = {}) {
   }
 
   async function presign({ user, purpose, contentType, contentLength, fileName }) {
-    assertRole(user, purpose);
+    await assertUploadPermission(user, purpose);
     const size = Number(contentLength);
     assertDeclaredUpload({
       purpose,
@@ -189,7 +201,7 @@ function createImageUploadService(deps = {}) {
   async function finalize({ user, token }) {
     const payload = readUploadToken(token);
     assertTokenOwner(payload, user);
-    assertRole(user, payload.purpose);
+    await assertUploadPermission(user, payload.purpose);
     const policy = getPurpose(payload.purpose);
     const store = storageOrDefault();
     const releaseQuota = async () => {

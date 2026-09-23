@@ -20,6 +20,7 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
   const roleNorm = (roleRaw || "").toLowerCase().trim();
   const isAdmin = roleNorm === "admin";
   const isEditor = roleNorm === "editor" || roleNorm === "translator";
+  const canEnter = isAdmin || isEditor || Boolean(user?.teamMember);
 
   if (!ready) {
     return (
@@ -31,7 +32,7 @@ export default function EditorLayout({ children }: EditorLayoutProps) {
     );
   }
 
-  if (!user || (!isEditor && !isAdmin)) {
+  if (!user || !canEnter) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--arc-bg)" }}>
         <div className="text-center">

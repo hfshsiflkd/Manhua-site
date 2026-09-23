@@ -397,6 +397,18 @@ exports.acceptTeamInvite = async (req, res, next) => {
 
     invalidateUserManhuaCache(req.user._id);
 
+    const { isPostgres } = require("../store/driver");
+    if (isPostgres()) {
+      const { query } = require("../db/postgres");
+      const teamId = String(invite.team?._id || invite.team);
+      await query(
+        `UPDATE arc.team_recruitment_applications
+         SET status='accepted', decided_at=now(), updated_at=now()
+         WHERE team_id=$1 AND applicant_id=$2 AND status='pending'`,
+        [teamId, String(invite.invitedUser)]
+      );
+    }
+
     res.json({ message: "Хүсэлт зөвшөөрөгдлөө" });
   } catch (err) {
     next(err);

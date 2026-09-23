@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   editorAddTeamMember, editorDeleteTeam, editorGetTeam, editorGetTeamManhuas,
   editorGetTeamInvites, editorRemoveTeamMember, editorUpdateTeam, editorUpdateTeamMember,
@@ -146,6 +147,11 @@ export default function EditorTeamDetailPage() {
       <div className="rounded-[14px] p-5 sm:p-6" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>
         <h1 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: "var(--arc-text)" }}>{team.name}</h1>
         <p className="text-xs sm:text-sm" style={{ color: "var(--arc-muted)" }}>Багийн мэдээлэл болон гишүүдийн тохиргоо</p>
+        {canManage && (
+          <Link href={`/editor/teams/${team._id}/recruitment`} className="inline-flex mt-3 rounded-[8px] px-3 py-1.5 text-[12px] font-semibold no-underline" style={{ border: "1px solid var(--arc-border)", color: "var(--arc-text)" }}>
+            Хүн хайх зарууд
+          </Link>
+        )}
       </div>
 
       {error && (
