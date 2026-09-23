@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
-import { isProtectedAppPath, shouldReloadAfterBridge, type PageFlags } from "@/lib/pageAccess";
+import { isProtectedAppPath, sessionBridgeMarker, shouldReloadAfterBridge, type PageFlags } from "@/lib/pageAccess";
 
 interface User {
   _id: string;
@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!bridged.ok && !bridged.unavailable) {
       localStorage.removeItem("token");
       await clearSessionCookie();
+      if (typeof window !== "undefined") sessionStorage.removeItem("arc_session_bridged");
       setUser(null);
       return;
     }
@@ -98,14 +99,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (status === 401 || status === 403 || status === 423) {
         localStorage.removeItem("token");
         await clearSessionCookie();
+        if (typeof window !== "undefined") sessionStorage.removeItem("arc_session_bridged");
         setUser(null);
         return;
       }
     }
 
     if (typeof window !== "undefined" && bridged.ok && bridged.pages) {
-      const alreadyBridged = sessionStorage.getItem("arc_session_bridged") === "1";
-      sessionStorage.setItem("arc_session_bridged", "1");
+      const marker = sessionBridgeMarker(token);
+      const alreadyBridged = sessionStorage.getItem("arc_session_bridged") === marker;
+      sessionStorage.setItem("arc_session_bridged", marker);
       const path = window.location.pathname;
       if (shouldReloadAfterBridge({ alreadyBridged, pathname: path, pages: bridged.pages })) {
         window.location.replace(path + window.location.search);

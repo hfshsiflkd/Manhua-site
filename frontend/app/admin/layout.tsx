@@ -15,6 +15,11 @@ export default async function AdminLayout({
   const pathname = await requestPathname(null);
   const gate = await readServerGate();
   if (gate.status === "unavailable") return <UnavailableScreen />;
-  if (!pathname || gate.status !== "allow" || !pathAllowed(pathname, gate.access.pages)) notFound();
+  if (gate.status !== "allow") notFound();
+  if (pathname) {
+    if (!pathAllowed(pathname, gate.access.pages)) notFound();
+  } else if (!gate.access.pages.admin) {
+    notFound();
+  }
   return <AdminChrome>{children}</AdminChrome>;
 }

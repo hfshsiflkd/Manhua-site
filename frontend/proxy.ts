@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, sessionSecret, unsealSession } from "@/lib/sessionCookie";
 import { fetchPageAccess } from "@/lib/fetchPageAccess";
 import { decideDocumentGate, isProtectedAppPath } from "@/lib/pageAccess";
+import { trustedProxyHeaders } from "@/lib/proxyHeaders";
 
 const UNAVAILABLE_HTML = `<!doctype html>
 <html lang="mn">
@@ -68,11 +69,9 @@ export async function proxy(req: NextRequest) {
   if (decision === "unavailable") return unavailable();
   if (decision === "notfound") return deny(req);
 
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-arc-pathname", pathname);
   return withNoStore(
     NextResponse.next({
-      request: { headers: requestHeaders },
+      request: { headers: trustedProxyHeaders(req.headers, pathname) },
     })
   );
 }

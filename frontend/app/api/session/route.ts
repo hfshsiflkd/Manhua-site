@@ -5,6 +5,7 @@ import {
   SESSION_COOKIE_NAME,
   sealSession,
   sessionCookieOptions,
+  sessionMaxAgeSec,
   sessionSecret,
   requestIsHttps,
 } from "@/lib/sessionCookie";
@@ -35,6 +36,9 @@ export async function POST(req: Request) {
   if (failed) return json({ ok: false, code: "SESSION_UNAVAILABLE" }, 503);
   if (!access) return json({ ok: false, code: "INVALID_SESSION" }, 401);
 
+  const maxAge = sessionMaxAgeSec(token);
+  if (maxAge <= 0) return json({ ok: false, code: "INVALID_SESSION" }, 401);
+
   const sealed = await sealSession({ token, deviceId });
   if (!sealed) return json({ ok: false, code: "SESSION_UNAVAILABLE" }, 503);
 
@@ -46,7 +50,7 @@ export async function POST(req: Request) {
     canPublishManhua: access.canPublishManhua,
     canCreateTeam: access.canCreateTeam,
   });
-  res.cookies.set(SESSION_COOKIE_NAME, sealed, sessionCookieOptions(requestIsHttps(req)));
+  res.cookies.set(SESSION_COOKIE_NAME, sealed, sessionCookieOptions(requestIsHttps(req), maxAge));
   return res;
 }
 

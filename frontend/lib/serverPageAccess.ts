@@ -25,15 +25,6 @@ export async function requestPathname(fallback: string | null = null): Promise<s
   const h = await headers();
   const fromProxy = h.get("x-arc-pathname");
   if (fromProxy) return fromProxy;
-  const nextUrl = h.get("next-url");
-  if (nextUrl) {
-    try {
-      const url = nextUrl.startsWith("http") ? new URL(nextUrl) : new URL(nextUrl, "http://local.invalid");
-      return url.pathname;
-    } catch {
-      return fallback;
-    }
-  }
   return fallback;
 }
 

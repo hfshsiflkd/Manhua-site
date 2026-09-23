@@ -52,6 +52,10 @@ export function pathAllowed(pathname: string, pages: PageFlags | null | undefine
   return true;
 }
 
+export function sessionBridgeMarker(token: string): string {
+  return `v1:${String(token || "").slice(-24)}`;
+}
+
 export function shouldReloadAfterBridge(opts: {
   alreadyBridged: boolean;
   pathname: string;

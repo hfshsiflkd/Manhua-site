@@ -39,6 +39,24 @@ function b64urlDecode(text: string): string {
   return new TextDecoder().decode(b64urlDecodeBytes(text));
 }
 
+export function jwtRemainingTtlSec(token: string, nowMs = Date.now()): number | null {
+  const parts = String(token || "").split(".");
+  if (parts.length < 2) return null;
+  try {
+    const payload = JSON.parse(b64urlDecode(parts[1])) as { exp?: unknown };
+    if (typeof payload.exp !== "number" || !Number.isFinite(payload.exp)) return null;
+    return Math.floor(payload.exp - nowMs / 1000);
+  } catch {
+    return null;
+  }
+}
+
+export function sessionMaxAgeSec(token: string, nowMs = Date.now()): number {
+  const remaining = jwtRemainingTtlSec(token, nowMs);
+  if (remaining == null) return SESSION_MAX_AGE_SEC;
+  return Math.max(0, Math.min(SESSION_MAX_AGE_SEC, remaining));
+}
+
 async function hmacHex(secret: string, data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -134,13 +152,14 @@ export function requestIsHttps(req: Request): boolean {
   }
 }
 
-export function sessionCookieOptions(secure: boolean) {
+export function sessionCookieOptions(secure: boolean, maxAgeSec = SESSION_MAX_AGE_SEC) {
+  const maxAge = Math.max(0, Math.min(SESSION_MAX_AGE_SEC, Math.floor(maxAgeSec)));
   return {
     httpOnly: true,
     secure,
     sameSite: "lax" as const,
     path: "/",
-    maxAge: SESSION_MAX_AGE_SEC,
-    expires: new Date(Date.now() + SESSION_MAX_AGE_SEC * 1000),
+    maxAge,
+    expires: new Date(Date.now() + maxAge * 1000),
   };
 }

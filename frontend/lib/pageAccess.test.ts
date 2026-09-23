@@ -5,6 +5,7 @@ import {
   isProtectedAppPath,
   pathAllowed,
   shouldReloadAfterBridge,
+  sessionBridgeMarker,
   EMPTY_PAGE_FLAGS,
 } from "./pageAccess.ts";
 
@@ -110,6 +111,17 @@ test("legacy localStorage bridge reloads once only when the path is allowed", ()
   assert.equal(
     shouldReloadAfterBridge({ alreadyBridged: false, pathname: "/login", pages: editorPages }),
     false
+  );
+  const oldToken = "aaaaaaaaaaaaaaaaaaaaaaaaOLD";
+  const newToken = "bbbbbbbbbbbbbbbbbbbbbbbbNEW";
+  assert.notEqual(sessionBridgeMarker(oldToken), sessionBridgeMarker(newToken));
+  assert.equal(
+    shouldReloadAfterBridge({
+      alreadyBridged: sessionBridgeMarker(newToken) === sessionBridgeMarker(oldToken),
+      pathname: "/editor",
+      pages: editorPages,
+    }),
+    true
   );
 });
 

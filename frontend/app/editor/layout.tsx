@@ -16,6 +16,11 @@ export default async function EditorLayoutWrapper({
   const pathname = await requestPathname(null);
   const gate = await readServerGate();
   if (gate.status === "unavailable") return <UnavailableScreen />;
-  if (!pathname || gate.status !== "allow" || !pathAllowed(pathname, gate.access.pages)) notFound();
+  if (gate.status !== "allow") notFound();
+  if (pathname) {
+    if (!pathAllowed(pathname, gate.access.pages)) notFound();
+  } else if (!gate.access.pages.editor) {
+    notFound();
+  }
   return <EditorLayout>{children}</EditorLayout>;
 }
