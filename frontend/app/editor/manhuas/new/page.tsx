@@ -3,7 +3,7 @@
 
 import { useState, FormEvent, ChangeEvent, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { uploadImage, editorCreateManhua, editorGetTeams, Team } from "@/lib/api";
+import { uploadImage, editorCreateManhua, editorGetTeams, editorGetSimilarManhuas, Team } from "@/lib/api";
 import { UploadPolicyNote } from "@/components/UploadPolicyNote";
 import { IMAGE_FILE_ACCEPT, validateImageFile } from "@/lib/imageLimits";
 
@@ -25,6 +25,11 @@ export default function EditorNewManhuaPage() {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<Array<{ _id: string; title: string; slug: string }>>([]);
+  const idempotencyKeyRef = useMemo(
+    () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `manhua-${Date.now()}`),
+    []
+  );
 
   const fieldStyle: React.CSSProperties = { border: "1px solid var(--arc-border)", background: "var(--arc-elevated)", color: "var(--arc-text)", borderRadius: 9, padding: "10px 16px", fontSize: 13, outline: "none", width: "100%" };
 
@@ -34,6 +39,20 @@ export default function EditorNewManhuaPage() {
   }, [title, titleEn]);
 
   const effectiveSlug = slug || autoSlug;
+
+  useEffect(() => {
+    const q = title.trim();
+    if (q.length < 2) {
+      setSimilar([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      editorGetSimilarManhuas(q)
+        .then((items) => setSimilar(items.slice(0, 5)))
+        .catch(() => setSimilar([]));
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [title]);
 
   useEffect(() => {
     let active = true;
@@ -79,10 +98,11 @@ export default function EditorNewManhuaPage() {
         title: title.trim(), titleEn: titleEn.trim() || undefined, description: description.trim() || undefined,
         status, slug: effectiveSlug || undefined, genres: selectedGenres,
         coverImage: coverImageUrl, coverImageUrl, teamId: teamId || undefined,
+        idempotencyKey: idempotencyKeyRef,
       });
       router.push(`/editor/manhuas/${manhua.slug || manhua._id}`);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Манхуа үүсгэх үед алдаа гарлаа");
+      setError(err?.response?.data?.message || err?.message || "Манхуа үүсгэх үед алдаа гарлаа");
     } finally { setSaving(false); }
   };
 
@@ -107,6 +127,16 @@ export default function EditorNewManhuaPage() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium" style={{ color: "var(--arc-dim)" }}>Title <span style={{ color: "oklch(0.75 0.2 15)" }}>*</span></label>
                 <input type="text" style={fieldStyle} placeholder="Жишээ: Solo Leveling" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                {similar.length > 0 && (
+                  <div className="rounded-[9px] px-3 py-2 text-[12px]" style={{ border: "1px solid oklch(0.82 0.16 85/.35)", background: "oklch(0.82 0.16 85/.08)", color: "var(--arc-amber)" }}>
+                    Ижил төстэй нэртэй бүтээл байна. Давхардал үүсгэхгүйгээр шалгана уу. Өөр орчуулга хориглогдохгүй.
+                    <ul className="mt-1 space-y-0.5" style={{ color: "var(--arc-dim)" }}>
+                      {similar.map((item) => (
+                        <li key={item._id}>{item.title} <span className="font-mono text-[11px]">/{item.slug}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">

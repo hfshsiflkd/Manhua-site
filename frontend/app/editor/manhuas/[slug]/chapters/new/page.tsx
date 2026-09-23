@@ -253,7 +253,10 @@ export default function EditorNewChapterPage() {
             setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: "cancelled" } : page));
             return;
           }
-          const message = (err as { message?: string })?.message || "Upload амжилтгүй";
+          const message =
+            (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
+            (err as { message?: string })?.message ||
+            "Upload амжилтгүй";
           setPages((prev) => prev.map((page) => page.id === item.id ? { ...page, status: "failed", error: message } : page));
           throw err;
         } finally {

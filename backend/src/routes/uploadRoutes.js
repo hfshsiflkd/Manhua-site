@@ -28,7 +28,10 @@ function sendError(res, err) {
     err instanceof ImagePolicyError || status < 500
       ? err.message
       : "Зураг боловсруулахад алдаа гарлаа.";
-  return res.status(status).json({ message });
+  const body = { message };
+  if (err.code) body.code = err.code;
+  if (err.quota) body.quota = err.quota;
+  return res.status(status).json(body);
 }
 
 function multerErrorHandler(err, req, res, next) {

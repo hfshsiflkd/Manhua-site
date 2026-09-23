@@ -13,13 +13,23 @@ interface EditorLayoutProps {
 
 export default function EditorLayout({ children }: EditorLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const pathname = usePathname();
 
   const roleRaw = user?.role;
   const roleNorm = (roleRaw || "").toLowerCase().trim();
   const isAdmin = roleNorm === "admin";
   const isEditor = roleNorm === "editor" || roleNorm === "translator";
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--arc-bg)" }}>
+        <p className="text-sm" style={{ color: "var(--arc-muted)" }}>
+          Ачааллаж байна...
+        </p>
+      </div>
+    );
+  }
 
   if (!user || (!isEditor && !isAdmin)) {
     return (

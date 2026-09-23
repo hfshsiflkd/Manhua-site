@@ -352,6 +352,67 @@ export async function editorGetMyManhuas() {
   return res.data;
 }
 
+export async function editorGetSimilarManhuas(title: string) {
+  const res = await api.get<{ items: Array<{ _id: string; title: string; titleEn?: string; slug: string; coverImage?: string }> }>(
+    "/editor/manhuas/similar",
+    { params: { title } }
+  );
+  return res.data?.items || [];
+}
+
+export type EditorOnboardingMeta = {
+  termsVersion: string;
+  skills: Array<{ id: string; label: string }>;
+  experience: Array<{ id: string; label: string }>;
+  languages: Array<{ id: string; label: string }>;
+  role?: string;
+  eligible?: boolean;
+  alreadyEditor?: boolean;
+  staff?: boolean;
+  selfServe?: boolean;
+  profile?: {
+    penName: string;
+    bio: string;
+    skills: string[];
+    experience: string;
+    languages: string[];
+    portfolioUrl?: string | null;
+  } | null;
+};
+
+export async function getEditorOnboarding() {
+  const res = await api.get<EditorOnboardingMeta>("/user/editor-onboarding");
+  return res.data;
+}
+
+export async function becomeEditor(payload: {
+  penName: string;
+  bio: string;
+  skills: string[];
+  experience: string;
+  languages: string[];
+  customLanguage?: string;
+  portfolioUrl?: string;
+  acceptTerms: boolean;
+}) {
+  const res = await api.post<{
+    success: boolean;
+    alreadyEditor?: boolean;
+    token: string;
+    user: {
+      _id: string;
+      username: string;
+      email: string;
+      role: string;
+      isVIP: boolean;
+      vipExpiresAt?: string | null;
+      avatar?: string | null;
+    };
+    profile?: EditorOnboardingMeta["profile"];
+  }>("/user/become-editor", payload);
+  return res.data;
+}
+
 // ✅ Editor – шинэ манхуа үүсгэх
 export async function editorCreateManhua(payload: {
   title: string;
@@ -363,8 +424,12 @@ export async function editorCreateManhua(payload: {
   coverImageUrl?: string;
   genres?: string[];
   teamId?: string | null;
+  idempotencyKey?: string;
 }) {
-  const res = await api.post<Manhua>("/editor/manhuas", payload);
+  const idempotencyKey = payload.idempotencyKey || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`);
+  const res = await api.post<Manhua>("/editor/manhuas", payload, {
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
   return res.data;
 }
 

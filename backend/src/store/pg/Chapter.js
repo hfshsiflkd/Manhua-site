@@ -112,6 +112,7 @@ class ChapterQuery {
     this._skip = 0;
     this._limit = null;
     this._populateManhua = false;
+    this._populateManhuaSelect = null;
   }
   sort(spec) {
     this._sort = spec;
@@ -125,8 +126,11 @@ class ChapterQuery {
     this._lean = true;
     return this;
   }
-  populate(field) {
-    if (field === "manhua" || field?.path === "manhua") this._populateManhua = true;
+  populate(field, select) {
+    if (field === "manhua" || field?.path === "manhua") {
+      this._populateManhua = true;
+      this._populateManhuaSelect = select || field?.select || null;
+    }
     return this;
   }
   skip(n) {
@@ -162,9 +166,9 @@ class ChapterQuery {
       const Manhua = require("./Manhua");
       for (const doc of rows) {
         if (!doc) continue;
-        doc.manhua = await Manhua.findById(asId(doc.manhua))
-          .select("title slug coverImage coverImageUrl")
-          .lean();
+        const q = Manhua.findById(asId(doc.manhua));
+        if (this._populateManhuaSelect) q.select(this._populateManhuaSelect);
+        doc.manhua = await q.lean();
       }
     }
     return this.one ? rows[0] || null : rows;

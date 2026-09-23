@@ -12,25 +12,21 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const [checking, setChecking] = useState(true);
 
   const isAdmin =
     (user as { role?: string } | null | undefined)?.role === "admin";
 
   useEffect(() => {
-    // Small delay to allow initial auth fetch; then gate by role.
-    const timer = setTimeout(() => {
-      if (!user) {
-        router.replace("/login");
-      } else if (!isAdmin) {
-        router.replace("/");
-      }
-      setChecking(false);
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [user, isAdmin, router]);
+    if (!ready) return;
+    if (!user) {
+      router.replace("/login");
+    } else if (!isAdmin) {
+      router.replace("/");
+    }
+    setChecking(false);
+  }, [ready, user, isAdmin, router]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: "var(--arc-bg)" }}>

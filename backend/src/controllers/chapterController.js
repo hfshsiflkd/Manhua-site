@@ -8,6 +8,7 @@ const { signPages } = require("../utils/signPages");
 const { formatChapterPage } = require("../utils/chapterPage");
 const { invalidateManhuaChapterReads } = require("../services/chapterReadCache");
 const { createChapterOnce } = require("../services/chapterIdempotency");
+const quota = require("../services/editorQuotaService");
 
 /* =====================================================
    🔥 IN-MEMORY CACHE (60 секунд)
@@ -64,9 +65,15 @@ function hasTeamAccess(role) {
 function isManhuaOwner(manhua, userId) {
   if (!manhua || !userId) return false;
   const uid = String(userId);
-  if (String(manhua.createdBy) === uid) return true;
+  const createdBy = manhua.createdBy && typeof manhua.createdBy === "object"
+    ? manhua.createdBy._id || manhua.createdBy.id
+    : manhua.createdBy;
+  if (String(createdBy) === uid) return true;
   if (Array.isArray(manhua.owners)) {
-    return manhua.owners.some((o) => String(o) === uid);
+    return manhua.owners.some((o) => {
+      const id = o && typeof o === "object" ? o._id || o.id : o;
+      return String(id) === uid;
+    });
   }
   return false;
 }
@@ -457,6 +464,10 @@ exports.editorUpdateChapter = async (req, res, next) => {
     if (status !== undefined) chapter.status = status;
     if (Array.isArray(pages)) {
       chapter.pages = pages.map((page, idx) => formatChapterPage(page, idx));
+      await quota.assertSelfServeAssetUrls(
+        req.user,
+        chapter.pages.map((page) => page.imageUrl).filter(Boolean)
+      );
     }
 
     await chapter.save();
@@ -544,6 +555,10 @@ exports.editorCreateChapter = async (req, res, next) => {
     if (Array.isArray(pages)) {
       formattedPages = pages.map((p, idx) => formatChapterPage(p, idx));
     }
+    await quota.assertSelfServeAssetUrls(
+      req.user,
+      formattedPages.map((p) => p.imageUrl).filter(Boolean)
+    );
 
     try {
       const { chapter, replayed } = await createChapterOnce({

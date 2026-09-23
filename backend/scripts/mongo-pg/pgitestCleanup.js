@@ -1,5 +1,24 @@
 "use strict";
 
+const fs = require("fs");
+
+async function applySqlFile(query, filePath) {
+  const sql = fs.readFileSync(filePath, "utf8");
+  const statements = sql
+    .split(";")
+    .map((part) =>
+      part
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("--"))
+        .join("\n")
+        .trim()
+    )
+    .filter(Boolean);
+  for (const statement of statements) {
+    await query(statement);
+  }
+}
+
 /**
  * Delete only integration-test rows. Never match quarantine placeholders
  * or migrated source rows (those are not @pgitest.local / pgitest-* slugs).
@@ -215,6 +234,21 @@ async function cleanupPgitest(query, { since } = {}) {
        )
   `);
   await query(`
+    DELETE FROM arc.editor_quota_ledger
+    WHERE extra->>'pgitest' = 'true'
+       OR user_id IN (SELECT id FROM arc.users WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local')
+  `);
+  await query(`
+    DELETE FROM arc.published_uploads
+    WHERE extra->>'pgitest' = 'true'
+       OR user_id IN (SELECT id FROM arc.users WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local')
+  `);
+  await query(`
+    DELETE FROM arc.editor_profiles
+    WHERE extra->>'pgitest' = 'true'
+       OR user_id IN (SELECT id FROM arc.users WHERE extra->>'pgitest' = 'true' OR email LIKE '%@pgitest.local')
+  `);
+  await query(`
     DELETE FROM arc.users
     WHERE extra->>'pgitest' = 'true'
        OR email LIKE '%@pgitest.local'
@@ -249,4 +283,4 @@ async function migrationSnapshot(query) {
   return r.rows[0];
 }
 
-module.exports = { cleanupPgitest, migrationSnapshot };
+module.exports = { cleanupPgitest, migrationSnapshot, applySqlFile };

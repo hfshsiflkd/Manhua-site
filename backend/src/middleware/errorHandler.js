@@ -146,6 +146,8 @@ exports.errorHandler = (err, req, res, next) => {
   };
   if (code) response.code = code;
   if (extra) Object.assign(response, extra);
+  if (err.quota) response.quota = err.quota;
+  if (err.fields) response.fields = err.fields;
 
   // Stack-ийг production биш үед л буцаана
   if (process.env.NODE_ENV !== "production" && err.stack) {

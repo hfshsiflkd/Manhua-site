@@ -117,11 +117,24 @@ function createImageUploadService(deps = {}) {
     const store = storageOrDefault();
     const userId = String(user._id || user.id);
     const key = `staging/${userId}/${purpose}/${Date.now()}-${crypto.randomBytes(16).toString("hex")}`;
-    const uploadUrl = await store.signPut({
-      key,
-      contentType: String(contentType).toLowerCase(),
-      contentLength: size,
-    });
+    if (purpose === "chapter" || purpose === "cover") {
+      const quota = require("./editorQuotaService");
+      await quota.reserveUpload({ user, bytes: size, idempotencyKey: key });
+    }
+    let uploadUrl;
+    try {
+      uploadUrl = await store.signPut({
+        key,
+        contentType: String(contentType).toLowerCase(),
+        contentLength: size,
+      });
+    } catch (err) {
+      if (purpose === "chapter" || purpose === "cover") {
+        const quota = require("./editorQuotaService");
+        await quota.releaseReservation({ user, kind: "upload", idempotencyKey: key });
+      }
+      throw err;
+    }
     const signedHeaderFlags = browserHeaders(uploadUrl);
     const headers = {};
     if (signedHeaderFlags["Content-Type"]) {
@@ -179,11 +192,18 @@ function createImageUploadService(deps = {}) {
     assertRole(user, payload.purpose);
     const policy = getPurpose(payload.purpose);
     const store = storageOrDefault();
+    const releaseQuota = async () => {
+      if (payload.purpose === "chapter" || payload.purpose === "cover") {
+        const quota = require("./editorQuotaService");
+        await quota.releaseReservation({ user, kind: "upload", idempotencyKey: payload.key });
+      }
+    };
 
     let head;
     try {
       head = await store.head(payload.key);
     } catch {
+      await releaseQuota();
       throw new ImagePolicyError(
         "Файл олдсонгүй эсвэл аль хэдийн боловсруулагдсан. Дахин оруулна уу.",
         400
@@ -193,6 +213,7 @@ function createImageUploadService(deps = {}) {
     const actual = Number(head.ContentLength ?? head.contentLength ?? 0);
     if (!Number.isFinite(actual) || actual <= 0 || actual > policy.maxBytes) {
       await store.remove(payload.key).catch(() => {});
+      await releaseQuota();
       throw new ImagePolicyError(
         `Файлын бодит хэмжээ зөвшөөрөгдөхгүй. ${policy.label} дээд тал нь ${(policy.maxBytes / (1024 * 1024)).toFixed(0)}MB.`,
         400
@@ -200,6 +221,7 @@ function createImageUploadService(deps = {}) {
     }
     if (actual > Number(payload.contentLength)) {
       await store.remove(payload.key).catch(() => {});
+      await releaseQuota();
       throw new ImagePolicyError("Файлын бодит хэмжээ зарласнаас их байна.", 400);
     }
 
@@ -207,10 +229,12 @@ function createImageUploadService(deps = {}) {
     try {
       buffer = await store.getBuffer(payload.key);
     } catch {
+      await releaseQuota();
       throw new ImagePolicyError("Файлыг уншиж чадсангүй. Дахин оруулна уу.", 400);
     }
     if (!buffer || buffer.length !== actual) {
       await store.remove(payload.key).catch(() => {});
+      await releaseQuota();
       throw new ImagePolicyError("Файлын хэмжээ баталгаажаагүй байна.", 400);
     }
 
@@ -219,6 +243,7 @@ function createImageUploadService(deps = {}) {
       processed = await processImage(buffer, payload.purpose);
     } catch (err) {
       await store.remove(payload.key).catch(() => {});
+      await releaseQuota();
       throw err;
     }
 
@@ -227,9 +252,34 @@ function createImageUploadService(deps = {}) {
       parts = await publishParts(processed, payload.purpose, store);
     } catch (err) {
       await store.remove(payload.key).catch(() => {});
+      await releaseQuota();
       throw err;
     }
     await store.remove(payload.key).catch(() => {});
+
+    if (payload.purpose === "chapter" || payload.purpose === "cover") {
+      const quota = require("./editorQuotaService");
+      await quota.commitReservation({
+        user,
+        kind: "upload",
+        idempotencyKey: payload.key,
+        bytes: actual,
+      });
+      await quota.recordPublishedUpload({
+        user,
+        purpose: payload.purpose,
+        url: parts[0].url,
+        bytes: actual,
+      });
+      for (const part of parts.slice(1)) {
+        await quota.recordPublishedUpload({
+          user,
+          purpose: payload.purpose,
+          url: part.url,
+          bytes: 0,
+        });
+      }
+    }
 
     if (payload.purpose === "avatar") {
       await saveAvatar(user, parts[0].url);
@@ -258,6 +308,10 @@ function createImageUploadService(deps = {}) {
     }
     const store = storageOrDefault();
     await store.remove(payload.key).catch(() => {});
+    if (payload.purpose === "chapter" || payload.purpose === "cover") {
+      const quota = require("./editorQuotaService");
+      await quota.releaseReservation({ user, kind: "upload", idempotencyKey: payload.key });
+    }
     return { success: true };
   }
 

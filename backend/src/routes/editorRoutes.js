@@ -6,6 +6,7 @@ const { protect } = require("../middleware/authMiddleware");
 const { requireRole } = require("../middleware/authMiddleware");
 const {
   getMyManhuas,
+  getSimilarManhuas,
   createManhua,
   updateManhua,
   deleteManhua,
@@ -46,6 +47,7 @@ router.use(requireRole("admin", "editor", "translator"));
 
 // өөрийнхөө манхуа жагсаалт
 router.get("/manhuas/mine", getMyManhuas);
+router.get("/manhuas/similar", getSimilarManhuas);
 
 // шинэ манхуа үүсгэх
 router.post("/manhuas", createManhua);

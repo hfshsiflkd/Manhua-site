@@ -18,7 +18,9 @@ const feedbackRoutes = require("./feedbackRoutes");
 const requestRoutes = require("./requestRoutes");
 const userController = require("../controllers/userController");
 const teamController = require("../controllers/teamController");
+const editorOnboardingController = require("../controllers/editorOnboardingController");
 const { protect } = require("../middleware/authMiddleware");
+const { becomeEditorLimiter } = require("../middleware/forgotPasswordLimiter");
 
 router.use("/auth", authRoutes);
 
@@ -40,6 +42,13 @@ router.get(
 router.patch("/user/profile", protect, userController.updateProfile);
 router.patch("/user/email", protect, userController.updateEmail);
 router.patch("/user/password", protect, userController.updatePassword);
+router.get("/user/editor-onboarding", protect, editorOnboardingController.getEditorOnboardingMeta);
+router.post(
+  "/user/become-editor",
+  protect,
+  becomeEditorLimiter,
+  editorOnboardingController.becomeEditor
+);
 
 // Team invites for all logged-in users
 router.get("/me/team-invites", protect, teamController.listMyTeamInvites);

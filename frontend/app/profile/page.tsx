@@ -19,6 +19,7 @@ import { ProfileHeader } from "./components/ProfileHeader";
 import { ContinueReading } from "./components/ContinueReading";
 import { LibraryTabs } from "./components/LibraryTabs";
 import { ProfileSettings } from "./components/ProfileSettings";
+import { BecomeEditorCard } from "./components/BecomeEditorCard";
 import { VipPurchase } from "./components/VipPurchase";
 import { useToast } from "@/app/components/ToastProvider";
 
@@ -28,6 +29,7 @@ interface MeResponse {
   _id: string;
   username: string;
   email: string;
+  role?: string;
   isVIP: boolean;
   vipExpiresAt?: string | null;
 }
@@ -227,6 +229,8 @@ export default function ProfilePage() {
       >
         {/* Main column */}
         <div className="space-y-5">
+          <BecomeEditorCard />
+
           {/* Team invites */}
           {(loadingInvites || invites.length > 0) && (
             <section className="rounded-[14px] p-4 sm:p-5" style={{ border: "1px solid var(--arc-border)", background: "var(--arc-card)" }}>

@@ -79,4 +79,30 @@ const registerLimiter = rateLimit({
   },
 });
 
-module.exports = { forgotPasswordIpLimiter, forgotPasswordEmailLimiter, loginLimiter, registerLimiter };
+const becomeEditorLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: true,
+  ...(redisClient
+    ? { store: createRedisRateLimitStore({ client: redisClient, prefix: "rl:" }) }
+    : {}),
+  keyGenerator: (req) => {
+    const uid = req.user?._id || req.user?.id;
+    return uid ? `become-editor:${uid}` : `become-editor:ip:${ipKeyGenerator(req)}`;
+  },
+  message: {
+    success: false,
+    message: "Хэт олон оролдлого. Нэг цагийн дараа дахин оролдоно уу.",
+    code: "RATE_LIMIT_EXCEEDED",
+  },
+});
+
+module.exports = {
+  forgotPasswordIpLimiter,
+  forgotPasswordEmailLimiter,
+  loginLimiter,
+  registerLimiter,
+  becomeEditorLimiter,
+};

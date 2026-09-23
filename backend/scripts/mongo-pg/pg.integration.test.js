@@ -17,7 +17,7 @@ const {
   isUsablePostgresUrl,
   describePgTarget,
 } = require("./loadExplicitEnv");
-const { cleanupPgitest, migrationSnapshot } = require("./pgitestCleanup");
+const { cleanupPgitest, migrationSnapshot, applySqlFile } = require("./pgitestCleanup");
 
 function parseEnvFile(file) {
   const out = {};
@@ -202,6 +202,10 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
   }
 
   before(async () => {
+    await applySqlFile(
+      query,
+      path.join(__dirname, "../../../supabase/migrations/20260923120000_self_serve_editor.sql")
+    );
     await cleanupPgitest(query);
     snapshot = await migrationSnapshot(query);
     testStartedAt = new Date();
@@ -716,5 +720,417 @@ if (!target.ok || !backendEnv.JWT_SECRET) {
     } finally {
       delete process.env.API_READ_ONLY;
     }
+  });
+
+  test("self-serve editor onboarding, JWT refresh, ownership, quota, regressions", async () => {
+    const jwt = require("jsonwebtoken");
+    const { newId } = require("../../src/store/pg/helpers");
+    const quota = require("../../src/services/editorQuotaService");
+    const { invalidateUserCache } = require("../../src/middleware/authMiddleware");
+    const onboardStamp = `${stamp}sse`;
+    const deviceId = `pgitest-dev-${onboardStamp}`;
+    const passwordHashBefore = {};
+
+    function onboardBody(overrides = {}) {
+      return {
+        penName: "Arc Pen",
+        bio: "Энэ бол хангалттай урт танилцуулга текст юм шүү.",
+        skills: ["translation", "cleanup"],
+        experience: "beginner",
+        languages: ["mn"],
+        acceptTerms: true,
+        role: "admin",
+        userId: "ffffffffffffffffffffffff",
+        isAdmin: true,
+        ...overrides,
+      };
+    }
+
+    async function makeUser(username, extras = {}) {
+      const user = await User.create({
+        username,
+        email: `${username}@pgitest.local`,
+        password,
+        role: "user",
+        sessionToken: genSessionToken(),
+        deviceId,
+        lastDeviceId: deviceId,
+        extra: { pgitest: true },
+        ...extras,
+      });
+      ids.users.push(String(user._id));
+      return { user, token: genJwt(user) };
+    }
+
+    if (!ctx.manhua) {
+      const admin = ctx.admin ? { user: ctx.admin, token: ctx.adminToken } : await makeStaff("admin", `pgitsad_${onboardStamp}`);
+      const parent = await request("POST", "/api/editor/manhuas", {
+        headers: authHeaders(admin.token, deviceId),
+        body: { title: `Pgitest sse parent ${onboardStamp}`, slug: `pgitest-sse-parent-${onboardStamp}` },
+      });
+      assert.equal(parent.status, 201, parent.raw);
+      ctx.manhua = parent.json;
+      ids.manhuas.push(String(parent.json._id));
+      await markPgitest("manhuas", parent.json._id);
+    }
+
+    const unauth = await request("POST", "/api/user/become-editor", { body: onboardBody() });
+    assert.equal(unauth.status, 401);
+
+    const userA = await makeUser(`pgitse_${onboardStamp}a`, { isVIP: true, vipExpiresAt: new Date(Date.now() + 86400000) });
+    const userB = await makeUser(`pgitse_${onboardStamp}b`);
+    const failUser = await makeUser(`pgitse_${onboardStamp}f`);
+    const quotaUser = await makeUser(`pgitse_${onboardStamp}q`);
+
+    const hashA = await query(`SELECT password_hash, is_vip, username FROM arc.users WHERE id=$1`, [
+      String(userA.user._id),
+    ]);
+    passwordHashBefore.id = String(userA.user._id);
+    passwordHashBefore.hash = hashA.rows[0].password_hash;
+    passwordHashBefore.vip = hashA.rows[0].is_vip;
+    passwordHashBefore.username = hashA.rows[0].username;
+
+    const fav = await request("POST", `/api/me/favorites/${ctx.manhua._id}`, {
+      headers: authHeaders(userA.token, deviceId),
+    });
+    assert.ok([200, 201].includes(fav.status), fav.raw);
+    const bm = await request("POST", "/api/me/bookmarks", {
+      headers: authHeaders(userA.token, deviceId),
+      body: { manhuaId: String(ctx.manhua._id), chapterNumber: 1, pageNumber: 1 },
+    });
+    assert.ok([200, 201].includes(bm.status), bm.raw);
+
+    const invalid = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(userA.token, deviceId),
+      body: onboardBody({ penName: "x", acceptTerms: false, bio: "short" }),
+    });
+    assert.equal(invalid.status, 400, invalid.raw);
+    assert.ok(invalid.json.fields.penName);
+    assert.ok(invalid.json.fields.acceptTerms);
+
+    await query(`UPDATE arc.users SET blocked=true WHERE id=$1`, [String(userB.user._id)]);
+    await invalidateUserCache(String(userB.user._id));
+    const banned = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(userB.token, deviceId),
+      body: onboardBody({ penName: "Banned Pen" }),
+    });
+    assert.ok([401, 403].includes(banned.status), banned.raw);
+    await query(`UPDATE arc.users SET blocked=false, is_active=true WHERE id=$1`, [String(userB.user._id)]);
+    await invalidateUserCache(String(userB.user._id));
+
+    await query(`UPDATE arc.users SET lock_until=now() + interval '10 minutes', lock_reason='LOCKED' WHERE id=$1`, [
+      String(userB.user._id),
+    ]);
+    await invalidateUserCache(String(userB.user._id));
+    const locked = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(userB.token, deviceId),
+      body: onboardBody({ penName: "Locked Pen" }),
+    });
+    assert.equal(locked.status, 423, locked.raw);
+    await query(`UPDATE arc.users SET lock_until=NULL, lock_reason='' WHERE id=$1`, [String(userB.user._id)]);
+    await invalidateUserCache(String(userB.user._id));
+
+    const adminActor = ctx.adminToken
+      ? { token: ctx.adminToken, id: String(ctx.admin._id) }
+      : await makeStaff("admin", `pgitsab_${onboardStamp}`).then((s) => ({
+          token: s.token,
+          id: String(s.user._id),
+        }));
+    const editorActor = ctx.editorToken
+      ? { token: ctx.editorToken }
+      : await makeStaff("editor", `pgitseleg_${onboardStamp}`).then((s) => ({ token: s.token }));
+
+    const adminBlocked = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(adminActor.token, deviceId),
+      body: onboardBody(),
+    });
+    assert.equal(adminBlocked.status, 403, adminBlocked.raw);
+    const adminRole = await query(`SELECT role FROM arc.users WHERE id=$1`, [adminActor.id]);
+    assert.equal(adminRole.rows[0].role, "admin");
+
+    const legacyEditor = await request("POST", "/api/editor/manhuas", {
+      headers: authHeaders(editorActor.token, deviceId),
+      body: { title: `Pgitest legacy ${onboardStamp}`, slug: `pgitest-legacy-${onboardStamp}` },
+    });
+    assert.equal(legacyEditor.status, 201, legacyEditor.raw);
+    ids.manhuas.push(String(legacyEditor.json._id));
+    await markPgitest("manhuas", legacyEditor.json._id);
+
+    await query(
+      `UPDATE arc.users SET extra = coalesce(extra,'{}'::jsonb) || '{"pgitest":true,"pgitestTxFail":true}'::jsonb WHERE id=$1`,
+      [String(failUser.user._id)]
+    );
+    await invalidateUserCache(String(failUser.user._id));
+    const txFail = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(failUser.token, deviceId),
+      body: onboardBody({ penName: "Fail Pen" }),
+    });
+    assert.ok(txFail.status >= 500, txFail.raw);
+    const failState = await query(`SELECT role FROM arc.users WHERE id=$1`, [String(failUser.user._id)]);
+    assert.equal(failState.rows[0].role, "user");
+    const failProfile = await query(`SELECT 1 FROM arc.editor_profiles WHERE user_id=$1`, [
+      String(failUser.user._id),
+    ]);
+    assert.equal(failProfile.rowCount, 0);
+    await query(
+      `UPDATE arc.users SET extra = extra - 'pgitestTxFail' WHERE id=$1`,
+      [String(failUser.user._id)]
+    );
+    await invalidateUserCache(String(failUser.user._id));
+
+    const concurrentBecome = await Promise.all([
+      request("POST", "/api/user/become-editor", {
+        headers: authHeaders(userA.token, deviceId),
+        body: onboardBody({ penName: "Arc Pen A" }),
+      }),
+      request("POST", "/api/user/become-editor", {
+        headers: authHeaders(userA.token, deviceId),
+        body: onboardBody({ penName: "Arc Pen A2" }),
+      }),
+    ]);
+    for (const row of concurrentBecome) {
+      assert.ok([200, 201].includes(row.status), row.raw);
+      assert.equal(row.json.user.role, "editor");
+      assert.ok(row.json.token);
+    }
+    const decoded = jwt.decode(concurrentBecome[0].json.token);
+    assert.equal(decoded.role, "editor");
+    const profileCount = await query(`SELECT count(*)::int AS n FROM arc.editor_profiles WHERE user_id=$1`, [
+      String(userA.user._id),
+    ]);
+    assert.equal(profileCount.rows[0].n, 1);
+
+    const afterUser = await query(`SELECT password_hash, is_vip, username, role FROM arc.users WHERE id=$1`, [
+      String(userA.user._id),
+    ]);
+    assert.equal(afterUser.rows[0].password_hash, passwordHashBefore.hash);
+    assert.equal(afterUser.rows[0].username, passwordHashBefore.username);
+    assert.equal(afterUser.rows[0].is_vip, true);
+    assert.equal(afterUser.rows[0].role, "editor");
+
+    const editorToken = concurrentBecome[0].json.token;
+    const created = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(editorToken, deviceId), "Idempotency-Key": `manhua-${onboardStamp}-1` },
+      body: {
+        title: `Pgitest SSE ${onboardStamp}`,
+        slug: `pgitest-sse-${onboardStamp}`,
+        createdBy: String(userB.user._id),
+        owners: [String(userB.user._id)],
+        userId: String(userB.user._id),
+      },
+    });
+    assert.equal(created.status, 201, created.raw);
+    ids.manhuas.push(String(created.json._id));
+    await markPgitest("manhuas", created.json._id);
+    const owned = await query(`SELECT created_by FROM arc.manhuas WHERE id=$1`, [String(created.json._id)]);
+    assert.equal(String(owned.rows[0].created_by), String(userA.user._id));
+
+    const slugTwo = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(editorToken, deviceId), "Idempotency-Key": `manhua-${onboardStamp}-slug2` },
+      body: { title: `Pgitest SSE ${onboardStamp} copy`, slug: `pgitest-sse-${onboardStamp}` },
+    });
+    assert.ok([201, 409].includes(slugTwo.status), slugTwo.raw);
+    if (slugTwo.status === 201) {
+      ids.manhuas.push(String(slugTwo.json._id));
+      await markPgitest("manhuas", slugTwo.json._id);
+      assert.notEqual(slugTwo.json.slug, created.json.slug);
+    }
+
+    const similar = await request("GET", `/api/editor/manhuas/similar?title=${encodeURIComponent("Pgitest SSE")}`, {
+      headers: authHeaders(editorToken, deviceId),
+    });
+    assert.equal(similar.status, 200, similar.raw);
+    assert.ok(Array.isArray(similar.json.items));
+
+    const becomeB = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(userB.token, deviceId),
+      body: onboardBody({ penName: "Arc Pen B" }),
+    });
+    assert.ok([200, 201].includes(becomeB.status), becomeB.raw);
+    const tokenB = becomeB.json.token;
+    const steal = await request("PATCH", `/api/editor/manhuas/${created.json._id}`, {
+      headers: authHeaders(tokenB, deviceId),
+      body: { title: "stolen" },
+    });
+    assert.ok([403, 404].includes(steal.status), steal.raw);
+
+    const foreignCover = await request("POST", "/api/editor/manhuas", {
+      headers: authHeaders(tokenB, deviceId),
+      body: {
+        title: `Pgitest steal cover ${onboardStamp}`,
+        slug: `pgitest-steal-${onboardStamp}`,
+        coverImage: "https://cdn.example.com/someone-elses-cover.webp",
+      },
+    });
+    assert.equal(foreignCover.status, 403, foreignCover.raw);
+
+    const pageUrl = `https://cdn.example.com/pgitest-sse-${onboardStamp}.webp`;
+    await query(
+      `INSERT INTO arc.published_uploads (id, user_id, purpose, url, bytes, extra, created_at)
+       VALUES ($1,$2,'chapter',$3,12,'{"pgitest":true}'::jsonb, now())`,
+      [newId(), String(userA.user._id), pageUrl]
+    );
+    const ownChapter = await request("POST", `/api/editor/manhuas/${created.json.slug}/chapters`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: {
+        chapterNumber: 1,
+        title: "one",
+        status: "draft",
+        pages: [{ imageUrl: pageUrl }],
+      },
+    });
+    assert.equal(ownChapter.status, 201, ownChapter.raw);
+    ids.chapters.push(String(ownChapter.json._id));
+    await markPgitest("chapters", ownChapter.json._id);
+
+    const stealChapter = await request("PUT", `/api/editor/chapters/${ownChapter.json._id}`, {
+      headers: authHeaders(tokenB, deviceId),
+      body: { title: "nope" },
+    });
+    assert.ok([403, 404].includes(stealChapter.status), stealChapter.raw);
+
+    const stealPage = await request("POST", `/api/editor/manhuas/${created.json.slug}/chapters`, {
+      headers: authHeaders(tokenB, deviceId),
+      body: {
+        chapterNumber: 2,
+        title: "nope",
+        pages: [{ imageUrl: pageUrl }],
+      },
+    });
+    assert.ok([403, 404].includes(stealPage.status), stealPage.raw);
+
+    const published = await request("PUT", `/api/editor/chapters/${ownChapter.json._id}`, {
+      headers: authHeaders(editorToken, deviceId),
+      body: { status: "published" },
+    });
+    assert.equal(published.status, 200, published.raw);
+
+    const publicCh = await request(
+      "GET",
+      `/api/manhuas/${encodeURIComponent(created.json.slug)}/chapters/1`
+    );
+    assert.ok([200, 403, 401].includes(publicCh.status), publicCh.raw);
+
+    const favAfter = await request("GET", "/api/me/favorites", {
+      headers: authHeaders(editorToken, deviceId),
+    });
+    assert.equal(favAfter.status, 200, favAfter.raw);
+    const favList = Array.isArray(favAfter.json) ? favAfter.json : favAfter.json.items || [];
+    assert.ok(favList.length >= 1);
+
+    const relogin = await request("POST", "/api/auth/login", {
+      headers: { "x-device-id": deviceId },
+      body: { identifier: userA.user.email, password },
+    });
+    assert.equal(relogin.status, 200, relogin.raw);
+    assert.equal(relogin.json.user.role, "editor");
+
+    const becomeQ = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(quotaUser.token, deviceId),
+      body: onboardBody({ penName: "Quota Pen" }),
+    });
+    assert.ok([200, 201].includes(becomeQ.status), becomeQ.raw);
+    const tokenQ = becomeQ.json.token;
+    for (let i = 0; i < 5; i += 1) {
+      const row = await request("POST", "/api/editor/manhuas", {
+        headers: { ...authHeaders(tokenQ, deviceId), "Idempotency-Key": `q-manhua-${onboardStamp}-${i}` },
+        body: { title: `Pgitest quota ${onboardStamp} ${i}`, slug: `pgitest-quota-${onboardStamp}-${i}` },
+      });
+      assert.equal(row.status, 201, row.raw);
+      ids.manhuas.push(String(row.json._id));
+      await markPgitest("manhuas", row.json._id);
+    }
+    const over = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(tokenQ, deviceId), "Idempotency-Key": `q-manhua-${onboardStamp}-over` },
+      body: { title: `Pgitest quota over ${onboardStamp}`, slug: `pgitest-quota-${onboardStamp}-over` },
+    });
+    assert.equal(over.status, 429, over.raw);
+    assert.equal(over.json.code, "SELF_SERVE_QUOTA");
+    assert.match(over.json.message, /манхва/i);
+
+    const replay = await request("POST", "/api/editor/manhuas", {
+      headers: { ...authHeaders(tokenQ, deviceId), "Idempotency-Key": `q-manhua-${onboardStamp}-0` },
+      body: { title: `Pgitest quota ${onboardStamp} 0`, slug: `pgitest-quota-${onboardStamp}-0` },
+    });
+    assert.ok([200, 201].includes(replay.status), replay.raw);
+
+    await query(
+      `INSERT INTO arc.editor_quota_ledger
+        (id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at)
+       VALUES ($1,$2,'upload', 10, $3, 'reserved', now() - interval '2 hours', '{"pgitest":true}'::jsonb, now() - interval '3 hours', now())`,
+      [newId(), String(quotaUser.user._id), `expired-${onboardStamp}`]
+    );
+    const expiredIgnored = await quota.reserveUpload({
+      user: { _id: quotaUser.user._id, extra: { pgitest: true } },
+      bytes: 2048,
+      idempotencyKey: `staging/${quotaUser.user._id}/cover/${onboardStamp}-fresh`,
+    });
+    assert.equal(expiredIgnored.status, "reserved");
+    await quota.releaseReservation({
+      user: { _id: quotaUser.user._id },
+      kind: "upload",
+      idempotencyKey: `staging/${quotaUser.user._id}/cover/${onboardStamp}-fresh`,
+    });
+
+    const abortKey = `staging/${quotaUser.user._id}/cover/${onboardStamp}-abort`;
+    await quota.reserveUpload({
+      user: { _id: quotaUser.user._id, extra: { pgitest: true } },
+      bytes: 4096,
+      idempotencyKey: abortKey,
+    });
+    await quota.releaseReservation({
+      user: { _id: quotaUser.user._id },
+      kind: "upload",
+      idempotencyKey: abortKey,
+    });
+    const afterAbort = await quota.reserveUpload({
+      user: { _id: quotaUser.user._id, extra: { pgitest: true } },
+      bytes: 4096,
+      idempotencyKey: abortKey,
+    });
+    assert.equal(afterAbort.status, "reserved");
+    await quota.releaseReservation({
+      user: { _id: quotaUser.user._id },
+      kind: "upload",
+      idempotencyKey: abortKey,
+    });
+
+    await query(
+      `INSERT INTO arc.editor_quota_ledger
+        (id, user_id, kind, bytes, idempotency_key, status, expires_at, extra, created_at, updated_at)
+       VALUES ($1,$2,'upload', $3, $4, 'committed', now() + interval '1 day', '{"pgitest":true}'::jsonb, now(), now())`,
+      [newId(), String(quotaUser.user._id), 500 * 1024 * 1024, `full-${onboardStamp}`]
+    );
+    await assert.rejects(
+      () =>
+        quota.reserveUpload({
+          user: { _id: quotaUser.user._id, extra: { pgitest: true } },
+          bytes: 1024,
+          idempotencyKey: `staging/${quotaUser.user._id}/cover/${onboardStamp}-overbytes`,
+        }),
+      (err) => err && err.code === "SELF_SERVE_QUOTA"
+    );
+
+    const concurrentQuota = await Promise.all(
+      Array.from({ length: 4 }, (_, i) =>
+        request("POST", "/api/editor/manhuas", {
+          headers: {
+            ...authHeaders(tokenQ, deviceId),
+            "Idempotency-Key": `q-conc-${onboardStamp}-${i}`,
+          },
+          body: { title: `Pgitest conc ${onboardStamp} ${i}`, slug: `pgitest-qconc-${onboardStamp}-${i}` },
+        })
+      )
+    );
+    assert.ok(concurrentQuota.every((row) => row.status === 429));
+
+    const translator = await makeStaff("translator", `pgitst_${onboardStamp}`);
+    const translatorStay = await request("POST", "/api/user/become-editor", {
+      headers: authHeaders(translator.token, translator.deviceId),
+      body: onboardBody(),
+    });
+    assert.equal(translatorStay.status, 403, translatorStay.raw);
+    const trRole = await query(`SELECT role FROM arc.users WHERE id=$1`, [String(translator.user._id)]);
+    assert.equal(trRole.rows[0].role, "translator");
   });
 }

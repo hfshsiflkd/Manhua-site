@@ -84,7 +84,7 @@ export default function EditorManhuasPage() {
           className="inline-flex items-center justify-center rounded-full px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80 whitespace-nowrap w-full sm:w-auto"
           style={{ background: "oklch(0.75 0.17 145)", color: "#07070e" }}
         >
-          + New Manhua
+          + Манхва нэмэх
         </Link>
       </div>
 
