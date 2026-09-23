@@ -149,8 +149,9 @@ exports.errorHandler = (err, req, res, next) => {
   if (err.quota) response.quota = err.quota;
   if (err.fields) response.fields = err.fields;
 
-  // Stack-ийг production биш үед л буцаана
-  if (process.env.NODE_ENV !== "production" && err.stack) {
+  // Stack/internal path only for local development. Production, test, and
+  // unset NODE_ENV must not leak traces to clients.
+  if (process.env.NODE_ENV === "development" && err.stack) {
     response.stack = err.stack;
   }
 

@@ -16,7 +16,12 @@ exports.getTrending = async (req, res, next) => {
   }
 };
 
-// GET /api/health
+// GET /api/stats/health
 exports.healthCheck = (req, res) => {
-  res.json({ status: "ok" });
+  const { deployCommit, deployId } = require("../config/writeGate");
+  res.json({
+    status: "ok",
+    commit: deployCommit(),
+    deploymentId: deployId(),
+  });
 };

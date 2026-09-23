@@ -80,11 +80,17 @@ app.use(auditContext);
    Health check
 ======================= */
 app.get("/", (req, res) => {
-  const { writesFrozen, inflightMutationCount, deployCommit } = require("./config/writeGate");
+  const {
+    writesFrozen,
+    inflightMutationCount,
+    deployCommit,
+    deployId,
+  } = require("./config/writeGate");
   res.json({
     message: "Manhua API is running",
     readOnly: writesFrozen(),
     commit: deployCommit(),
+    deploymentId: deployId(),
     inflightMutations: inflightMutationCount(),
   });
 });

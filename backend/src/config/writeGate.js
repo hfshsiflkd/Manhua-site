@@ -171,4 +171,5 @@ module.exports = {
   inflightMutationCount: () => inflightMutations,
   deployCommit: () =>
     process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT || null,
+  deployId: () => process.env.VERCEL_DEPLOYMENT_ID || null,
 };
